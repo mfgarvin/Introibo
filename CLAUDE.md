@@ -66,12 +66,15 @@ The `ParishService` in `lib/services/` exists for future HTTP-based loading but 
 
 `Parish` class fields:
 - `name`, `address`, `city`, `zipCode`, `phone`, `website`
+- `parishId` - optional unique identifier
 - `massTimes: List<String>` - e.g., `["Sunday: 10:30AM", "Monday: 8:00AM"]`
 - `confTimes: List<String>` - confession schedule
-- `latitude`, `longitude` - nullable, used for map markers
-- `contactInfo` - optional
+- `adoration: List<String>` - adoration schedule
+- `eventsSummary` - optional paragraph describing upcoming parish events
+- `latitude`, `longitude` - nullable, used for map markers (currently not in data)
+- `contactInfo`, `imageUrl` - optional
 
-JSON field mapping: `zip_code`, `www`, `mass_times`, `conf_times`, `contact_info`
+JSON field mapping: `parish_id`, `zip_code`, `website`, `mass_times`, `confessions`, `adoration`, `events_summary`
 
 ### Key Dependencies
 
@@ -115,21 +118,32 @@ urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 ### Parish Data
 
-`data/parishes.json` contains ~80+ parishes in Ohio with coordinates. Sample entry:
+`data/parishes.json` contains ~80+ parishes in Ohio. Sample entry:
 ```json
 {
-  "name": "Transfiguration",
-  "latitude": 41.4771636,
-  "longitude": -81.7767796,
-  "address": "12608 Madison Avenue",
-  "city": "Lakewood, OH",
-  "zip_code": "44107",
-  "phone": "(216) 521-7288",
-  "www": "lakewoodcatholicacademy.com",
-  "mass_times": ["Sunday: 9:00AM", "Saturday: 4:00PM"],
-  "conf_times": ["Saturday: 3:15PM to 3:45PM"]
+  "name": "St. Sebastian Parish",
+  "parish_id": "0689",
+  "address": "476 Mull Ave",
+  "city": "Akron",
+  "zip_code": "44320",
+  "phone": "330-836-2233",
+  "website": "www.stsebastian.org",
+  "mass_times": [
+    "Sunday: 9:00AM, 11:00AM",
+    "Saturday: 8:00AM, 4:30PM - Vigil Mass"
+  ],
+  "confessions": [
+    "Tuesday: 7:00PM to 7:30PM",
+    "Saturday: 9:30AM to 10:00AM"
+  ],
+  "adoration": [
+    "Tuesday: 8:30AM to 7:40PM"
+  ],
+  "events_summary": "St. Sebastian Parish has several Feast Day celebrations coming up..."
 }
 ```
+
+**Note:** The current data format does not include `latitude`/`longitude` coordinates. The map feature ("Find a Parish Near Me") and distance-based sorting require coordinates to function.
 
 ## Session Log: 2026-01-01
 
@@ -488,3 +502,32 @@ Consider integrating the Google Places API to automatically fetch real photos of
    - Place Photos: $7 per 1,000 requests
 
 4. **Alternative**: Continue using manual `image_url` entries in parish data for curated, cost-free images
+
+## Session Log: 2026-01-05
+
+### Updated Parish Data Format
+
+Adapted the app to work with a revised `parishes.json` format:
+
+1. **Parish model updates** (`lib/models/parish.dart`)
+   - Added `parishId` field for unique parish identifiers
+   - Added `adoration: List<String>` for adoration schedules
+   - Added `eventsSummary` for upcoming events description
+   - Changed JSON key from `www` to `website` (backward compatible)
+   - Changed JSON key from `conf_times` to `confessions` (backward compatible)
+
+2. **ParishDetailPage enhancements** (`lib/pages/parish_detail_page.dart`)
+   - Added Adoration card (orange accent, sun icon) - only shown when data exists
+   - Added Upcoming Events card (purple accent, event icon) - displays `events_summary`
+
+3. **Adoration quick access** (`lib/main.dart`, `lib/pages/filtered_parish_list_page.dart`)
+   - Added `ParishFilter.adoration` enum value
+   - Connected Adoration button on HomePage to filtered list (no longer "Coming Soon")
+   - Parishes with adoration schedules are now filterable and viewable
+
+4. **Data format changes**
+   - New JSON uses `website` instead of `www`
+   - New JSON uses `confessions` instead of `conf_times`
+   - New fields: `parish_id`, `adoration`, `events_summary`
+   - Coordinates (`latitude`/`longitude`) are no longer present in the data
+   - Map and distance features will need coordinates added to function

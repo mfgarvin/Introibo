@@ -835,11 +835,16 @@ class _HomePageState extends State<HomePage> {
             label: 'Adoration',
             color: const Color(0xFFE67E22),
             onTap: () {
-              _showComingSoon(
-                icon: Icons.brightness_5,
-                title: 'Adoration Times',
-                message: 'Adoration schedule information is coming soon. Check back later for updates!',
-                color: const Color(0xFFE67E22),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FilteredParishListPage(
+                    filter: ParishFilter.adoration,
+                    title: 'Adoration',
+                    accentColor: const Color(0xFFE67E22),
+                    userLocation: _userLocation,
+                  ),
+                ),
               );
             },
           ),

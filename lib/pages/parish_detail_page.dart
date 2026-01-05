@@ -273,11 +273,90 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Adoration Times Card
+                  if (parish.adoration.isNotEmpty)
+                    _ScheduleCard(
+                      icon: Icons.brightness_5,
+                      title: 'Adoration',
+                      items: parish.adoration,
+                      emptyMessage: '',
+                      color: Colors.orange,
+                      cardColor: cardColor,
+                      textColor: textColor,
+                      subtextColor: subtextColor,
+                      isDark: isDark,
+                    ),
+                  if (parish.adoration.isNotEmpty)
+                    const SizedBox(height: 16),
+
+                  // Events Summary Card
+                  if (parish.eventsSummary != null && parish.eventsSummary!.isNotEmpty)
+                    _buildEventsCard(cardColor, textColor, subtextColor),
+                  if (parish.eventsSummary != null && parish.eventsSummary!.isNotEmpty)
+                    const SizedBox(height: 16),
+
                   // Contact Info Card
                   _buildContactCard(cardColor, textColor, subtextColor),
                   const SizedBox(height: 30),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventsCard(Color cardColor, Color textColor, Color subtextColor) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 15,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.event,
+                  color: Colors.purple,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Upcoming Events',
+                style: GoogleFonts.lato(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            parish.eventsSummary!,
+            style: GoogleFonts.lato(
+              fontSize: 14,
+              color: textColor,
+              height: 1.5,
             ),
           ),
         ],

@@ -12,6 +12,7 @@ import 'parish_detail_page.dart';
 enum ParishFilter {
   massTimes,
   confession,
+  adoration,
   all,
 }
 
@@ -110,6 +111,11 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
       case ParishFilter.confession:
         _filteredParishes = _parishes
             .where((p) => p.confTimes.isNotEmpty)
+            .toList();
+        break;
+      case ParishFilter.adoration:
+        _filteredParishes = _parishes
+            .where((p) => p.adoration.isNotEmpty)
             .toList();
         break;
       case ParishFilter.all:
@@ -408,6 +414,8 @@ class _ParishCard extends StatelessWidget {
         return parish.massTimes;
       case ParishFilter.confession:
         return parish.confTimes;
+      case ParishFilter.adoration:
+        return parish.adoration;
       case ParishFilter.all:
         return parish.massTimes.isNotEmpty ? parish.massTimes : parish.confTimes;
     }
@@ -415,10 +423,21 @@ class _ParishCard extends StatelessWidget {
 
   Widget _buildTimesSection() {
     final times = _getTimesToShow();
-    final icon = filter == ParishFilter.confession
-        ? Icons.favorite_outline
-        : Icons.access_time;
-    final label = filter == ParishFilter.confession ? 'Confession' : 'Mass Times';
+    IconData icon;
+    String label;
+    switch (filter) {
+      case ParishFilter.confession:
+        icon = Icons.favorite_outline;
+        label = 'Confession';
+        break;
+      case ParishFilter.adoration:
+        icon = Icons.brightness_5;
+        label = 'Adoration';
+        break;
+      default:
+        icon = Icons.access_time;
+        label = 'Mass Times';
+    }
 
     // Show up to 3 times
     final displayTimes = times.take(3).toList();
