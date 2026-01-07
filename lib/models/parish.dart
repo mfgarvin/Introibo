@@ -15,6 +15,7 @@ class Parish {
   final double? longitude;
   final String? imageUrl;
   final String? bulletinUrl;
+  final DateTime? lastUpdated;
 
   Parish({
     required this.name,
@@ -33,6 +34,7 @@ class Parish {
     this.longitude,
     this.imageUrl,
     this.bulletinUrl,
+    this.lastUpdated,
   });
 
   factory Parish.fromJson(Map<String, dynamic> json) {
@@ -71,7 +73,14 @@ class Parish {
       longitude: _parseLongitude(json),
       imageUrl: json['image_url'],
       bulletinUrl: json['bulletin_url'],
+      lastUpdated: _parseTimestamp(json['timestamp']),
     );
+  }
+
+  /// Parse timestamp from YYYY-MM-DD format
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value == null || value is! String) return null;
+    return DateTime.tryParse(value);
   }
 
   /// Parse latitude from either 'latitude' field or 'lonlat' string

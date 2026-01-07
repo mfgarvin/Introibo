@@ -77,6 +77,13 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
     }
   }
 
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    final year = (date.year % 100).toString().padLeft(2, '0');
+    return '$month-$day-$year';
+  }
+
   Widget _buildHeaderBackground() {
     final hasImage = parish.imageUrl != null && parish.imageUrl!.isNotEmpty;
 
@@ -316,6 +323,19 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
                   // Contact Info Card
                   _buildContactCard(cardColor, textColor, subtextColor),
+                  const SizedBox(height: 20),
+
+                  // Last Updated indicator
+                  if (parish.lastUpdated != null)
+                    Center(
+                      child: Text(
+                        'Data last updated: ${_formatDate(parish.lastUpdated!)}',
+                        style: GoogleFonts.lato(
+                          fontSize: 12,
+                          color: subtextColor,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 30),
                 ],
               ),
