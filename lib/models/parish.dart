@@ -14,6 +14,7 @@ class Parish {
   final double? latitude;
   final double? longitude;
   final String? imageUrl;
+  final String? bulletinUrl;
 
   Parish({
     required this.name,
@@ -31,6 +32,7 @@ class Parish {
     this.latitude,
     this.longitude,
     this.imageUrl,
+    this.bulletinUrl,
   });
 
   factory Parish.fromJson(Map<String, dynamic> json) {
@@ -65,13 +67,40 @@ class Parish {
           ? List<String>.from(json['adoration'])
           : [],
       eventsSummary: json['events_summary'],
-      latitude: json['latitude'] != null
-          ? json['latitude'].toDouble()
-          : null,
-      longitude: json['longitude'] != null
-          ? json['longitude'].toDouble()
-          : null,
+      latitude: _parseLatitude(json),
+      longitude: _parseLongitude(json),
       imageUrl: json['image_url'],
+      bulletinUrl: json['bulletin_url'],
     );
+  }
+
+  /// Parse latitude from either 'latitude' field or 'lonlat' string
+  static double? _parseLatitude(Map<String, dynamic> json) {
+    if (json['latitude'] != null) {
+      return json['latitude'].toDouble();
+    }
+    // Parse from lonlat format: "longitude,latitude"
+    if (json['lonlat'] != null && json['lonlat'] is String) {
+      final parts = (json['lonlat'] as String).split(',');
+      if (parts.length == 2) {
+        return double.tryParse(parts[1].trim());
+      }
+    }
+    return null;
+  }
+
+  /// Parse longitude from either 'longitude' field or 'lonlat' string
+  static double? _parseLongitude(Map<String, dynamic> json) {
+    if (json['longitude'] != null) {
+      return json['longitude'].toDouble();
+    }
+    // Parse from lonlat format: "longitude,latitude"
+    if (json['lonlat'] != null && json['lonlat'] is String) {
+      final parts = (json['lonlat'] as String).split(',');
+      if (parts.length == 2) {
+        return double.tryParse(parts[0].trim());
+      }
+    }
+    return null;
   }
 }

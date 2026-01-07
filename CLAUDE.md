@@ -531,3 +531,41 @@ Adapted the app to work with a revised `parishes.json` format:
    - New fields: `parish_id`, `adoration`, `events_summary`
    - Coordinates (`latitude`/`longitude`) are no longer present in the data
    - Map and distance features will need coordinates added to function
+
+## Session Log: 2026-01-06
+
+### Updated Parish Data and Coordinate Parsing
+
+Updated the app to work with new parish data format containing 189 parishes:
+
+1. **New coordinate format support** (`lib/models/parish.dart`)
+   - Added `_parseLatitude()` and `_parseLongitude()` helper methods
+   - Parses `lonlat` field format: `"longitude,latitude"` (e.g., `"-81.4749273,41.5212583"`)
+   - Maintains backward compatibility with separate `latitude`/`longitude` fields
+   - Map and distance features now work with the new data format
+
+2. **Parish data update** (`data/parishes.json`)
+   - Updated to 189 parishes (up from ~80)
+   - New fields: `lonlat`, `bulletin_url`, `timestamp`
+   - 188/189 parishes have coordinates
+   - Removed `parishes.json.old` backup file
+
+### Bulletin Button Feature
+
+Added ability to view weekly parish bulletins:
+
+1. **Parish model update** (`lib/models/parish.dart`)
+   - Added `bulletinUrl` field (optional)
+   - Maps from `bulletin_url` JSON key
+
+2. **ParishDetailPage enhancement** (`lib/pages/parish_detail_page.dart`)
+   - Added `_launchBulletin()` method to open bulletin URL in external browser
+   - Added `_BulletinButton` widget with red accent color and article icon
+   - Button appears after address card, before mass times (only if bulletin exists)
+   - Opens PDF/bulletin in external browser app
+
+3. **UI design**
+   - Red accent color to distinguish from other action buttons
+   - Article icon (`Icons.article`) with "Weekly Bulletin" title
+   - Subtitle: "View the latest parish bulletin"
+   - Open-in-new icon indicates external link

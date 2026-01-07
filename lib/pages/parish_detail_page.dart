@@ -68,6 +68,15 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
     }
   }
 
+  Future<void> _launchBulletin() async {
+    if (parish.bulletinUrl == null || parish.bulletinUrl!.isEmpty) return;
+
+    final Uri bulletinUri = Uri.parse(parish.bulletinUrl!);
+    if (await canLaunchUrl(bulletinUri)) {
+      await launchUrl(bulletinUri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   Widget _buildHeaderBackground() {
     final hasImage = parish.imageUrl != null && parish.imageUrl!.isNotEmpty;
 
@@ -244,6 +253,16 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                     onTap: _launchMaps,
                   ),
                   const SizedBox(height: 16),
+
+                  // Bulletin Button
+                  if (parish.bulletinUrl != null && parish.bulletinUrl!.isNotEmpty)
+                    _BulletinButton(
+                      cardColor: cardColor,
+                      textColor: textColor,
+                      onTap: _launchBulletin,
+                    ),
+                  if (parish.bulletinUrl != null && parish.bulletinUrl!.isNotEmpty)
+                    const SizedBox(height: 16),
 
                   // Mass Times Card
                   _ScheduleCard(
@@ -753,6 +772,96 @@ class _TappableContactRow extends StatelessWidget {
                 color: kPrimaryColor.withOpacity(0.6),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BulletinButton extends StatelessWidget {
+  final Color cardColor;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  const _BulletinButton({
+    required this.cardColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 15,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.article,
+                  color: Colors.red,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Weekly Bulletin',
+                      style: GoogleFonts.lato(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'View the latest parish bulletin',
+                      style: GoogleFonts.lato(
+                        fontSize: 13,
+                        color: textColor.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.open_in_new,
+                  color: Colors.red,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
