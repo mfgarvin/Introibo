@@ -665,3 +665,38 @@ Changed from static local JSON to dynamic remote loading:
 3. **Added `http` package** (`pubspec.yaml`)
    - Version: `^1.2.0`
    - Used for fetching remote JSON data
+
+### Local Caching and Offline Support
+
+Enhanced data loading with local caching and offline handling:
+
+1. **ParishService caching** (`lib/services/parish_service.dart`)
+   - Caches parish JSON data locally using SharedPreferences
+   - Loads cached data first for instant startup
+   - Fetches fresh data from remote URL in background
+   - `isUsingCachedData` flag indicates offline mode
+   - `requiresInternet` flag for first-run without connection
+
+2. **Removed bundled JSON** (`pubspec.yaml`)
+   - `data/parishes.json` no longer bundled with APK
+   - Data must be downloaded on first launch
+   - Reduces app size and ensures fresh data
+
+3. **"Internet Required" screen** (`lib/main.dart`)
+   - `_buildRequiresInternetScreen()` widget
+   - Shown on first launch without internet connection
+   - WiFi-off icon with explanation message
+   - "Try Again" button to retry connection
+
+4. **Offline warning** (`lib/main.dart`)
+   - `_showOfflineWarning()` displays orange snackbar
+   - Shown when app uses cached data (couldn't reach server)
+   - Message: "Offline mode - data may be out of date"
+
+### Android Mailto Fix
+
+Added mailto scheme for email feedback on Android 11+:
+
+1. **AndroidManifest.xml queries**
+   - Added `mailto` scheme with `SENDTO` action
+   - Allows `url_launcher` to open email apps on Android 11+

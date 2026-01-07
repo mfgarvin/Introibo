@@ -233,13 +233,138 @@ class _HomePageState extends State<HomePage> {
         _parishes = parishes;
         _isLoading = false;
       });
+
+      // Check if internet is required (first run with no connection)
+      if (parishService.requiresInternet && mounted) {
+        return; // Will show the "requires internet" screen
+      }
+
       _updateNearbyParishes();
+
+      // Show warning if using cached/offline data
+      if (parishService.isUsingCachedData && mounted) {
+        _showOfflineWarning();
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       debugPrint('Error loading parish data: $e');
     }
+  }
+
+  Future<void> _retryLoadData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    await parishService.refreshParishes();
+    await _loadParishData();
+  }
+
+  void _showOfflineWarning() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.cloud_off, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Offline mode - data may be out of date',
+                style: GoogleFonts.lato(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.orange[700],
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Widget _buildRequiresInternetScreen() {
+    return Scaffold(
+      backgroundColor: _backgroundColor,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.wifi_off,
+                    size: 64,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  'Internet Connection Required',
+                  style: GoogleFonts.lato(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _textColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'MassGPT needs to download parish data on first launch. Please connect to the internet and try again.',
+                  style: GoogleFonts.lato(
+                    fontSize: 15,
+                    color: _subtextColor,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _retryLoadData,
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.refresh),
+                    label: Text(
+                      _isLoading ? 'Connecting...' : 'Try Again',
+                      style: GoogleFonts.lato(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _getUserLocation() async {
@@ -374,6 +499,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Show "requires internet" screen on first run with no connection
+    if (parishService.requiresInternet && !_isLoading) {
+      return _buildRequiresInternetScreen();
+    }
+
     return GestureDetector(
       onTap: () {
         _searchFocusNode.unfocus();
