@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'models/parish.dart';
 import 'pages/parish_detail_page.dart';
 import 'pages/find_parish_near_me_page.dart';
@@ -545,52 +546,48 @@ class _HomePageState extends State<HomePage> {
                   _buildNearbyParishesList(),
                   const SizedBox(height: 30),
 
-                  // Info Section
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: kPrimaryColor.withOpacity(_isDark ? 0.15 : 0.05),
+                  // About Section
+                  Material(
+                    color: kPrimaryColor.withOpacity(_isDark ? 0.15 : 0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      onTap: _showAboutPage,
                       borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: kPrimaryColor.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.info_outline,
-                            color: kPrimaryColor,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Cleveland/Akron Area',
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: kPrimaryColor.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.info_outline,
+                                color: kPrimaryColor,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                'About this app',
                                 style: GoogleFonts.lato(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                   color: _textColor,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '80+ parishes with mass times',
-                                style: GoogleFonts.lato(
-                                  fontSize: 12,
-                                  color: _subtextColor,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: _subtextColor,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -928,6 +925,31 @@ class _HomePageState extends State<HomePage> {
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, animation, secondaryAnimation) {
         return FavoritesPage(parishes: _parishes);
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          )),
+          child: child,
+        );
+      },
+    );
+  }
+
+  void _showAboutPage() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'About',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const AboutPage();
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return SlideTransition(
@@ -1422,7 +1444,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     setState(() {});
   }
 
-  void _submitFeedback() {
+  Future<void> _submitFeedback() async {
     if (_feedbackController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1437,21 +1459,56 @@ class _FeedbackPageState extends State<FeedbackPage> {
       _isSubmitting = true;
     });
 
-    // Simulate sending feedback
-    Future.delayed(const Duration(seconds: 1), () {
+    final subject = Uri.encodeComponent('MassGPT App Feedback');
+    final replyEmail = _emailController.text.trim();
+    final feedback = _feedbackController.text.trim();
+
+    final bodyLines = <String>[
+      feedback,
+      '',
+      '---',
+      'Sent from MassGPT App',
+    ];
+    if (replyEmail.isNotEmpty) {
+      bodyLines.insert(0, 'Reply to: $replyEmail');
+      bodyLines.insert(1, '');
+    }
+    final body = Uri.encodeComponent(bodyLines.join('\n'));
+
+    final mailtoUrl = Uri.parse('mailto:feedback@massgpt.org?subject=$subject&body=$body');
+
+    try {
+      if (await canLaunchUrl(mailtoUrl)) {
+        await launchUrl(mailtoUrl);
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open email app', style: GoogleFonts.lato()),
+              backgroundColor: Colors.red[400],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening email: $e', style: GoogleFonts.lato()),
+            backgroundColor: Colors.red[400],
+          ),
+        );
+      }
+    } finally {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
         });
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Thank you for your feedback!', style: GoogleFonts.lato()),
-            backgroundColor: kPrimaryColor,
-          ),
-        );
       }
-    });
+    }
   }
 
   @override
@@ -2026,6 +2083,224 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   );
                 },
               ),
+      ),
+    );
+  }
+}
+
+class AboutPage extends StatefulWidget {
+  const AboutPage({Key? key}) : super(key: key);
+
+  @override
+  State<AboutPage> createState() => _AboutPageState();
+}
+
+class _AboutPageState extends State<AboutPage> {
+  @override
+  void initState() {
+    super.initState();
+    themeNotifier.addListener(_onThemeChanged);
+  }
+
+  @override
+  void dispose() {
+    themeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = themeNotifier.isDarkMode;
+    final backgroundColor = isDark ? kBackgroundColorDark : kBackgroundColor;
+    final cardColor = isDark ? kCardColorDark : kCardColor;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtextColor = isDark ? Colors.white70 : Colors.black54;
+
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: backgroundColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.close, color: textColor),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            'About',
+            style: GoogleFonts.lato(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              // App icon
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.church,
+                  size: 64,
+                  color: kPrimaryColor,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // App name
+              Text(
+                'MassGPT',
+                style: GoogleFonts.lato(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Version 1.0.0',
+                style: GoogleFonts.lato(
+                  fontSize: 14,
+                  color: subtextColor,
+                ),
+              ),
+              const SizedBox(height: 32),
+              // Description card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 15,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'About This App',
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      // TODO: Fill in app description
+                      'MassGPT helps you find Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.',
+                      style: GoogleFonts.lato(
+                        fontSize: 14,
+                        color: subtextColor,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Credits card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 15,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Credits',
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      // TODO: Fill in credits
+                      'Developed with love for the Catholic community.',
+                      style: GoogleFonts.lato(
+                        fontSize: 14,
+                        color: subtextColor,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Contact card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 15,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Contact',
+                      style: GoogleFonts.lato(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      // TODO: Fill in contact info
+                      'feedback@massgpt.org',
+                      style: GoogleFonts.lato(
+                        fontSize: 14,
+                        color: kPrimaryColor,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
       ),
     );
   }

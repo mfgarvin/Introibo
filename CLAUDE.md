@@ -569,3 +569,78 @@ Added ability to view weekly parish bulletins:
    - Article icon (`Icons.article`) with "Weekly Bulletin" title
    - Subtitle: "View the latest parish bulletin"
    - Open-in-new icon indicates external link
+
+## Session Log: 2026-01-07
+
+### Last Updated Indicator
+
+Added data freshness indicator to parish detail page:
+
+1. **Parish model update** (`lib/models/parish.dart`)
+   - Added `lastUpdated` field (`DateTime?`)
+   - Added `_parseTimestamp()` to parse `timestamp` JSON field (YYYY-MM-DD format)
+
+2. **ParishDetailPage** (`lib/pages/parish_detail_page.dart`)
+   - Added `_formatDate()` method formatting dates as MM-DD-YY
+   - Displays "Data last updated: MM-DD-YY" at bottom of detail page
+
+### Data Verification Feedback Form
+
+Added user feedback form for verifying parish data accuracy:
+
+1. **Feedback trigger** (`lib/pages/parish_detail_page.dart`)
+   - "Is this information accurate?" button below last updated date
+   - Opens bottom sheet with verification form
+
+2. **`_DataFeedbackSheet` widget**
+   - Two choice buttons: "Yes, it's accurate" / "No, there's an issue"
+   - Issue category chips when reporting problems:
+     - Mass Times, Confession Times, Adoration, Address, Phone Number, Website, Other
+   - Optional text field for additional details
+   - Submit button with loading state
+
+3. **Email integration**
+   - Submitting opens email client with pre-filled content
+   - Subject: "Data Confirmed: [Parish]" or "Data Issue Report: [Parish]"
+   - Body includes parish info, status, issues, and details
+
+### Active Feedback System
+
+Made all feedback forms functional with email integration:
+
+1. **General Feedback** (`lib/main.dart`)
+   - FeedbackPage now opens email client on submit
+   - Subject: "MassGPT App Feedback"
+   - Includes user feedback and optional reply email
+
+2. **Parish Data Verification** (`lib/pages/parish_detail_page.dart`)
+   - Opens email with parish details and reported issues
+   - All feedback sent to `feedback@massgpt.org`
+
+### Dark Mode for Filtered Lists
+
+Added dark mode support to `FilteredParishListPage`:
+
+1. **Theme integration** (`lib/pages/filtered_parish_list_page.dart`)
+   - Added `themeNotifier` listener
+   - Background, app bar, and text colors adapt to theme
+   - Sort toggle button uses theme colors
+
+2. **`_ParishCard` widget updates**
+   - Accepts `cardColor`, `textColor`, `subtextColor` parameters
+   - All card elements adapt to dark mode
+   - Time chips use theme-aware colors
+
+### About Page
+
+Replaced info tooltip with About page:
+
+1. **Homepage update** (`lib/main.dart`)
+   - Changed bottom info section to "About this app" button
+   - Tapping opens About page with slide-up animation
+
+2. **`AboutPage` widget** (`lib/main.dart`)
+   - App icon, name, and version display
+   - Three placeholder cards: About This App, Credits, Contact
+   - Full dark mode support
+   - TODO comments for user to fill in details later

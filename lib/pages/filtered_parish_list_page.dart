@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/parish.dart';
-import '../main.dart' show kBackgroundColor, kCardColor;
+import '../main.dart' show kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, themeNotifier;
 import 'parish_detail_page.dart';
 
 enum ParishFilter {
@@ -49,7 +49,18 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   @override
   void initState() {
     super.initState();
+    themeNotifier.addListener(_onThemeChanged);
     _loadParishData();
+  }
+
+  @override
+  void dispose() {
+    themeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    setState(() {});
   }
 
   Future<void> _loadParishData() async {
@@ -148,10 +159,14 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = themeNotifier.isDarkMode;
+    final backgroundColor = isDark ? kBackgroundColorDark : kBackgroundColor;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Scaffold(
-      backgroundColor: kBackgroundColor,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: kBackgroundColor,
+        backgroundColor: backgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new, color: widget.accentColor),
@@ -160,7 +175,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         title: Text(
           widget.title,
           style: GoogleFonts.lato(
-            color: Colors.black87,
+            color: textColor,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -177,6 +192,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   }
 
   Widget _buildEmptyState() {
+    final isDark = themeNotifier.isDarkMode;
+    final subtextColor = isDark ? Colors.white70 : Colors.grey[600];
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -184,14 +202,14 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           Icon(
             Icons.search_off,
             size: 64,
-            color: Colors.grey[400],
+            color: isDark ? Colors.white38 : Colors.grey[400],
           ),
           const SizedBox(height: 16),
           Text(
             'No parishes found',
             style: GoogleFonts.lato(
               fontSize: 18,
-              color: Colors.grey[600],
+              color: subtextColor,
             ),
           ),
         ],
@@ -201,6 +219,10 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   Widget _buildParishList() {
     final canSortByDistance = widget.userLocation != null;
+    final isDark = themeNotifier.isDarkMode;
+    final cardColor = isDark ? kCardColorDark : kCardColor;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subtextColor = isDark ? Colors.white70 : Colors.black54;
 
     return Column(
       children: [
@@ -232,7 +254,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -243,7 +265,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                               ? Icons.near_me
                               : Icons.sort_by_alpha,
                           size: 14,
-                          color: Colors.black54,
+                          color: subtextColor,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -251,7 +273,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                           style: GoogleFonts.lato(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: Colors.black54,
+                            color: subtextColor,
                           ),
                         ),
                       ],
@@ -277,6 +299,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                 accentColor: widget.accentColor,
                 distance: distance,
                 showDistance: _sortOrder == SortOrder.distance && distance != null,
+                cardColor: cardColor,
+                textColor: textColor,
+                subtextColor: subtextColor,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -300,6 +325,9 @@ class _ParishCard extends StatelessWidget {
   final Color accentColor;
   final double? distance;
   final bool showDistance;
+  final Color cardColor;
+  final Color textColor;
+  final Color subtextColor;
   final VoidCallback onTap;
 
   const _ParishCard({
@@ -307,6 +335,9 @@ class _ParishCard extends StatelessWidget {
     required this.filter,
     required this.accentColor,
     required this.onTap,
+    required this.cardColor,
+    required this.textColor,
+    required this.subtextColor,
     this.distance,
     this.showDistance = false,
   });
@@ -319,7 +350,7 @@ class _ParishCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: kCardColor,
+          color: cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -357,7 +388,7 @@ class _ParishCard extends StatelessWidget {
                         style: GoogleFonts.lato(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -365,7 +396,7 @@ class _ParishCard extends StatelessWidget {
                         '${parish.city} ${parish.zipCode}',
                         style: GoogleFonts.lato(
                           fontSize: 13,
-                          color: Colors.black54,
+                          color: subtextColor,
                         ),
                       ),
                     ],
@@ -391,14 +422,14 @@ class _ParishCard extends StatelessWidget {
                   Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
-                    color: Colors.grey[400],
+                    color: subtextColor,
                   ),
               ],
             ),
             // Times section based on filter
             if (_getTimesToShow().isNotEmpty) ...[
               const SizedBox(height: 12),
-              Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+              Divider(height: 1, color: subtextColor.withOpacity(0.2)),
               const SizedBox(height: 12),
               _buildTimesSection(),
             ],
@@ -468,14 +499,14 @@ class _ParishCard extends StatelessWidget {
             ...displayTimes.map((time) => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: subtextColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     time,
                     style: GoogleFonts.lato(
                       fontSize: 12,
-                      color: Colors.black87,
+                      color: textColor,
                     ),
                   ),
                 )),
