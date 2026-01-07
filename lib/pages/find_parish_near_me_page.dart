@@ -144,6 +144,8 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                       options: MapOptions(
                         initialCenter: localUserLocation,
                         initialZoom: 13.0,
+                        minZoom: 8.0,
+                        maxZoom: 18.0,
                       ),
                       children: [
                         TileLayer(
@@ -153,8 +155,8 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                         ),
                         MarkerLayer(
                           markers: [
-                            if (userLocation != null) _buildUserLocationMarker(),
                             ..._buildParishMarkers(),
+                            if (userLocation != null) _buildUserLocationMarker(),
                           ],
                         ),
                       ],
