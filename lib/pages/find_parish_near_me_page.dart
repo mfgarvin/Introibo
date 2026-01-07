@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -7,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/parish.dart';
+import '../services/parish_service.dart';
 import '../main.dart' show kPrimaryColor, kSecondaryColor, kBackgroundColor, kCardColor;
 import 'parish_detail_page.dart';
 
@@ -36,12 +36,10 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
 
   Future<void> _loadParishData() async {
     try {
-      final String response = await DefaultAssetBundle.of(context)
-          .loadString('data/parishes.json');
-      final List<dynamic> data = json.decode(response);
+      final parishes = await parishService.getParishes();
 
       setState(() {
-        _parishes = data.map((jsonItem) => Parish.fromJson(jsonItem)).toList();
+        _parishes = parishes;
       });
     } catch (e) {
       debugPrint('Error loading parish data: $e');

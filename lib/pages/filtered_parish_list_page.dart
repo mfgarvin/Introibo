@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/parish.dart';
+import '../services/parish_service.dart';
 import '../main.dart' show kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, themeNotifier;
 import 'parish_detail_page.dart';
 
@@ -65,11 +64,10 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   Future<void> _loadParishData() async {
     try {
-      final String response = await rootBundle.loadString('data/parishes.json');
-      final List<dynamic> data = json.decode(response);
+      final parishes = await parishService.getParishes();
 
       setState(() {
-        _parishes = data.map((json) => Parish.fromJson(json)).toList();
+        _parishes = parishes;
         _calculateDistances();
         _applyFilter();
         _isLoading = false;

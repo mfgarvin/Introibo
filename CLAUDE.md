@@ -644,3 +644,24 @@ Replaced info tooltip with About page:
    - Three placeholder cards: About This App, Credits, Contact
    - Full dark mode support
    - TODO comments for user to fill in details later
+
+### Dynamic Parish Data Loading
+
+Changed from static local JSON to dynamic remote loading:
+
+1. **ParishService singleton** (`lib/services/parish_service.dart`)
+   - Global `parishService` instance shared across all pages
+   - Remote URL: `https://raw.githubusercontent.com/mfgarvin/bulletin/refs/heads/main/export.json`
+   - Caches data after first successful load
+   - 10-second timeout on network requests
+   - Falls back to local `data/parishes.json` if network fails
+
+2. **Updated pages to use service**:
+   - `lib/main.dart` - HomePage
+   - `lib/pages/research_parish_page.dart` - ResearchParishPage
+   - `lib/pages/filtered_parish_list_page.dart` - FilteredParishListPage
+   - `lib/pages/find_parish_near_me_page.dart` - FindParishNearMePage
+
+3. **Added `http` package** (`pubspec.yaml`)
+   - Version: `^1.2.0`
+   - Used for fetching remote JSON data

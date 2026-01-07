@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'models/parish.dart';
+import 'services/parish_service.dart';
 import 'pages/parish_detail_page.dart';
 import 'pages/find_parish_near_me_page.dart';
 import 'pages/filtered_parish_list_page.dart';
@@ -226,11 +227,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadParishData() async {
     try {
-      final String response = await rootBundle.loadString('data/parishes.json');
-      final List<dynamic> data = json.decode(response);
+      final parishes = await parishService.getParishes();
 
       setState(() {
-        _parishes = data.map((json) => Parish.fromJson(json)).toList();
+        _parishes = parishes;
         _isLoading = false;
       });
       _updateNearbyParishes();
