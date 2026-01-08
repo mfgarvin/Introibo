@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/parish.dart';
 import '../services/parish_service.dart';
+import '../utils/schedule_parser.dart';
 import '../main.dart' show kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, themeNotifier;
 import 'parish_detail_page.dart';
 
@@ -18,6 +19,7 @@ enum ParishFilter {
 enum SortOrder {
   distance,
   alphabetical,
+  nearestAndSoonest,
 }
 
 class FilteredParishListPage extends StatefulWidget {
@@ -42,8 +44,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   List<Parish> _parishes = [];
   List<Parish> _filteredParishes = [];
   Map<String, double> _distances = {};
+  Map<String, int> _minutesUntilNext = {};
   bool _isLoading = true;
-  SortOrder _sortOrder = SortOrder.distance;
+  SortOrder _sortOrder = SortOrder.nearestAndSoonest;
 
   @override
   void initState() {
@@ -69,6 +72,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
       setState(() {
         _parishes = parishes;
         _calculateDistances();
+        _calculateNextOccurrences();
         _applyFilter();
         _isLoading = false;
       });
@@ -110,6 +114,36 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   double _toRadians(double degrees) => degrees * math.pi / 180;
 
+  void _calculateNextOccurrences() {
+    for (final parish in _parishes) {
+      List<String> scheduleToCheck = [];
+
+      // Get the appropriate schedule based on filter
+      switch (widget.filter) {
+        case ParishFilter.massTimes:
+          scheduleToCheck = parish.massTimes;
+          break;
+        case ParishFilter.confession:
+          scheduleToCheck = parish.confTimes;
+          break;
+        case ParishFilter.adoration:
+          scheduleToCheck = parish.adoration;
+          break;
+        case ParishFilter.all:
+          scheduleToCheck = parish.massTimes.isNotEmpty
+              ? parish.massTimes
+              : parish.confTimes;
+          break;
+      }
+
+      // Calculate minutes until next occurrence
+      final minutes = ScheduleParser.getMinutesUntilNext(scheduleToCheck);
+      if (minutes != null) {
+        _minutesUntilNext[parish.name] = minutes;
+      }
+    }
+  }
+
   void _applyFilter() {
     switch (widget.filter) {
       case ParishFilter.massTimes:
@@ -141,18 +175,79 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         final distB = _distances[b.name] ?? double.infinity;
         return distA.compareTo(distB);
       });
+    } else if (_sortOrder == SortOrder.nearestAndSoonest && widget.userLocation != null) {
+      // Composite score: combine distance and time
+      _filteredParishes.sort((a, b) {
+        final scoreA = _calculateCompositeScore(a);
+        final scoreB = _calculateCompositeScore(b);
+        return scoreA.compareTo(scoreB);
+      });
     } else {
       _filteredParishes.sort((a, b) => a.name.compareTo(b.name));
     }
   }
 
+  /// Calculate composite score combining distance and time
+  /// Lower score = better (closer and sooner)
+  double _calculateCompositeScore(Parish parish) {
+    final distance = _distances[parish.name] ?? double.infinity;
+    final minutes = _minutesUntilNext[parish.name] ?? double.infinity.toInt();
+
+    // If either is missing, return infinity
+    if (distance == double.infinity || minutes == double.infinity.toInt()) {
+      return double.infinity;
+    }
+
+    // Normalize both factors:
+    // - Distance: each mile counts as ~15 minutes of "cost"
+    // - Time: minutes until event
+    // This means a parish 2 miles away with event in 30 mins = score ~60
+    // vs a parish 1 mile away with event in 60 mins = score ~75
+    final distanceWeight = distance * 15.0;
+    final timeWeight = minutes.toDouble();
+
+    // Weighted average: 40% distance, 60% time
+    return (distanceWeight * 0.4) + (timeWeight * 0.6);
+  }
+
   void _toggleSortOrder() {
     setState(() {
-      _sortOrder = _sortOrder == SortOrder.distance
-          ? SortOrder.alphabetical
-          : SortOrder.distance;
+      // Cycle through: nearestAndSoonest -> distance -> alphabetical -> nearestAndSoonest
+      switch (_sortOrder) {
+        case SortOrder.nearestAndSoonest:
+          _sortOrder = SortOrder.distance;
+          break;
+        case SortOrder.distance:
+          _sortOrder = SortOrder.alphabetical;
+          break;
+        case SortOrder.alphabetical:
+          _sortOrder = SortOrder.nearestAndSoonest;
+          break;
+      }
       _applySorting();
     });
+  }
+
+  IconData _getSortIcon() {
+    switch (_sortOrder) {
+      case SortOrder.nearestAndSoonest:
+        return Icons.schedule;
+      case SortOrder.distance:
+        return Icons.near_me;
+      case SortOrder.alphabetical:
+        return Icons.sort_by_alpha;
+    }
+  }
+
+  String _getSortLabel() {
+    switch (_sortOrder) {
+      case SortOrder.nearestAndSoonest:
+        return 'Soonest';
+      case SortOrder.distance:
+        return 'Nearest';
+      case SortOrder.alphabetical:
+        return 'A-Z';
+    }
   }
 
   @override
@@ -259,15 +354,13 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _sortOrder == SortOrder.distance
-                              ? Icons.near_me
-                              : Icons.sort_by_alpha,
+                          _getSortIcon(),
                           size: 14,
                           color: subtextColor,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          _sortOrder == SortOrder.distance ? 'Nearest' : 'A-Z',
+                          _getSortLabel(),
                           style: GoogleFonts.lato(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -291,12 +384,15 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
             itemBuilder: (context, index) {
               final parish = _filteredParishes[index];
               final distance = _distances[parish.name];
+              final minutesUntil = _minutesUntilNext[parish.name];
               return _ParishCard(
                 parish: parish,
                 filter: widget.filter,
                 accentColor: widget.accentColor,
                 distance: distance,
+                minutesUntilNext: minutesUntil,
                 showDistance: _sortOrder == SortOrder.distance && distance != null,
+                showTimeUntil: _sortOrder == SortOrder.nearestAndSoonest && minutesUntil != null,
                 cardColor: cardColor,
                 textColor: textColor,
                 subtextColor: subtextColor,
@@ -322,7 +418,9 @@ class _ParishCard extends StatelessWidget {
   final ParishFilter filter;
   final Color accentColor;
   final double? distance;
+  final int? minutesUntilNext;
   final bool showDistance;
+  final bool showTimeUntil;
   final Color cardColor;
   final Color textColor;
   final Color subtextColor;
@@ -337,7 +435,9 @@ class _ParishCard extends StatelessWidget {
     required this.textColor,
     required this.subtextColor,
     this.distance,
+    this.minutesUntilNext,
     this.showDistance = false,
+    this.showTimeUntil = false,
   });
 
   @override
@@ -409,6 +509,22 @@ class _ParishCard extends StatelessWidget {
                     ),
                     child: Text(
                       '${distance!.toStringAsFixed(1)} mi',
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: accentColor,
+                      ),
+                    ),
+                  )
+                else if (showTimeUntil && minutesUntilNext != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _formatTimeUntil(minutesUntilNext!),
                       style: GoogleFonts.lato(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -528,5 +644,27 @@ class _ParishCard extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _formatTimeUntil(int minutes) {
+    if (minutes < 60) {
+      return '$minutes min';
+    } else if (minutes < 1440) {
+      // Less than 24 hours
+      final hours = (minutes / 60).floor();
+      final remainingMinutes = minutes % 60;
+      if (remainingMinutes == 0) {
+        return '$hours hr';
+      }
+      return '${hours}h ${remainingMinutes}m';
+    } else {
+      // Days
+      final days = (minutes / 1440).floor();
+      final hours = ((minutes % 1440) / 60).floor();
+      if (hours == 0) {
+        return '$days day${days > 1 ? 's' : ''}';
+      }
+      return '${days}d ${hours}h';
+    }
   }
 }

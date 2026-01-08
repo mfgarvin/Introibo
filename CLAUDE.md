@@ -741,3 +741,52 @@ Added custom SVG icons for Catholic-specific features using the flutter_svg pack
    - HomePage quick access buttons: 28px (27% larger than original 22px)
    - ParishDetailPage schedule cards: 26px (30% larger than original 20px)
    - Improved icon recognizability and visual hierarchy
+
+
+## Session Log: 2026-01-08
+
+### Nearest & Soonest Sorting
+
+Added intelligent sorting that combines proximity and time to help users find the most convenient parishes:
+
+1. **ScheduleParser utility** (`lib/utils/schedule_parser.dart`)
+   - Parses schedule strings like "Sunday: 9:00AM, 11:00AM" into structured data
+   - Supports day names (Monday-Sunday) and abbreviations (Mon, Tue, etc.)
+   - Handles 12-hour format with AM/PM
+   - Correctly converts to 24-hour time (noon, midnight edge cases)
+   - Calculates next occurrence of each event from current time
+   - `ScheduleEntry` class with `nextOccurrence()` and `minutesUntilNext()` methods
+   - `findNextOccurrence()` finds soonest event from a list of schedules
+
+2. **Enhanced FilteredParishListPage** (`lib/pages/filtered_parish_list_page.dart`)
+   - Added `SortOrder.nearestAndSoonest` enum value
+   - New `_calculateNextOccurrences()` method calculates minutes until next event for each parish
+   - New `_calculateCompositeScore()` combines distance and time into a single score:
+     - Distance weight: Each mile = ~15 minutes of "cost"
+     - Composite score: 40% distance + 60% time priority
+     - Lower score = better option (closer and sooner)
+   - Updated `_toggleSortOrder()` to cycle through all three modes:
+     - Nearest & Soonest → Nearest → A-Z → (repeat)
+   - Default sort mode is now `nearestAndSoonest`
+
+3. **UI enhancements**
+   - Sort button shows icon and label based on current mode:
+     - "Soonest" with schedule icon
+     - "Nearest" with location icon
+     - "A-Z" with alphabetical icon
+   - Parish cards show time until next event when in "Soonest" mode:
+     - "45 min" for events within the hour
+     - "2h 30m" for events within 24 hours
+     - "2 days" or "2d 5h" for events further out
+   - Time badges use accent color matching the filter type
+
+4. **Unit tests** (`test/schedule_parser_test.dart`)
+   - Comprehensive test suite with 15 test cases
+   - Tests parsing single/multiple times, AM/PM conversion
+   - Tests noon and midnight edge cases
+   - Tests next occurrence calculation across days
+   - Tests wrapping to next week when event has passed
+   - Tests finding soonest from multiple schedules
+   - Tests graceful handling of invalid input
+
+**Example use case:** User needs confession soon. Opens Confession filter, sees parishes sorted by composite score showing "2.1 mi, 45 min" is ranked above "1.5 mi, 2h 30m" because the first has confession starting sooner despite being slightly farther.
