@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MassGPT is a Flutter mobile application for finding Catholic parishes and mass times in the Cleveland/Akron, Ohio area. It provides two main features:
+Introibo is a Flutter mobile application for finding Catholic parishes and mass times in the Cleveland/Akron, Ohio area. It provides two main features:
 1. **Research a Parish** - Search parishes by name, city, or ZIP code
 2. **Find a Parish Near Me** - Interactive map showing nearby parishes using GPS
 
@@ -790,3 +790,39 @@ Added intelligent sorting that combines proximity and time to help users find th
    - Tests graceful handling of invalid input
 
 **Example use case:** User needs confession soon. Opens Confession filter, sees parishes sorted by composite score showing "2.1 mi, 45 min" is ranked above "1.5 mi, 2h 30m" because the first has confession starting sooner despite being slightly farther.
+
+
+## Session Log: 2026-01-08 (App Rename)
+
+### App Renamed: MassGPT → Introibo
+
+Renamed the entire application from "MassGPT" to "Introibo" throughout the codebase:
+
+1. **User-facing strings** (14 occurrences across 4 files)
+   - `lib/main.dart` - App title, class names (`MassGPTApp` → `IntroiboApp`), window title, first-launch message, HomePage title, feedback email subject, email signatures, About page title and description
+   - `lib/pages/parish_detail_page.dart` - Data feedback email signature
+   - `README.md` - Project title, git repository URLs
+   - `CLAUDE.md` - Project overview description
+
+2. **Package identifiers** (all platforms)
+   - `pubspec.yaml` - Package name: `massgpt_app_o1_preview` → `introibo`
+   - `android/app/build.gradle` - namespace and applicationId: `com.example.massgpt_app_o1_preview` / `com.example.mass_gpt` → `com.example.introibo`
+   - `android/app/src/main/AndroidManifest.xml` - android:label: `massgpt_app_o1_preview` → `Introibo`
+   - `android/app/src/main/kotlin/` - Moved MainActivity.kt to new package structure (`com.example.introibo`)
+   - `ios/Runner/Info.plist` - CFBundleDisplayName: `Massgpt App O1 Preview` → `Introibo`, CFBundleName: `massgpt_app_o1_preview` → `introibo`
+   - `ios/Runner.xcodeproj/project.pbxproj` - PRODUCT_BUNDLE_IDENTIFIER: `com.example.massgptAppO1Preview` → `com.example.introibo`
+
+3. **Test files**
+   - `test/schedule_parser_test.dart` - Updated import path to use new package name (`package:introibo/...`)
+
+4. **Cleanup**
+   - Removed unused `lib/globals.dart` file that was causing build errors
+
+5. **Intentionally preserved**
+   - Email address remains `feedback@massgpt.org` (not changed to match app name)
+   - Parish data source URL unchanged
+
+**Verification:**
+- `flutter pub get` completed successfully
+- `flutter analyze` completed with 0 errors (112 info-level warnings for style/deprecations)
+- All MassGPT references removed except for the preserved email address

@@ -1032,7 +1032,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
     bodyLines.addAll([
       '',
       '---',
-      'Sent from MassGPT App',
+      'Sent from Introibo App',
     ]);
 
     final body = Uri.encodeComponent(bodyLines.join('\n'));

@@ -1,4 +1,4 @@
-# MassGPT
+# Introibo
 
 A Flutter mobile app for finding Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.
 
@@ -36,8 +36,8 @@ A Flutter mobile app for finding Catholic parishes and Mass times in the Clevela
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/massgpt.git
-cd massgpt
+git clone https://github.com/yourusername/introibo.git
+cd introibo
 
 # Install dependencies
 flutter pub get

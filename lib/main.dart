@@ -24,7 +24,7 @@ const LatLng? kDevLocation = kDebugMode
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await favoritesManager.init();
-  runApp(const MassGPTApp());
+  runApp(const IntroiboApp());
 }
 
 // Colors inspired by travel_app
@@ -108,14 +108,14 @@ class FavoritesManager extends ChangeNotifier {
 // Global favorites manager instance
 final favoritesManager = FavoritesManager();
 
-class MassGPTApp extends StatefulWidget {
-  const MassGPTApp({Key? key}) : super(key: key);
+class IntroiboApp extends StatefulWidget {
+  const IntroiboApp({Key? key}) : super(key: key);
 
   @override
-  State<MassGPTApp> createState() => _MassGPTAppState();
+  State<IntroiboApp> createState() => _IntroiboAppState();
 }
 
-class _MassGPTAppState extends State<MassGPTApp> {
+class _IntroiboAppState extends State<IntroiboApp> {
   @override
   void initState() {
     super.initState();
@@ -146,7 +146,7 @@ class _MassGPTAppState extends State<MassGPTApp> {
     );
 
     return MaterialApp(
-      title: 'MassGPT',
+      title: 'Introibo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.light().copyWith(
         textTheme: GoogleFonts.latoTextTheme(),
@@ -320,7 +320,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'MassGPT needs to download parish data on first launch. Please connect to the internet and try again.',
+                  'Introibo needs to download parish data on first launch. Please connect to the internet and try again.',
                   style: GoogleFonts.lato(
                     fontSize: 15,
                     color: _subtextColor,
@@ -530,7 +530,7 @@ class _HomePageState extends State<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'MassGPT',
+                        'Introibo',
                         style: GoogleFonts.lato(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -1586,7 +1586,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
       _isSubmitting = true;
     });
 
-    final subject = Uri.encodeComponent('MassGPT App Feedback');
+    final subject = Uri.encodeComponent('Introibo App Feedback');
     final replyEmail = _emailController.text.trim();
     final feedback = _feedbackController.text.trim();
 
@@ -1594,7 +1594,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
       feedback,
       '',
       '---',
-      'Sent from MassGPT App',
+      'Sent from Introibo App',
     ];
     if (replyEmail.isNotEmpty) {
       bodyLines.insert(0, 'Reply to: $replyEmail');
@@ -2289,7 +2289,7 @@ class _AboutPageState extends State<AboutPage> {
               const SizedBox(height: 24),
               // App name
               Text(
-                'MassGPT',
+                'Introibo',
                 style: GoogleFonts.lato(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -2334,7 +2334,7 @@ class _AboutPageState extends State<AboutPage> {
                     const SizedBox(height: 12),
                     Text(
                       // TODO: Fill in app description
-                      'MassGPT helps you find Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.',
+                      'Introibo helps you find Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.',
                       style: GoogleFonts.lato(
                         fontSize: 14,
                         color: subtextColor,

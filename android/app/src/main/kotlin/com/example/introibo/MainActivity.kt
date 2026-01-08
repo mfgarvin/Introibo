@@ -1,4 +1,4 @@
-package com.example.massgpt_app_o1_preview
+package com.example.introibo
 
 import io.flutter.embedding.android.FlutterActivity
 
