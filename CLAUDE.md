@@ -700,3 +700,44 @@ Added mailto scheme for email feedback on Android 11+:
 1. **AndroidManifest.xml queries**
    - Added `mailto` scheme with `SENDTO` action
    - Allows `url_launcher` to open email apps on Android 11+
+
+## Session Log: 2026-01-07 (Evening)
+
+### Custom Catholic Icons
+
+Added custom SVG icons for Catholic-specific features using the flutter_svg package:
+
+1. **Icon files** (`assets/icons/`)
+   - `monstrance.svg` - Eucharistic monstrance icon for Adoration
+   - `confession.svg` - Confessional booth icon for Confession/Reconciliation
+   - Icons sourced from Noun Project (Ahmad Roaayala and Luis Prado)
+   - Attribution text removed from SVG files
+   - Cleaned up viewBox dimensions
+
+2. **flutter_svg dependency** (`pubspec.yaml`)
+   - Added `flutter_svg: ^2.0.10` for SVG rendering
+   - Supports dynamic coloring and sizing
+
+3. **CustomIcon widget** (`lib/widgets/custom_icons.dart`)
+   - Centralized widget for rendering SVG icons
+   - Factory constructors: `CustomIcon.monstrance()` and `CustomIcon.confession()`
+   - Accepts `color` and `size` parameters for flexibility
+   - Usage: `CustomIcon.monstrance(color: Colors.orange, size: 28)`
+
+4. **HomePage integration** (`lib/main.dart`)
+   - Updated `_QuickAccessButton` to accept `Widget` instead of `IconData`
+   - Confession button uses `CustomIcon.confession()` (28px)
+   - Adoration button uses `CustomIcon.monstrance()` (28px)
+   - Increased icon sizes from 22px to 28px for better visibility
+
+5. **ParishDetailPage integration** (`lib/pages/parish_detail_page.dart`)
+   - Updated `_ScheduleCard` to accept `Widget` instead of `IconData`
+   - Updated `_TappableInfoCard` to accept `Widget` instead of `IconData`
+   - Confession Times card uses `CustomIcon.confession()` (26px)
+   - Adoration card uses `CustomIcon.monstrance()` (26px)
+   - Increased icon sizes from 20px to 26px for better visibility
+
+6. **Icon size adjustments**
+   - HomePage quick access buttons: 28px (27% larger than original 22px)
+   - ParishDetailPage schedule cards: 26px (30% larger than original 20px)
+   - Improved icon recognizability and visual hierarchy

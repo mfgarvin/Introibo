@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/parish.dart';
 import '../main.dart' show kPrimaryColor, kSecondaryColor, kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, favoritesManager, themeNotifier;
+import '../widgets/custom_icons.dart';
 
 class ParishDetailPage extends StatefulWidget {
   final Parish parish;
@@ -249,7 +250,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                 children: [
                   // Address Card (tappable to open in maps)
                   _TappableInfoCard(
-                    icon: Icons.location_on,
+                    icon: Icon(Icons.location_on, color: kPrimaryColor, size: 26),
                     title: 'Address',
                     content: '${parish.address}\n${parish.city} ${parish.zipCode}',
                     color: kPrimaryColor,
@@ -273,7 +274,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
                   // Mass Times Card
                   _ScheduleCard(
-                    icon: Icons.access_time,
+                    icon: Icon(Icons.access_time, color: kSecondaryColor, size: 26),
                     title: 'Mass Times',
                     items: parish.massTimes,
                     emptyMessage: 'No Mass times available',
@@ -287,7 +288,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
                   // Confession Times Card
                   _ScheduleCard(
-                    icon: Icons.favorite,
+                    icon: CustomIcon.confession(color: kPrimaryColor, size: 26),
                     title: 'Confession Times',
                     items: parish.confTimes,
                     emptyMessage: 'By Appointment Only',
@@ -302,7 +303,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   // Adoration Times Card
                   if (parish.adoration.isNotEmpty)
                     _ScheduleCard(
-                      icon: Icons.brightness_5,
+                      icon: CustomIcon.monstrance(color: Colors.orange, size: 26),
                       title: 'Adoration',
                       items: parish.adoration,
                       emptyMessage: '',
@@ -526,7 +527,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 }
 
 class _TappableInfoCard extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String content;
   final Color color;
@@ -578,11 +579,7 @@ class _TappableInfoCard extends StatelessWidget {
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 24,
-                ),
+                child: icon,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -646,7 +643,7 @@ class _TappableInfoCard extends StatelessWidget {
 }
 
 class _ScheduleCard extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String title;
   final List<String> items;
   final String emptyMessage;
@@ -695,11 +692,7 @@ class _ScheduleCard extends StatelessWidget {
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 24,
-                ),
+                child: icon,
               ),
               const SizedBox(width: 16),
               Text(

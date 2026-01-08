@@ -14,6 +14,7 @@ import 'services/parish_service.dart';
 import 'pages/parish_detail_page.dart';
 import 'pages/find_parish_near_me_page.dart';
 import 'pages/filtered_parish_list_page.dart';
+import 'widgets/custom_icons.dart';
 
 // Dev override: set to a LatLng to skip GPS, or null to use real location
 const LatLng? kDevLocation = kDebugMode
@@ -916,7 +917,7 @@ class _HomePageState extends State<HomePage> {
       children: [
         Expanded(
           child: _QuickAccessButton(
-            icon: Icons.access_time,
+            icon: Icon(Icons.access_time, color: kPrimaryColor, size: 28),
             label: 'Mass Times',
             color: kPrimaryColor,
             onTap: () {
@@ -937,7 +938,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Expanded(
           child: _QuickAccessButton(
-            icon: Icons.favorite_outline,
+            icon: CustomIcon.confession(color: kSecondaryColor, size: 28),
             label: 'Confession',
             color: kSecondaryColor,
             onTap: () {
@@ -958,7 +959,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Expanded(
           child: _QuickAccessButton(
-            icon: Icons.brightness_5,
+            icon: CustomIcon.monstrance(color: const Color(0xFFE67E22), size: 28),
             label: 'Adoration',
             color: const Color(0xFFE67E22),
             onTap: () {
@@ -979,7 +980,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Expanded(
           child: _QuickAccessButton(
-            icon: Icons.event,
+            icon: Icon(Icons.event, color: const Color(0xFF9B59B6), size: 28),
             label: 'Parish Events',
             color: const Color(0xFF9B59B6),
             onTap: () {
@@ -1354,7 +1355,7 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _QuickAccessButton extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
@@ -1398,11 +1399,7 @@ class _QuickAccessButton extends StatelessWidget {
                 color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 22,
-              ),
+              child: icon,
             ),
             const SizedBox(height: 8),
             Text(
