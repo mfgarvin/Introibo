@@ -46,11 +46,15 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   Map<String, double> _distances = {};
   Map<String, int> _minutesUntilNext = {};
   bool _isLoading = true;
-  SortOrder _sortOrder = SortOrder.nearestAndSoonest;
+  late SortOrder _sortOrder;
 
   @override
   void initState() {
     super.initState();
+    // Set default sort order based on location availability
+    _sortOrder = widget.userLocation != null
+        ? SortOrder.nearestAndSoonest
+        : SortOrder.alphabetical;
     themeNotifier.addListener(_onThemeChanged);
     _loadParishData();
   }
@@ -212,17 +216,25 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   void _toggleSortOrder() {
     setState(() {
-      // Cycle through: nearestAndSoonest -> distance -> alphabetical -> nearestAndSoonest
-      switch (_sortOrder) {
-        case SortOrder.nearestAndSoonest:
-          _sortOrder = SortOrder.distance;
-          break;
-        case SortOrder.distance:
-          _sortOrder = SortOrder.alphabetical;
-          break;
-        case SortOrder.alphabetical:
-          _sortOrder = SortOrder.nearestAndSoonest;
-          break;
+      final hasLocation = widget.userLocation != null;
+
+      // Cycle through available sort modes
+      if (hasLocation) {
+        // Full cycle: nearestAndSoonest -> distance -> alphabetical -> nearestAndSoonest
+        switch (_sortOrder) {
+          case SortOrder.nearestAndSoonest:
+            _sortOrder = SortOrder.distance;
+            break;
+          case SortOrder.distance:
+            _sortOrder = SortOrder.alphabetical;
+            break;
+          case SortOrder.alphabetical:
+            _sortOrder = SortOrder.nearestAndSoonest;
+            break;
+        }
+      } else {
+        // Without location, only alphabetical sort is available
+        _sortOrder = SortOrder.alphabetical;
       }
       _applySorting();
     });
@@ -340,37 +352,36 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                 ),
               ),
               const Spacer(),
-              // Sort toggle button
-              if (canSortByDistance)
-                GestureDetector(
-                  onTap: _toggleSortOrder,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _getSortIcon(),
-                          size: 14,
+              // Sort toggle button (always visible)
+              GestureDetector(
+                onTap: _toggleSortOrder,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getSortIcon(),
+                        size: 14,
+                        color: subtextColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _getSortLabel(),
+                        style: GoogleFonts.lato(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                           color: subtextColor,
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _getSortLabel(),
-                          style: GoogleFonts.lato(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: subtextColor,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
             ],
           ),
         ),
