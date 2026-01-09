@@ -169,37 +169,21 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   }
 
   void _applySorting() {
-    switch (_sortOrder) {
-      case SortOrder.distance:
-        if (widget.userLocation != null && _distances.isNotEmpty) {
-          _filteredParishes.sort((a, b) {
-            final distA = _distances[a.name] ?? double.infinity;
-            final distB = _distances[b.name] ?? double.infinity;
-            return distA.compareTo(distB);
-          });
-        } else {
-          // Fallback to alphabetical if no location data
-          _filteredParishes.sort((a, b) => a.name.compareTo(b.name));
-        }
-        break;
-
-      case SortOrder.nearestAndSoonest:
-        if (widget.userLocation != null && _distances.isNotEmpty && _minutesUntilNext.isNotEmpty) {
-          // Composite score: combine distance and time
-          _filteredParishes.sort((a, b) {
-            final scoreA = _calculateCompositeScore(a);
-            final scoreB = _calculateCompositeScore(b);
-            return scoreA.compareTo(scoreB);
-          });
-        } else {
-          // Fallback to alphabetical if missing data
-          _filteredParishes.sort((a, b) => a.name.compareTo(b.name));
-        }
-        break;
-
-      case SortOrder.alphabetical:
-        _filteredParishes.sort((a, b) => a.name.compareTo(b.name));
-        break;
+    if (_sortOrder == SortOrder.distance && widget.userLocation != null) {
+      _filteredParishes.sort((a, b) {
+        final distA = _distances[a.name] ?? double.infinity;
+        final distB = _distances[b.name] ?? double.infinity;
+        return distA.compareTo(distB);
+      });
+    } else if (_sortOrder == SortOrder.nearestAndSoonest && widget.userLocation != null) {
+      // Composite score: combine distance and time
+      _filteredParishes.sort((a, b) {
+        final scoreA = _calculateCompositeScore(a);
+        final scoreB = _calculateCompositeScore(b);
+        return scoreA.compareTo(scoreB);
+      });
+    } else {
+      _filteredParishes.sort((a, b) => a.name.compareTo(b.name));
     }
   }
 
@@ -241,7 +225,6 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           break;
       }
       _applySorting();
-      debugPrint('Sort order toggled to: $_sortOrder');
     });
   }
 
