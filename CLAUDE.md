@@ -826,3 +826,25 @@ Renamed the entire application from "MassGPT" to "Introibo" throughout the codeb
 - `flutter pub get` completed successfully
 - `flutter analyze` completed with 0 errors (112 info-level warnings for style/deprecations)
 - All MassGPT references removed except for the preserved email address
+
+
+## Session Log: 2026-01-11
+
+### Sort Toggle Bug Fix
+
+Fixed a bug where the sort toggle button in `FilteredParishListPage` would not cycle back to "Soonest" after reaching "A-Z".
+
+1. **Root Cause** (`lib/pages/filtered_parish_list_page.dart:192-198`)
+   - `_calculateCompositeScore()` used `double.infinity.toInt()` as a fallback value
+   - In Dart, calling `.toInt()` on `double.infinity` throws: `Unsupported operation: Infinity or NaN toInt`
+   - This exception occurred inside `_applySorting()`, which was called within `setState()`
+   - The exception silently prevented the UI from updating, even though the state variable was being set correctly
+
+2. **Fix**
+   - Changed null handling to check for `null` directly instead of using `double.infinity.toInt()`
+   - Before: `final minutes = _minutesUntilNext[parish.name] ?? double.infinity.toInt();`
+   - After: `final minutes = _minutesUntilNext[parish.name];` with explicit null check
+
+3. **Lesson learned**
+   - Exceptions thrown inside `setState()` can silently break UI updates
+   - Debug prints may show correct state changes while UI remains stale due to subsequent exceptions

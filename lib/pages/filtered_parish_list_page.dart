@@ -190,11 +190,11 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   /// Calculate composite score combining distance and time
   /// Lower score = better (closer and sooner)
   double _calculateCompositeScore(Parish parish) {
-    final distance = _distances[parish.name] ?? double.infinity;
-    final minutes = _minutesUntilNext[parish.name] ?? double.infinity.toInt();
+    final distance = _distances[parish.name];
+    final minutes = _minutesUntilNext[parish.name];
 
     // If either is missing, return infinity
-    if (distance == double.infinity || minutes == double.infinity.toInt()) {
+    if (distance == null || minutes == null) {
       return double.infinity;
     }
 
@@ -213,16 +213,12 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   void _toggleSortOrder() {
     setState(() {
       // Cycle through: nearestAndSoonest -> distance -> alphabetical -> nearestAndSoonest
-      switch (_sortOrder) {
-        case SortOrder.nearestAndSoonest:
-          _sortOrder = SortOrder.distance;
-          break;
-        case SortOrder.distance:
-          _sortOrder = SortOrder.alphabetical;
-          break;
-        case SortOrder.alphabetical:
-          _sortOrder = SortOrder.nearestAndSoonest;
-          break;
+      if (_sortOrder == SortOrder.nearestAndSoonest) {
+        _sortOrder = SortOrder.distance;
+      } else if (_sortOrder == SortOrder.distance) {
+        _sortOrder = SortOrder.alphabetical;
+      } else {
+        _sortOrder = SortOrder.nearestAndSoonest;
       }
       _applySorting();
     });
