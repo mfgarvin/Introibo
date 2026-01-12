@@ -848,3 +848,44 @@ Fixed a bug where the sort toggle button in `FilteredParishListPage` would not c
 3. **Lesson learned**
    - Exceptions thrown inside `setState()` can silently break UI updates
    - Debug prints may show correct state changes while UI remains stale due to subsequent exceptions
+
+### Enhanced "Soonest" Sorting with Distance Cap
+
+Replaced composite scoring with a simpler distance-cap approach for the "Soonest" sort mode:
+
+1. **Distance cap sorting** (`lib/pages/filtered_parish_list_page.dart`)
+   - Within 10 miles: sorted by time (soonest event first)
+   - Beyond 10 miles: pushed to bottom, sorted by distance
+   - Configurable via `_distanceCapMiles` constant
+
+2. **Human-friendly time badges**
+   - Replaced "2h 30m" style with natural language descriptors
+   - Labels: "Starting soon", "Within the hour", "This morning/afternoon/evening", "Tonight", "Tomorrow morning/afternoon/evening/night", "In 2 days", "In X days"
+
+3. **"Show more" button**
+   - Parishes more than 2 days out are hidden by default in "Soonest" mode
+   - "Show X more parishes" button appears at bottom to reveal them
+   - Resets when switching sort modes
+
+### Time-Based Filter Feature
+
+Added filter button to search for events by day and time of day:
+
+1. **Filter UI** (`lib/pages/filtered_parish_list_page.dart`)
+   - Filter button next to sort button (highlights when active)
+   - Bottom sheet with filter options
+   - "Clear" button to reset all filters
+
+2. **Filter options**
+   - **When**: Any day, Today, Tomorrow, This week
+   - **Time of day**: Any time, Morning (5am-12pm), Afternoon (12pm-5pm), Evening (5pm-9pm)
+   - **Day of week**: Sun, Mon, Tue, Wed, Thu, Fri, Sat (multi-select)
+
+3. **Filter enums**
+   - `DayFilter`: any, today, tomorrow, thisWeek
+   - `TimeOfDayFilter`: any, morning, afternoon, evening, night
+
+4. **Filter logic**
+   - Uses `ScheduleParser` to parse schedule strings
+   - Checks if any schedule entry matches all active filters
+   - When filters active, 2-day limit is disabled (shows all matching parishes)
