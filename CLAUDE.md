@@ -962,3 +962,58 @@ Dark mode propagation:
 ### Bulletin scraper handoff doc
 
 - `docs/bulletin_scraper_notes.md` — field-by-field observations and a proposed structured JSON shape for the scraper project at `mfgarvin/bulletin`. To be handed to the Claude working on that repo. Key asks: emit `{day, start, end, note}` structured entries, 24-hour HH:MM, ISO day names, drop the `lonlat` combined string in favor of numeric lat/lon, per-section timestamps.
+
+## Session Log: 2026-05-27 (Stained Glass Pass)
+
+The original triangulated-mosaic painter was replaced with a quarry-window inspired one after researching how Gothic stained glass is actually structured (rhombic "quarry" panes tiled in a half-step grid + leaded cames + occasional roundels framed by tracery).
+
+### `lib/widgets/stained_glass_header.dart` — full painter rewrite
+
+- **Quarry diamond tessellation** — rhombi (~78% width:height ratio for the traditional Gothic quarry) tiled with alternate-row half-step horizontal offsets. Diamond size scales proportionally to the canvas shortest side (`shortSide / 3.4`, clamped to 28–80 px).
+- **Central roundel** — circular medallion in upper-third of header (auto-omitted on chips < 90px). Filled with a radial gradient toward `palette[3]` (gold), divided into 8 alternating wedges, finished with a small inner-hub jewel and a 4.5px lead-came ring around the perimeter. Diamonds whose centers fall inside the roundel are skipped; diamonds crossing the boundary are clipped via `Path.combine(PathOperation.difference, …)` so cames terminate cleanly at the medallion edge.
+- **Thicker, darker lead** — stroke width 3.0 (was 2.2), color `#050507` at 85% alpha (was `#0A0A0F` at 60%), round caps + joins.
+- **Soldered joints** — small filled dots (~2px) stamped at diamond vertices to suggest H-channel cames meeting. De-duped via a half-pixel-precision Set. Joints inside the roundel are skipped so the medallion stays clean.
+- **Shared vertex jitter** — `jitterCache` keyed by quantized 0.1px position (`(kx * 100000 + ky)`). Each diamond computes its 4 ideal corners and looks each up; adjacent diamonds sharing a corner get the same jittered offset, keeping edges seamless. Jitter amplitude ±4.5% of diamond height — enough to feel hand-cut, not chaotic.
+- **HSL-based color variation** — new `_varyColor(base, rng)` shifts hue ±9°, saturation ±10%, lightness ±9% per shard. Probabilistic color picking (45% mid / 30% deep / 17% bright / 8% accent) replaces position-grid color biasing. Each shard's radial gradient also has a slightly randomized highlight position.
+- **Bias gold to the roundel** — field shards almost never use `palette[3]` (gold); gold reserved for the medallion so it remains the focal point.
+- **Default `overlayDarken: 0.35 → 0.45`** per audit recommendation — keeps display-size parish-name text ≥4.5:1 contrast against gold-heavy palettes (Vespers Violet was the edge case).
+
+### Resize stability via FittedBox + RepaintBoundary
+
+`StainedGlassHeader` now wraps the `CustomPaint` in:
+
+```dart
+ClipRect(
+  child: Stack(children: [
+    FittedBox(
+      fit: BoxFit.cover,
+      child: SizedBox(
+        width: 400, height: 200,  // _refSize matches header aspect
+        child: RepaintBoundary(
+          child: CustomPaint(painter: _StainedGlassPainter(seed: seed)),
+        ),
+      ),
+    ),
+    // …darkening gradient…
+  ]),
+)
+```
+
+The painter always renders at the fixed `400×200` reference; the `FittedBox.cover` scales the rasterized result to fill the parent. SliverAppBar over-scroll stretch now performs a real visual zoom on the painted layer instead of regenerating geometry at the new size. Square chips and watermarks get a center-crop of the same painting, which still includes the roundel.
+
+The 2:1 aspect was chosen deliberately — using a 1:1 reference made `cover` crop half the painting on the 2:1 header, which looked "zoomed in." Matching the header's natural aspect avoids that.
+
+### Bulletin scraper notes
+
+`docs/bulletin_scraper_notes.md` documents observations to hand to the scraper project — most actionably the recommendation to emit structured `{day, start, end, note}` schedule entries so the app can drop its regex-based schedule parser.
+
+### Design audit (background)
+
+Ran a multi-page Material 3 / WCAG 2.2 / Nielsen-heuristics audit via a sub-agent. Key findings:
+
+- Light-mode contrast is excellent everywhere **except gold-on-cream as text** (`#C9A227` on `#FAF6EE` ≈ 2.5:1, fails WCAG AA). Use gold for ornament only in light mode; route accent *text* through oxblood.
+- No persistent bottom navigation — Favorites/Settings/Feedback are hidden under the church-icon PopupMenu. Adding a `NavigationBar` would help discoverability.
+- `TodayHeroCard` and `NextMassTile` both full-bleed creates two competing hero surfaces on the home page; demoting NextMassTile to its existing `NextMassBanner` shape unless next Mass is within 60 min was the agent's suggestion.
+- Cycling 3-state sort button on `FilteredParishListPage` should be a `SegmentedButton` (recognition > recall).
+
+Not addressed in this session — deferred for a follow-up pass.

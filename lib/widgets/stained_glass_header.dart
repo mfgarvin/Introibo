@@ -5,38 +5,66 @@ import 'package:flutter/material.dart';
 String parishHeroTag(String seed) => 'parish-glass-$seed';
 
 /// A generative stained-glass-style abstract painted from a seed string.
-/// The same seed always produces the same image, so each parish has a stable
-/// visual identity even without a real photo.
+///
+/// Inspired by Gothic quarry-window construction: a tessellation of rhombic
+/// "quarry" panes laid in a tilted grid, optionally framing a circular
+/// **roundel** (medallion) in the upper third. Lead came is rendered as a
+/// thick near-black stroke with slightly heavier joints where multiple cames
+/// meet — the way real soldered cames build up at intersections.
+///
+/// Deterministic from the seed, so each parish has a stable visual identity.
 class StainedGlassHeader extends StatelessWidget {
   final String seed;
+
+  /// Bottom-of-image darken applied as a vertical gradient overlay. Higher
+  /// values keep an overlaid display title legible across all palettes.
   final double overlayDarken;
 
   const StainedGlassHeader({
     super.key,
     required this.seed,
-    this.overlayDarken = 0.35,
+    this.overlayDarken = 0.45,
   });
+
+  /// Reference paint size — matches the parish detail header's natural
+  /// 2:1 aspect. The painter always renders here; FittedBox scales it to the
+  /// parent. Keeps the rasterized layer cached so SliverAppBar over-scroll
+  /// zoom is a visual zoom, not a re-generation of geometry. Square chips
+  /// crop to the center which still includes the roundel.
+  static const Size _refSize = Size(400, 200);
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        CustomPaint(painter: _StainedGlassPainter(seed: seed)),
-        // Soft vertical fade for header text legibility
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withValues(alpha: 0.05),
-                Colors.black.withValues(alpha: overlayDarken),
-              ],
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Fixed-size painter scaled via FittedBox.cover.
+          FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: _refSize.width,
+              height: _refSize.height,
+              child: RepaintBoundary(
+                child: CustomPaint(painter: _StainedGlassPainter(seed: seed)),
+              ),
             ),
           ),
-        ),
-      ],
+          // Soft vertical fade for header text legibility
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.05),
+                  Colors.black.withValues(alpha: overlayDarken),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -46,8 +74,8 @@ class _StainedGlassPainter extends CustomPainter {
 
   _StainedGlassPainter({required this.seed});
 
-  // Jewel-tone palettes — pick one based on seed hash so different parishes
-  // feel distinct without being garish.
+  // Jewel-tone palettes. Convention: [deep, mid, bright, accent, highlight].
+  // The roundel uses palette[3] (gold/amber) as its dominant inner color.
   static const List<List<Color>> _palettes = [
     // Sapphire & gold
     [Color(0xFF0B2A4A), Color(0xFF1E5F8A), Color(0xFF3A7CA5), Color(0xFFC9A227), Color(0xFFE8D7A1)],
@@ -61,12 +89,30 @@ class _StainedGlassPainter extends CustomPainter {
     [Color(0xFF0B3142), Color(0xFF1B5E7A), Color(0xFF3A8DA8), Color(0xFFE0A458), Color(0xFFF5D78A)],
   ];
 
+  /// Vary a base color in HSL space with small per-shard hue/saturation/
+  /// brightness shifts. Gives more organic palette variation than uniform
+  /// RGB multiplication and avoids muddy results.
+  Color _varyColor(Color base, math.Random rng) {
+    final hsl = HSLColor.fromColor(base);
+    final dh = (rng.nextDouble() - 0.5) * 18; // ±9° hue shift
+    final ds = (rng.nextDouble() - 0.5) * 0.20; // ±10% saturation
+    final dl = (rng.nextDouble() - 0.5) * 0.18; // ±9% lightness
+    return hsl
+        .withHue((hsl.hue + dh) % 360)
+        .withSaturation((hsl.saturation + ds).clamp(0.0, 1.0))
+        .withLightness((hsl.lightness + dl).clamp(0.0, 1.0))
+        .toColor();
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final rng = math.Random(seed.hashCode);
     final palette = _palettes[rng.nextInt(_palettes.length)];
 
-    // Base wash so leaded gaps between shards aren't pure black.
+    // Below this size we drop the roundel — it gets cramped on small chips.
+    final showRoundel = math.min(size.width, size.height) >= 90;
+
+    // ───────────── Base wash ─────────────
     final basePaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
@@ -75,85 +121,240 @@ class _StainedGlassPainter extends CustomPainter {
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, basePaint);
 
-    // Build a grid of points, lightly jittered, then split each cell into
-    // two triangles along a per-cell diagonal. This guarantees uniform shards
-    // with no slivers — closer to traditional leaded glass than free-form
-    // triangulation.
-    const cols = 4;
-    const rows = 3;
-    final cellW = size.width / cols;
-    final cellH = size.height / rows;
+    // ───────────── Roundel geometry ─────────────
+    // Centered in upper-third for header use; for small chips we omit it.
+    final roundelCenter = Offset(size.width * 0.5, size.height * 0.42);
+    final roundelRadius = showRoundel
+        ? math.min(size.width, size.height) * 0.26
+        : 0.0;
 
-    Offset gridPoint(int c, int r) {
-      // Edges of the canvas stay anchored so we don't get gaps at the border
-      final atEdgeX = c == 0 || c == cols;
-      final atEdgeY = r == 0 || r == rows;
-      final jitterX = atEdgeX ? 0.0 : (rng.nextDouble() - 0.5) * cellW * 0.45;
-      final jitterY = atEdgeY ? 0.0 : (rng.nextDouble() - 0.5) * cellH * 0.45;
-      return Offset(c * cellW + jitterX, r * cellH + jitterY);
-    }
+    // ───────────── Quarry diamond tiling ─────────────
+    // Classic Gothic quarry: rhombi (taller than wide), tiled with half-step
+    // row offsets so diamonds interlock. Vertices are pre-computed in a grid
+    // and jittered — adjacent diamonds share vertices, so the jitter propagates
+    // naturally and edges remain seamless.
+    final shortSide = math.min(size.width, size.height);
+    final diamondH = (shortSide / 3.4).clamp(28.0, 80.0);
+    final diamondW = diamondH * 0.78;
 
-    // Pre-compute jittered grid
-    final grid = List<List<Offset>>.generate(
-      rows + 1,
-      (r) => List<Offset>.generate(cols + 1, (c) => gridPoint(c, r)),
-    );
-
+    const leadColor = Color(0xFF050507);
     final leadPaint = Paint()
-      ..color = const Color(0xFF0A0A0F).withValues(alpha: 0.6)
+      ..color = leadColor.withValues(alpha: 0.85)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        final tl = grid[r][c];
-        final tr = grid[r][c + 1];
-        final bl = grid[r + 1][c];
-        final br = grid[r + 1][c + 1];
+    // We'll also dot the joints with small filled circles to suggest soldered
+    // intersections — collected during the pass and stamped at the end.
+    final joints = <Offset>[];
 
-        // Random diagonal per cell so the pattern feels less grid-like
-        final splitNE = rng.nextBool();
-        final tri1 = splitNE ? [tl, tr, br] : [tl, tr, bl];
-        final tri2 = splitNE ? [tl, br, bl] : [tr, br, bl];
+    // Tile diamonds with a shared-jitter cache so adjacent shards retain
+    // matching corners. Each diamond computes its 4 ideal corner positions;
+    // a cache keyed on the quantized (x, y) returns the same jittered offset
+    // for vertices any two neighboring diamonds share.
+    final jitterAmt = diamondH * 0.045;
+    final jitterCache = <int, Offset>{};
+    Offset jittered(double x, double y) {
+      // Quantize to 0.1px granularity to make floating-point matches reliable
+      final kx = (x * 10).round();
+      final ky = (y * 10).round();
+      final key = kx * 100000 + ky;
+      return jitterCache.putIfAbsent(key, () {
+        final jx = (rng.nextDouble() - 0.5) * 2 * jitterAmt;
+        final jy = (rng.nextDouble() - 0.5) * 2 * jitterAmt;
+        return Offset(x + jx, y + jy);
+      });
+    }
 
-        for (final tri in [tri1, tri2]) {
-          final path = Path()
-            ..moveTo(tri[0].dx, tri[0].dy)
-            ..lineTo(tri[1].dx, tri[1].dy)
-            ..lineTo(tri[2].dx, tri[2].dy)
-            ..close();
+    final colSpan = (size.width / diamondW).ceil() + 2;
+    final rowSpan = (size.height / (diamondH / 2)).ceil() + 2;
 
-          final colorIdx = (rng.nextInt(palette.length) + c + r) % palette.length;
-          final base = palette[colorIdx];
-          final variance = 0.88 + rng.nextDouble() * 0.24;
-          final shardColor = Color.fromARGB(
-            255,
-            (base.r * 255 * variance).round().clamp(0, 255),
-            (base.g * 255 * variance).round().clamp(0, 255),
-            (base.b * 255 * variance).round().clamp(0, 255),
-          );
+    for (int r = -1; r < rowSpan; r++) {
+      for (int c = -1; c < colSpan; c++) {
+        // Diamond center: alternate rows are offset horizontally by dw/2 so
+        // diamonds interlock.
+        final cx = c * diamondW + (r.isOdd ? diamondW / 2 : 0);
+        final cy = r * (diamondH / 2);
 
-          final bounds = path.getBounds();
-          final shardPaint = Paint()
-            ..shader = RadialGradient(
-              center: const Alignment(-0.4, -0.4),
-              radius: 1.0,
-              colors: [
-                Color.lerp(shardColor, Colors.white, 0.15)!,
-                shardColor,
-                Color.lerp(shardColor, Colors.black, 0.18)!,
-              ],
-              stops: const [0.0, 0.55, 1.0],
-            ).createShader(bounds);
+        // Skip diamonds whose center is deep inside the roundel.
+        if (showRoundel) {
+          final d = (Offset(cx, cy) - roundelCenter).distance;
+          if (d < roundelRadius - diamondH * 0.3) continue;
+        }
 
-          canvas.drawPath(path, shardPaint);
-          canvas.drawPath(path, leadPaint);
+        // Ideal corners
+        final topIdeal = Offset(cx, cy - diamondH / 2);
+        final rightIdeal = Offset(cx + diamondW / 2, cy);
+        final bottomIdeal = Offset(cx, cy + diamondH / 2);
+        final leftIdeal = Offset(cx - diamondW / 2, cy);
+
+        // Jittered (shared with neighboring diamonds via cache)
+        final top = jittered(topIdeal.dx, topIdeal.dy);
+        final right = jittered(rightIdeal.dx, rightIdeal.dy);
+        final bottom = jittered(bottomIdeal.dx, bottomIdeal.dy);
+        final left = jittered(leftIdeal.dx, leftIdeal.dy);
+
+        // Quick reject off-canvas
+        if (right.dx < -4 || left.dx > size.width + 4 ||
+            bottom.dy < -4 || top.dy > size.height + 4) {
+          continue;
+        }
+
+        final diamondPath = Path()
+          ..moveTo(top.dx, top.dy)
+          ..lineTo(right.dx, right.dy)
+          ..lineTo(bottom.dx, bottom.dy)
+          ..lineTo(left.dx, left.dy)
+          ..close();
+
+        final centerVec = Offset(cx, cy);
+
+        // If the roundel cuts through, subtract it from the diamond path.
+        Path shardPath = diamondPath;
+        if (showRoundel) {
+          final centerDist = (centerVec - roundelCenter).distance;
+          if (centerDist < roundelRadius + diamondH * 0.6) {
+            final circle = Path()
+              ..addOval(Rect.fromCircle(center: roundelCenter, radius: roundelRadius));
+            shardPath = Path.combine(PathOperation.difference, diamondPath, circle);
+          }
+        }
+
+        // Color choice — wider variation via HSL hue/sat/lightness shifts.
+        // Bias colors toward field tones (palette[0..2]) but allow occasional
+        // bright pops (palette[2..4]) so the surface doesn't feel monotonous.
+        final pick = rng.nextDouble();
+        final colorIdx = pick < 0.45
+            ? 1 // mid (most common)
+            : pick < 0.75
+                ? 0 // deep
+                : pick < 0.92
+                    ? 2 // bright
+                    : (rng.nextBool() ? 4 : 3); // occasional accent
+        final shardColor = _varyColor(palette[colorIdx], rng);
+
+        final bounds = shardPath.getBounds();
+        if (bounds.isEmpty) continue;
+        final shardPaint = Paint()
+          ..shader = RadialGradient(
+            center: Alignment(
+              -0.5 + (rng.nextDouble() - 0.5) * 0.4,
+              -0.5 + (rng.nextDouble() - 0.5) * 0.4,
+            ),
+            radius: 1.0 + rng.nextDouble() * 0.3,
+            colors: [
+              Color.lerp(shardColor, Colors.white, 0.20)!,
+              shardColor,
+              Color.lerp(shardColor, Colors.black, 0.25)!,
+            ],
+            stops: const [0.0, 0.55, 1.0],
+          ).createShader(bounds);
+
+        canvas.drawPath(shardPath, shardPaint);
+        canvas.drawPath(shardPath, leadPaint);
+
+        // Joint dots (de-duped later)
+        for (final v in [top, right, bottom, left]) {
+          if (v.dx >= -2 && v.dx <= size.width + 2 &&
+              v.dy >= -2 && v.dy <= size.height + 2) {
+            joints.add(v);
+          }
         }
       }
     }
 
-    // Final warm glow from upper-left to suggest light through the glass
+    // ───────────── Roundel ─────────────
+    if (showRoundel) {
+      // Fill base — a deep contrast color from the palette
+      final roundelFill = Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(-0.3, -0.4),
+          colors: [
+            Color.lerp(palette[4], Colors.white, 0.15)!,
+            palette[3],
+            Color.lerp(palette[3], Colors.black, 0.25)!,
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ).createShader(Rect.fromCircle(center: roundelCenter, radius: roundelRadius));
+      canvas.drawCircle(roundelCenter, roundelRadius, roundelFill);
+
+      // Radial wedges — 8 segments, alternating two accent tones
+      const wedgeCount = 8;
+      final wedgeStartAngle = rng.nextDouble() * math.pi * 2;
+      for (int i = 0; i < wedgeCount; i++) {
+        final a0 = wedgeStartAngle + i * 2 * math.pi / wedgeCount;
+        final a1 = wedgeStartAngle + (i + 1) * 2 * math.pi / wedgeCount;
+        final wedge = Path()
+          ..moveTo(roundelCenter.dx, roundelCenter.dy)
+          ..lineTo(
+            roundelCenter.dx + roundelRadius * math.cos(a0),
+            roundelCenter.dy + roundelRadius * math.sin(a0),
+          )
+          ..arcToPoint(
+            Offset(
+              roundelCenter.dx + roundelRadius * math.cos(a1),
+              roundelCenter.dy + roundelRadius * math.sin(a1),
+            ),
+            radius: Radius.circular(roundelRadius),
+          )
+          ..close();
+
+        // Alternate between palette[3] (gold) and palette[2] (bright), with
+        // per-wedge HSL variance so each wedge reads as its own piece of glass.
+        final wColor = i.isEven ? palette[3] : palette[2];
+        final wedgeColor = _varyColor(wColor, rng);
+
+        final wedgePaint = Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.lerp(wedgeColor, Colors.white, 0.10)!,
+              wedgeColor,
+              Color.lerp(wedgeColor, Colors.black, 0.15)!,
+            ],
+          ).createShader(wedge.getBounds());
+        canvas.drawPath(wedge, wedgePaint);
+        canvas.drawPath(wedge, leadPaint);
+      }
+
+      // Inner hub circle — small dark center jewel
+      final hubRadius = roundelRadius * 0.18;
+      final hubPaint = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            Color.lerp(palette[2], Colors.white, 0.30)!,
+            palette[1],
+          ],
+        ).createShader(Rect.fromCircle(center: roundelCenter, radius: hubRadius));
+      canvas.drawCircle(roundelCenter, hubRadius, hubPaint);
+      canvas.drawCircle(roundelCenter, hubRadius, leadPaint);
+
+      // Roundel outer boundary — a thicker ring of lead
+      final ringPaint = Paint()
+        ..color = leadColor.withValues(alpha: 0.95)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.5;
+      canvas.drawCircle(roundelCenter, roundelRadius, ringPaint);
+    }
+
+    // ───────────── Soldered joints ─────────────
+    // Stamp small filled dots at the diamond vertices to suggest soldered
+    // came intersections. Skip any joints that fall inside the roundel (those
+    // came from diamonds whose corners crossed the medallion boundary).
+    final jointPaint = Paint()..color = leadColor.withValues(alpha: 0.9);
+    final stamped = <Offset>{};
+    for (final j in joints) {
+      if (showRoundel && (j - roundelCenter).distance < roundelRadius) continue;
+      // Snap to half-pixel precision so duplicate verts collapse
+      final key = Offset((j.dx * 2).round() / 2, (j.dy * 2).round() / 2);
+      if (stamped.contains(key)) continue;
+      stamped.add(key);
+      canvas.drawCircle(j, 2.0, jointPaint);
+    }
+
+    // ───────────── Final warm glow ─────────────
     final glow = Paint()
       ..shader = RadialGradient(
         center: const Alignment(-0.6, -0.7),
