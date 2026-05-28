@@ -5,6 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/parish.dart';
 import '../main.dart' show kPrimaryColor, kSecondaryColor, kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, favoritesManager, themeNotifier;
 import '../widgets/custom_icons.dart';
+import '../widgets/stained_glass_header.dart';
+import '../widgets/next_mass_banner.dart';
+import '../widgets/timeline_schedule_card.dart';
 
 class ParishDetailPage extends StatefulWidget {
   final Parish parish;
@@ -143,48 +146,59 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
   }
 
   Widget _buildPlaceholderBackground() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            kSecondaryColor,
-            kSecondaryColor.withValues(alpha: 0.8),
-          ],
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 40),
-          Container(
-            padding: const EdgeInsets.all(20),
+    final seed = parish.parishId ?? parish.name;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        StainedGlassHeader(seed: seed),
+        // Bottom-anchored dark scrim so the name always sits on a calm band
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 110,
+          child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.church,
-              size: 50,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              parish.name,
-              style: GoogleFonts.lato(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.55),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-        ],
-      ),
+        ),
+        Positioned(
+          bottom: 18,
+          left: 24,
+          right: 24,
+          child: Text(
+            parish.name,
+            style: GoogleFonts.cormorantGaramond(
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              height: 1.1,
+              letterSpacing: 0.2,
+              shadows: [
+                Shadow(
+                  offset: const Offset(0, 1),
+                  blurRadius: 2,
+                  color: Colors.black.withValues(alpha: 0.9),
+                ),
+                Shadow(
+                  offset: const Offset(0, 2),
+                  blurRadius: 12,
+                  color: Colors.black.withValues(alpha: 0.7),
+                ),
+              ],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
     );
   }
 
@@ -237,8 +251,17 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                 ),
               ),
             ],
+            stretch: true,
             flexibleSpace: FlexibleSpaceBar(
-              background: _buildHeaderBackground(),
+              stretchModes: const [
+                StretchMode.zoomBackground,
+                StretchMode.blurBackground,
+              ],
+              collapseMode: CollapseMode.parallax,
+              background: Hero(
+                tag: parishHeroTag(parish.parishId ?? parish.name),
+                child: _buildHeaderBackground(),
+              ),
             ),
           ),
           // Content
@@ -248,6 +271,19 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Next Mass banner (live countdown)
+                  if (parish.massTimes.isNotEmpty) ...[
+                    NextMassBanner(
+                      schedule: parish.massTimes,
+                      label: 'NEXT MASS',
+                      accentColor: kSecondaryColor,
+                      cardColor: cardColor,
+                      textColor: textColor,
+                      subtextColor: subtextColor,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   // Address Card (tappable to open in maps)
                   _TappableInfoCard(
                     icon: const Icon(Icons.location_on, color: kPrimaryColor, size: 26),
@@ -272,8 +308,8 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   if (parish.bulletinUrl != null && parish.bulletinUrl!.isNotEmpty)
                     const SizedBox(height: 16),
 
-                  // Mass Times Card
-                  _ScheduleCard(
+                  // Mass Times Card (timeline-grouped)
+                  TimelineScheduleCard(
                     icon: const Icon(Icons.access_time, color: kSecondaryColor, size: 26),
                     title: 'Mass Times',
                     items: parish.massTimes,

@@ -14,6 +14,9 @@ import 'pages/parish_detail_page.dart';
 import 'pages/find_parish_near_me_page.dart';
 import 'pages/filtered_parish_list_page.dart';
 import 'widgets/custom_icons.dart';
+import 'widgets/today_hero_card.dart';
+import 'widgets/next_mass_tile.dart';
+import 'widgets/stained_glass_header.dart';
 
 // Dev override: set to a LatLng to skip GPS, or null to use real location
 const LatLng? kDevLocation = kDebugMode
@@ -201,6 +204,7 @@ class _HomePageState extends State<HomePage> {
     _getUserLocation();
     _searchFocusNode.addListener(_onFocusChange);
     themeNotifier.addListener(_onThemeChanged);
+    favoritesManager.addListener(_onThemeChanged);
   }
 
   @override
@@ -210,8 +214,12 @@ class _HomePageState extends State<HomePage> {
     _searchFocusNode.dispose();
     _debounce?.cancel();
     themeNotifier.removeListener(_onThemeChanged);
+    favoritesManager.removeListener(_onThemeChanged);
     super.dispose();
   }
+
+  List<Parish> get _favoriteParishes =>
+      _parishes.where((p) => favoritesManager.isFavorite(p.name)).toList();
 
   void _onThemeChanged() {
     setState(() {});
@@ -605,7 +613,38 @@ class _HomePageState extends State<HomePage> {
                       color: _subtextColor,
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
+
+                  // Today hero card — day-aware suggestion
+                  TodayHeroCard(
+                    isDark: _isDark,
+                    accentColor: kSecondaryColor,
+                    onSelect: (intent) {
+                      final filter = parishFilterForIntent(intent);
+                      final title = switch (intent) {
+                        HeroIntent.mass => 'Mass Times',
+                        HeroIntent.confession => 'Confession',
+                        HeroIntent.adoration => 'Adoration',
+                      };
+                      final accent = switch (intent) {
+                        HeroIntent.mass => kSecondaryColor,
+                        HeroIntent.confession => kPrimaryColor,
+                        HeroIntent.adoration => Colors.orange,
+                      };
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FilteredParishListPage(
+                            filter: filter,
+                            title: title,
+                            accentColor: accent,
+                            userLocation: _userLocation,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 30),
 
                   // Search Section
                   Text(
@@ -671,6 +710,59 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const SizedBox(height: 16),
+
+                  // Live "Next Mass" square tiles (nearby + favorite)
+                  if (_nearbyParishes.isNotEmpty || _favoriteParishes.isNotEmpty) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_nearbyParishes.isNotEmpty)
+                          Expanded(
+                            child: NextMassTile(
+                              parishes: _nearbyParishes,
+                              label: 'NEXT MASS\nNEARBY',
+                              accentColor: kSecondaryColor,
+                              cardColor: _cardColor,
+                              textColor: _textColor,
+                              subtextColor: _subtextColor,
+                              onTap: (parish) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ParishDetailPage(parish: parish),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        if (_nearbyParishes.isNotEmpty && _favoriteParishes.isNotEmpty)
+                          const SizedBox(width: 12),
+                        if (_favoriteParishes.isNotEmpty)
+                          Expanded(
+                            child: NextMassTile(
+                              parishes: _favoriteParishes,
+                              label: 'AT A\nFAVORITE',
+                              accentColor: Colors.amber.shade700,
+                              cardColor: _cardColor,
+                              textColor: _textColor,
+                              subtextColor: _subtextColor,
+                              onTap: (parish) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ParishDetailPage(parish: parish),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        // If only one tile is present, leave the other half empty
+                        if (_nearbyParishes.isEmpty || _favoriteParishes.isEmpty)
+                          const Expanded(child: SizedBox.shrink()),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Nearby Parishes Horizontal List
                   _buildNearbyParishesList(),
@@ -1459,16 +1551,18 @@ class _NearbyParishCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: kSecondaryColor.withValues(alpha: 0.1),
+                Hero(
+                  tag: parishHeroTag(parish.parishId ?? parish.name),
+                  child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.church,
-                    color: kSecondaryColor,
-                    size: 20,
+                    child: SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: StainedGlassHeader(
+                        seed: parish.parishId ?? parish.name,
+                        overlayDarken: 0.0,
+                      ),
+                    ),
                   ),
                 ),
                 const Spacer(),

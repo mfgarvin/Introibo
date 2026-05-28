@@ -170,4 +170,75 @@ class ScheduleParser {
     final next = findNextOccurrence(entries, fromTime);
     return next?.minutesUntilNext(fromTime);
   }
+
+  /// Group schedule entries by relative day buckets, sorted by occurrence.
+  /// Buckets: 'today', 'tomorrow', 'thisWeek', 'beyond' (8+ days out).
+  static Map<String, List<UpcomingEntry>> groupByBucket(
+    List<String> scheduleStrings, [
+    DateTime? fromTime,
+  ]) {
+    final now = fromTime ?? DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final entries = parseSchedule(scheduleStrings);
+
+    final upcoming = entries.map((e) {
+      final next = e.nextOccurrence(now);
+      final eventDay = DateTime(next.year, next.month, next.day);
+      return UpcomingEntry(entry: e, occurrence: next, daysFromToday: eventDay.difference(today).inDays);
+    }).toList()
+      ..sort((a, b) => a.occurrence.compareTo(b.occurrence));
+
+    final buckets = <String, List<UpcomingEntry>>{
+      'today': [],
+      'tomorrow': [],
+      'thisWeek': [],
+      'beyond': [],
+    };
+
+    for (final u in upcoming) {
+      if (u.daysFromToday == 0) {
+        buckets['today']!.add(u);
+      } else if (u.daysFromToday == 1) {
+        buckets['tomorrow']!.add(u);
+      } else if (u.daysFromToday <= 7) {
+        buckets['thisWeek']!.add(u);
+      } else {
+        buckets['beyond']!.add(u);
+      }
+    }
+    return buckets;
+  }
+}
+
+/// A schedule entry paired with its next occurrence datetime.
+class UpcomingEntry {
+  final ScheduleEntry entry;
+  final DateTime occurrence;
+  final int daysFromToday;
+
+  UpcomingEntry({
+    required this.entry,
+    required this.occurrence,
+    required this.daysFromToday,
+  });
+
+  int get hour => entry.hour;
+  int get minute => entry.minute;
+  String get originalText => entry.originalText;
+
+  /// Human time, e.g. "10:30 AM"
+  String get timeLabel {
+    final h12 = entry.hour == 0
+        ? 12
+        : (entry.hour > 12 ? entry.hour - 12 : entry.hour);
+    final mer = entry.hour >= 12 ? 'PM' : 'AM';
+    final mm = entry.minute.toString().padLeft(2, '0');
+    return '$h12:$mm $mer';
+  }
+
+  /// Day label, e.g. "Sun", "Mon"
+  String get dayLabel {
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return names[entry.dayOfWeek - 1];
+  }
 }

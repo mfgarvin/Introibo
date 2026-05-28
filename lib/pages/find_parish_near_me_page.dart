@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -8,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import '../models/parish.dart';
 import '../services/parish_service.dart';
 import '../main.dart' show kPrimaryColor, kSecondaryColor, kBackgroundColor, kCardColor;
+import '../widgets/stained_glass_header.dart';
 import 'parish_detail_page.dart';
 
 // Dev override: set to a LatLng to skip GPS, or null to use real location
@@ -25,7 +27,21 @@ class FindParishNearMePage extends StatefulWidget {
 class _FindParishNearMePageState extends State<FindParishNearMePage> {
   LatLng? userLocation;
   List<Parish> _parishes = [];
+  List<Parish> _nearbyParishes = [];
   bool _isLoading = true;
+  int _selectedIndex = 0;
+  final MapController _mapController = MapController();
+  final PageController _pageController = PageController(viewportFraction: 0.85);
+
+  // Parchment/sepia tone — a soft warm wash that desaturates the map without
+  // going full Stamen-Watercolor. Built from a standard sepia matrix scaled
+  // back toward identity.
+  static const _parchmentFilter = ColorFilter.matrix(<double>[
+    0.55, 0.30, 0.10, 0, 18, // R
+    0.20, 0.62, 0.10, 0, 14, // G
+    0.12, 0.20, 0.50, 0, 5,  // B
+    0,    0,    0,    1, 0,  // A
+  ]);
 
   @override
   void initState() {
@@ -34,12 +50,59 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
     _getUserLocation();
   }
 
+  @override
+  void dispose() {
+    _mapController.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _rebuildNearby() {
+    if (userLocation == null) return;
+    final withCoords = _parishes
+        .where((p) => p.latitude != null && p.longitude != null)
+        .toList();
+    withCoords.sort((a, b) {
+      final da = _distance(userLocation!, a);
+      final db = _distance(userLocation!, b);
+      return da.compareTo(db);
+    });
+    _nearbyParishes = withCoords.take(40).toList();
+  }
+
+  double _distance(LatLng from, Parish p) {
+    // Squared great-circle approximation; we only need to sort.
+    final dLat = (p.latitude! - from.latitude);
+    final dLon = (p.longitude! - from.longitude);
+    return dLat * dLat + dLon * dLon;
+  }
+
+  void _selectParish(int index, {bool moveCamera = true, bool animatePage = true}) {
+    if (index < 0 || index >= _nearbyParishes.length) return;
+    setState(() => _selectedIndex = index);
+    final parish = _nearbyParishes[index];
+    if (moveCamera) {
+      _mapController.move(
+        LatLng(parish.latitude!, parish.longitude!),
+        math.max(_mapController.camera.zoom, 14.0),
+      );
+    }
+    if (animatePage && _pageController.hasClients) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   Future<void> _loadParishData() async {
     try {
       final parishes = await parishService.getParishes();
 
       setState(() {
         _parishes = parishes;
+        _rebuildNearby();
       });
     } catch (e) {
       debugPrint('Error loading parish data: $e');
@@ -53,6 +116,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
       setState(() {
         userLocation = kDevLocation;
         _isLoading = false;
+        _rebuildNearby();
       });
       return;
     }
@@ -80,6 +144,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
       setState(() {
         userLocation = LatLng(position.latitude, position.longitude);
         _isLoading = false;
+        _rebuildNearby();
       });
     } catch (e) {
       debugPrint('Error getting location: $e');
@@ -139,8 +204,9 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
               ? _buildLocationErrorState()
               : Stack(
                   children: [
-                    // Map
+                    // Map with parchment color filter applied to tiles only
                     FlutterMap(
+                      mapController: _mapController,
                       options: MapOptions(
                         initialCenter: localUserLocation,
                         initialZoom: 13.0,
@@ -148,10 +214,13 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                         maxZoom: 18.0,
                       ),
                       children: [
-                        TileLayer(
-                          urlTemplate:
-                              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                          userAgentPackageName: 'com.example.mass_gpt',
+                        ColorFiltered(
+                          colorFilter: _parchmentFilter,
+                          child: TileLayer(
+                            urlTemplate:
+                                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                            userAgentPackageName: 'com.example.introibo',
+                          ),
                         ),
                         MarkerLayer(
                           markers: [
@@ -161,65 +230,49 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                         ),
                       ],
                     ),
-                    // Top Info Card
+                    // Top pill: parish count
                     Positioned(
                       top: MediaQuery.of(context).padding.top + 60,
-                      left: 20,
-                      right: 20,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        decoration: BoxDecoration(
-                          color: kCardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 20,
-                              spreadRadius: 0,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: kPrimaryColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: kCardColor,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 14,
                               ),
-                              child: const Icon(
-                                Icons.location_on,
-                                color: kPrimaryColor,
-                                size: 24,
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.location_on, color: kPrimaryColor, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${_nearbyParishes.length} parishes nearby',
+                                style: GoogleFonts.lato(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Parishes Near You',
-                                    style: GoogleFonts.lato(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Tap a marker to view details',
-                                    style: GoogleFonts.lato(
-                                      fontSize: 13,
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
+                    ),
+                    // Bottom: swipeable parish carousel
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 20,
+                      height: 150,
+                      child: _buildParishCarousel(),
                     ),
                   ],
                 ),
@@ -315,149 +368,176 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
   }
 
   List<Marker> _buildParishMarkers() {
-    return _parishes
-        .where((parish) => parish.latitude != null && parish.longitude != null)
-        .map(
-          (parish) => Marker(
-            point: LatLng(parish.latitude!, parish.longitude!),
-            width: 50.0,
-            height: 50.0,
-            child: GestureDetector(
-              onTap: () => _showParishInfo(parish),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: kSecondaryColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.church,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-            ),
-          ),
-        )
-        .toList();
-  }
-
-  void _showParishInfo(Parish parish) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: kCardColor,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 20,
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle bar
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Parish info
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: kSecondaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.church,
-                      color: kSecondaryColor,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          parish.name,
-                          style: GoogleFonts.lato(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${parish.address}, ${parish.city}',
-                          style: GoogleFonts.lato(
-                            fontSize: 14,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
+    final markers = <Marker>[];
+    for (int i = 0; i < _nearbyParishes.length; i++) {
+      final parish = _nearbyParishes[i];
+      final isSelected = i == _selectedIndex;
+      markers.add(
+        Marker(
+          point: LatLng(parish.latitude!, parish.longitude!),
+          width: isSelected ? 52.0 : 38.0,
+          height: isSelected ? 52.0 : 38.0,
+          child: GestureDetector(
+            onTap: () => _selectParish(i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                color: isSelected ? kPrimaryColor : kSecondaryColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: isSelected ? 3 : 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: (isSelected ? kPrimaryColor : Colors.black)
+                        .withValues(alpha: isSelected ? 0.4 : 0.25),
+                    blurRadius: isSelected ? 14 : 6,
+                    spreadRadius: isSelected ? 2 : 0,
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              // View Details Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ParishDetailPage(parish: parish),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'View Details',
-                    style: GoogleFonts.lato(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              child: Icon(
+                Icons.church,
+                color: Colors.white,
+                size: isSelected ? 26 : 20,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return markers;
+  }
+
+  Widget _buildParishCarousel() {
+    if (_nearbyParishes.isEmpty) return const SizedBox.shrink();
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: _nearbyParishes.length,
+      onPageChanged: (i) => _selectParish(i, animatePage: false),
+      itemBuilder: (context, i) {
+        final parish = _nearbyParishes[i];
+        final selected = i == _selectedIndex;
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 200),
+          padding: EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: selected ? 0 : 8,
+          ),
+          child: _MapParishCard(
+            parish: parish,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ParishDetailPage(parish: parish),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+}
+
+class _MapParishCard extends StatelessWidget {
+  final Parish parish;
+  final VoidCallback onTap;
+
+  const _MapParishCard({required this.parish, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final firstMass = parish.massTimes.isNotEmpty ? parish.massTimes.first : null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: kCardColor,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Hero(
+                tag: parishHeroTag(parish.parishId ?? parish.name),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 64,
+                    height: 64,
+                    child: StainedGlassHeader(
+                      seed: parish.parishId ?? parish.name,
+                      overlayDarken: 0.0,
                     ),
                   ),
                 ),
               ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      parish.name,
+                      style: GoogleFonts.lato(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                        height: 1.15,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      parish.city,
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (firstMass != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time, size: 12, color: kSecondaryColor),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              firstMass,
+                              style: GoogleFonts.lato(
+                                fontSize: 11,
+                                color: kSecondaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.black38),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../services/parish_service.dart';
 import '../utils/schedule_parser.dart';
 import '../main.dart' show kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, themeNotifier;
 import 'parish_detail_page.dart';
+import '../widgets/stained_glass_header.dart';
 
 enum ParishFilter {
   massTimes,
@@ -898,16 +899,18 @@ class _ParishCard extends StatelessWidget {
             // Header row
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.1),
+                Hero(
+                  tag: parishHeroTag(parish.parishId ?? parish.name),
+                  child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.church,
-                    color: accentColor,
-                    size: 22,
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: StainedGlassHeader(
+                        seed: parish.parishId ?? parish.name,
+                        overlayDarken: 0.0,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
