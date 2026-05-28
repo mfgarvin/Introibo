@@ -1,4 +1,5 @@
 // lib/services/parish_service.dart
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +16,7 @@ class ParishService {
 
   List<Parish> _parishes = [];
   bool _isLoaded = false;
-  bool _isLoading = false;
+  Future<void>? _pendingLoad;
   bool _isUsingCachedData = false;
   bool _requiresInternet = false;
   String? _errorMessage;
@@ -25,19 +26,8 @@ class ParishService {
 
   /// Returns cached parishes or loads them if not yet loaded
   Future<List<Parish>> getParishes() async {
-    if (_isLoaded) {
-      return _parishes;
-    }
-
-    if (_isLoading) {
-      // Wait for existing load to complete
-      while (_isLoading) {
-        await Future.delayed(const Duration(milliseconds: 50));
-      }
-      return _parishes;
-    }
-
-    await _loadParishData();
+    if (_isLoaded) return _parishes;
+    await (_pendingLoad ??= _loadParishData());
     return _parishes;
   }
 
@@ -45,7 +35,8 @@ class ParishService {
   Future<List<Parish>> refreshParishes() async {
     _isLoaded = false;
     _requiresInternet = false;
-    await _loadParishData();
+    _pendingLoad = _loadParishData();
+    await _pendingLoad;
     return _parishes;
   }
 
@@ -65,7 +56,6 @@ class ParishService {
   DateTime? get lastUpdated => _lastUpdated;
 
   Future<void> _loadParishData() async {
-    _isLoading = true;
     _errorMessage = null;
     _isUsingCachedData = false;
     _requiresInternet = false;
@@ -105,8 +95,6 @@ class ParishService {
         // Save to cache
         await prefs.setString(_cacheKey, response.body);
         await prefs.setInt(_cacheTimestampKey, _lastUpdated!.millisecondsSinceEpoch);
-
-        _isLoading = false;
         return;
       } else {
         _errorMessage = 'Server returned ${response.statusCode}';
@@ -118,13 +106,11 @@ class ParishService {
     // If we have cached data, mark as using cached
     if (_isLoaded && _parishes.isNotEmpty) {
       _isUsingCachedData = true;
-      _isLoading = false;
       return;
     }
 
     // No cached data and no internet - require internet connection
     _requiresInternet = true;
     _errorMessage = 'Internet connection required to download parish data';
-    _isLoading = false;
   }
 }

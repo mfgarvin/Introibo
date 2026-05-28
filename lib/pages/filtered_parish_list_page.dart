@@ -44,12 +44,12 @@ class FilteredParishListPage extends StatefulWidget {
   final LatLng? userLocation;
 
   const FilteredParishListPage({
-    Key? key,
+    super.key,
     required this.filter,
     required this.title,
     required this.accentColor,
     this.userLocation,
-  }) : super(key: key);
+  });
 
   @override
   State<FilteredParishListPage> createState() => _FilteredParishListPageState();
@@ -58,8 +58,8 @@ class FilteredParishListPage extends StatefulWidget {
 class _FilteredParishListPageState extends State<FilteredParishListPage> {
   List<Parish> _parishes = [];
   List<Parish> _filteredParishes = [];
-  Map<String, double> _distances = {};
-  Map<String, int> _minutesUntilNext = {};
+  final Map<String, double> _distances = {};
+  final Map<String, int> _minutesUntilNext = {};
   bool _isLoading = true;
   SortOrder _sortOrder = SortOrder.nearestAndSoonest;
   bool _showAllParishes = false;
@@ -547,7 +547,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           color: selected ? widget.accentColor : cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? widget.accentColor : subtextColor.withOpacity(0.3),
+            color: selected ? widget.accentColor : subtextColor.withValues(alpha: 0.3),
           ),
         ),
         child: Text(
@@ -676,7 +676,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: widget.accentColor.withOpacity(0.1),
+                  color: widget.accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -696,11 +696,11 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: _hasActiveFilters()
-                        ? widget.accentColor.withOpacity(0.1)
-                        : (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+                        ? widget.accentColor.withValues(alpha: 0.1)
+                        : (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: _hasActiveFilters()
-                        ? Border.all(color: widget.accentColor.withOpacity(0.5))
+                        ? Border.all(color: widget.accentColor.withValues(alpha: 0.5))
                         : null,
                   ),
                   child: Row(
@@ -732,7 +732,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+                      color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -783,7 +783,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color: Colors.black.withValues(alpha: 0.06),
                             blurRadius: 15,
                             offset: const Offset(0, 4),
                           ),
@@ -886,7 +886,7 @@ class _ParishCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 15,
               offset: const Offset(0, 4),
             ),
@@ -901,7 +901,7 @@ class _ParishCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.1),
+                    color: accentColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -938,7 +938,7 @@ class _ParishCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
+                      color: accentColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -954,7 +954,7 @@ class _ParishCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
+                      color: accentColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -977,7 +977,7 @@ class _ParishCard extends StatelessWidget {
             // Times section based on filter
             if (_getTimesToShow().isNotEmpty) ...[
               const SizedBox(height: 12),
-              Divider(height: 1, color: subtextColor.withOpacity(0.2)),
+              Divider(height: 1, color: subtextColor.withValues(alpha: 0.2)),
               const SizedBox(height: 12),
               _buildTimesSection(),
             ],
@@ -1047,7 +1047,7 @@ class _ParishCard extends StatelessWidget {
             ...displayTimes.map((time) => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: subtextColor.withOpacity(0.1),
+                    color: subtextColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -1062,7 +1062,7 @@ class _ParishCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
+                  color: accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

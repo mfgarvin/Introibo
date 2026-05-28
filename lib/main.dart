@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -109,7 +108,7 @@ class FavoritesManager extends ChangeNotifier {
 final favoritesManager = FavoritesManager();
 
 class IntroiboApp extends StatefulWidget {
-  const IntroiboApp({Key? key}) : super(key: key);
+  const IntroiboApp({super.key});
 
   @override
   State<IntroiboApp> createState() => _IntroiboAppState();
@@ -152,7 +151,7 @@ class _IntroiboAppState extends State<IntroiboApp> {
         textTheme: GoogleFonts.latoTextTheme(),
         scaffoldBackgroundColor: kBackgroundColor,
         primaryColor: kPrimaryColor,
-        colorScheme: ColorScheme.light(
+        colorScheme: const ColorScheme.light(
           primary: kPrimaryColor,
           secondary: kSecondaryColor,
         ),
@@ -162,7 +161,7 @@ class _IntroiboAppState extends State<IntroiboApp> {
         textTheme: GoogleFonts.latoTextTheme(ThemeData.dark().textTheme),
         scaffoldBackgroundColor: kBackgroundColorDark,
         primaryColor: kPrimaryColor,
-        colorScheme: ColorScheme.dark(
+        colorScheme: const ColorScheme.dark(
           primary: kPrimaryColor,
           secondary: kSecondaryColor,
           surface: kCardColorDark,
@@ -177,7 +176,7 @@ class _IntroiboAppState extends State<IntroiboApp> {
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -299,7 +298,7 @@ class _HomePageState extends State<HomePage> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -586,7 +585,7 @@ class _HomePageState extends State<HomePage> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: kPrimaryColor.withOpacity(0.1),
+                            color: kPrimaryColor.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -653,7 +652,7 @@ class _HomePageState extends State<HomePage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => FindParishNearMePage(),
+                              builder: (context) => const FindParishNearMePage(),
                             ),
                           );
                         },
@@ -679,7 +678,7 @@ class _HomePageState extends State<HomePage> {
 
                   // About Section
                   Material(
-                    color: kPrimaryColor.withOpacity(_isDark ? 0.15 : 0.05),
+                    color: kPrimaryColor.withValues(alpha: _isDark ? 0.15 : 0.05),
                     borderRadius: BorderRadius.circular(20),
                     child: InkWell(
                       onTap: _showAboutPage,
@@ -691,7 +690,7 @@ class _HomePageState extends State<HomePage> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: kPrimaryColor.withOpacity(0.1),
+                                color: kPrimaryColor.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -741,7 +740,7 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 20,
                 spreadRadius: 0,
                 offset: const Offset(0, 4),
@@ -792,7 +791,7 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 20,
                   spreadRadius: 0,
                   offset: const Offset(0, 4),
@@ -819,7 +818,7 @@ class _HomePageState extends State<HomePage> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: kPrimaryColor.withOpacity(0.1),
+                                  color: kPrimaryColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -855,7 +854,7 @@ class _HomePageState extends State<HomePage> {
                               Icon(
                                 Icons.arrow_forward_ios,
                                 size: 16,
-                                color: _subtextColor.withOpacity(0.5),
+                                color: _subtextColor.withValues(alpha: 0.5),
                               ),
                             ],
                           ),
@@ -865,7 +864,7 @@ class _HomePageState extends State<HomePage> {
                         Divider(
                           height: 1,
                           indent: 56,
-                          color: _subtextColor.withOpacity(0.2),
+                          color: _subtextColor.withValues(alpha: 0.2),
                         ),
                     ],
                   );
@@ -883,7 +882,7 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 20,
                   spreadRadius: 0,
                   offset: const Offset(0, 4),
@@ -917,7 +916,7 @@ class _HomePageState extends State<HomePage> {
       children: [
         Expanded(
           child: _QuickAccessButton(
-            icon: Icon(Icons.access_time, color: kPrimaryColor, size: 28),
+            icon: const Icon(Icons.access_time, color: kPrimaryColor, size: 28),
             label: 'Mass Times',
             color: kPrimaryColor,
             onTap: () {
@@ -980,7 +979,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Expanded(
           child: _QuickAccessButton(
-            icon: Icon(Icons.event, color: const Color(0xFF9B59B6), size: 28),
+            icon: const Icon(Icons.event, color: Color(0xFF9B59B6), size: 28),
             label: 'Parish Events',
             color: const Color(0xFF9B59B6),
             onTap: () {
@@ -1121,7 +1120,7 @@ class _HomePageState extends State<HomePage> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: _subtextColor.withOpacity(0.3),
+                  color: _subtextColor.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1129,7 +1128,7 @@ class _HomePageState extends State<HomePage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -1196,7 +1195,7 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 15,
               offset: const Offset(0, 4),
             ),
@@ -1236,7 +1235,7 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 15,
               offset: const Offset(0, 4),
             ),
@@ -1289,7 +1288,7 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 15,
               offset: const Offset(0, 4),
             ),
@@ -1383,7 +1382,7 @@ class _QuickAccessButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 15,
               spreadRadius: 0,
               offset: const Offset(0, 4),
@@ -1396,7 +1395,7 @@ class _QuickAccessButton extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: icon,
@@ -1449,7 +1448,7 @@ class _NearbyParishCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 15,
               offset: const Offset(0, 4),
             ),
@@ -1463,7 +1462,7 @@ class _NearbyParishCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: kSecondaryColor.withOpacity(0.1),
+                    color: kSecondaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -1476,7 +1475,7 @@ class _NearbyParishCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: kPrimaryColor.withOpacity(0.1),
+                    color: kPrimaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -1542,7 +1541,7 @@ class _NearbyParishCard extends StatelessWidget {
 }
 
 class FeedbackPage extends StatefulWidget {
-  const FeedbackPage({Key? key}) : super(key: key);
+  const FeedbackPage({super.key});
 
   @override
   State<FeedbackPage> createState() => _FeedbackPageState();
@@ -1675,7 +1674,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: kPrimaryColor.withOpacity(0.1),
+                  color: kPrimaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -1726,7 +1725,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -1762,7 +1761,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -1823,7 +1822,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
 }
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -1897,7 +1896,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -1907,7 +1906,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: kPrimaryColor.withOpacity(0.1),
+                      color: kPrimaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -1936,7 +1935,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     onChanged: (value) {
                       themeNotifier.setDarkMode(value);
                     },
-                    activeColor: kPrimaryColor,
+                    activeThumbColor: kPrimaryColor,
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
@@ -1960,7 +1959,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -1972,7 +1971,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: kPrimaryColor.withOpacity(0.1),
+                          color: kPrimaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -2012,7 +2011,7 @@ class _SettingsPageState extends State<SettingsPage> {
 class FavoritesPage extends StatefulWidget {
   final List<Parish> parishes;
 
-  const FavoritesPage({Key? key, required this.parishes}) : super(key: key);
+  const FavoritesPage({super.key, required this.parishes});
 
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
@@ -2127,7 +2126,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color: Colors.black.withValues(alpha: 0.06),
                             blurRadius: 10,
                             offset: const Offset(0, 2),
                           ),
@@ -2138,7 +2137,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: kPrimaryColor.withOpacity(0.1),
+                              color: kPrimaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
@@ -2216,7 +2215,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 }
 
 class AboutPage extends StatefulWidget {
-  const AboutPage({Key? key}) : super(key: key);
+  const AboutPage({super.key});
 
   @override
   State<AboutPage> createState() => _AboutPageState();
@@ -2277,7 +2276,7 @@ class _AboutPageState extends State<AboutPage> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: kPrimaryColor.withOpacity(0.1),
+                  color: kPrimaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -2314,7 +2313,7 @@ class _AboutPageState extends State<AboutPage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 15,
                       offset: const Offset(0, 4),
                     ),
@@ -2354,7 +2353,7 @@ class _AboutPageState extends State<AboutPage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 15,
                       offset: const Offset(0, 4),
                     ),
@@ -2394,7 +2393,7 @@ class _AboutPageState extends State<AboutPage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 15,
                       offset: const Offset(0, 4),
                     ),

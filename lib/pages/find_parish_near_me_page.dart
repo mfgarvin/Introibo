@@ -16,10 +16,10 @@ const LatLng? kDevLocation = kDebugMode
     : null;
 
 class FindParishNearMePage extends StatefulWidget {
-  const FindParishNearMePage({Key? key}) : super(key: key);
+  const FindParishNearMePage({super.key});
 
   @override
-  _FindParishNearMePageState createState() => _FindParishNearMePageState();
+  State<FindParishNearMePage> createState() => _FindParishNearMePageState();
 }
 
 class _FindParishNearMePageState extends State<FindParishNearMePage> {
@@ -106,7 +106,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 10,
                 spreadRadius: 0,
               ),
@@ -173,7 +173,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 20,
                               spreadRadius: 0,
                             ),
@@ -184,7 +184,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: kPrimaryColor.withOpacity(0.1),
+                                color: kPrimaryColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
@@ -236,7 +236,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -304,7 +304,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
           border: Border.all(color: Colors.white, width: 3),
           boxShadow: [
             BoxShadow(
-              color: kPrimaryColor.withOpacity(0.3),
+              color: kPrimaryColor.withValues(alpha: 0.3),
               blurRadius: 10,
               spreadRadius: 2,
             ),
@@ -331,7 +331,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                   border: Border.all(color: Colors.white, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 8,
                       spreadRadius: 0,
                     ),
@@ -362,7 +362,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
+                color: Colors.black.withValues(alpha: 0.15),
                 blurRadius: 20,
                 spreadRadius: 0,
               ),
@@ -376,7 +376,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -387,7 +387,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: kSecondaryColor.withOpacity(0.1),
+                      color: kSecondaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(

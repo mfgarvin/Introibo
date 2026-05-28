@@ -8,8 +8,10 @@ import '../main.dart' show kPrimaryColor, kBackgroundColor, kCardColor;
 import 'parish_detail_page.dart';
 
 class ResearchParishPage extends StatefulWidget {
+  const ResearchParishPage({super.key});
+
   @override
-  _ResearchParishPageState createState() => _ResearchParishPageState();
+  State<ResearchParishPage> createState() => _ResearchParishPageState();
 }
 
 class _ResearchParishPageState extends State<ResearchParishPage> {
@@ -109,7 +111,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 15,
                           spreadRadius: 0,
                           offset: const Offset(0, 4),
@@ -188,7 +190,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: kPrimaryColor.withOpacity(0.1),
+              color: kPrimaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -227,7 +229,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: Colors.orange.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -302,7 +304,7 @@ class _ParishCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 15,
               spreadRadius: 0,
               offset: const Offset(0, 4),
@@ -314,7 +316,7 @@ class _ParishCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: kPrimaryColor.withOpacity(0.1),
+                color: kPrimaryColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
@@ -376,7 +378,7 @@ class _ParishCard extends StatelessWidget {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: Colors.grey.withOpacity(0.5),
+              color: Colors.grey.withValues(alpha: 0.5),
               size: 16,
             ),
           ],

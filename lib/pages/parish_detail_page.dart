@@ -9,7 +9,7 @@ import '../widgets/custom_icons.dart';
 class ParishDetailPage extends StatefulWidget {
   final Parish parish;
 
-  const ParishDetailPage({Key? key, required this.parish}) : super(key: key);
+  const ParishDetailPage({super.key, required this.parish});
 
   @override
   State<ParishDetailPage> createState() => _ParishDetailPageState();
@@ -106,8 +106,8 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withOpacity(0.3),
-                  Colors.black.withOpacity(0.7),
+                  Colors.black.withValues(alpha: 0.3),
+                  Colors.black.withValues(alpha: 0.7),
                 ],
               ),
             ),
@@ -127,7 +127,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   Shadow(
                     offset: const Offset(0, 1),
                     blurRadius: 4,
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                   ),
                 ],
               ),
@@ -150,7 +150,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
           end: Alignment.bottomCenter,
           colors: [
             kSecondaryColor,
-            kSecondaryColor.withOpacity(0.8),
+            kSecondaryColor.withValues(alpha: 0.8),
           ],
         ),
       ),
@@ -161,7 +161,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -210,11 +210,11 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
             leading: Container(
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: cardColor.withOpacity(0.9),
+                color: cardColor.withValues(alpha: 0.9),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: Icon(Icons.arrow_back_ios_new, color: kPrimaryColor, size: 20),
+                icon: const Icon(Icons.arrow_back_ios_new, color: kPrimaryColor, size: 20),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -222,7 +222,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: cardColor.withOpacity(0.9),
+                  color: cardColor.withValues(alpha: 0.9),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
@@ -250,7 +250,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                 children: [
                   // Address Card (tappable to open in maps)
                   _TappableInfoCard(
-                    icon: Icon(Icons.location_on, color: kPrimaryColor, size: 26),
+                    icon: const Icon(Icons.location_on, color: kPrimaryColor, size: 26),
                     title: 'Address',
                     content: '${parish.address}\n${parish.city} ${parish.zipCode}',
                     color: kPrimaryColor,
@@ -274,7 +274,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
                   // Mass Times Card
                   _ScheduleCard(
-                    icon: Icon(Icons.access_time, color: kSecondaryColor, size: 26),
+                    icon: const Icon(Icons.access_time, color: kSecondaryColor, size: 26),
                     title: 'Mass Times',
                     items: parish.massTimes,
                     emptyMessage: 'No Mass times available',
@@ -346,7 +346,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 15,
             spreadRadius: 0,
             offset: const Offset(0, 4),
@@ -361,7 +361,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.1),
+                  color: Colors.purple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -415,13 +415,13 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: kPrimaryColor.withOpacity(0.1),
+              color: kPrimaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
+                const Icon(
                   Icons.fact_check_outlined,
                   size: 16,
                   color: kPrimaryColor,
@@ -465,7 +465,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 15,
             spreadRadius: 0,
             offset: const Offset(0, 4),
@@ -480,7 +480,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: kSecondaryColor.withOpacity(0.1),
+                  color: kSecondaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -563,7 +563,7 @@ class _TappableInfoCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 15,
                 spreadRadius: 0,
                 offset: const Offset(0, 4),
@@ -576,7 +576,7 @@ class _TappableInfoCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: icon,
@@ -613,7 +613,7 @@ class _TappableInfoCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -674,7 +674,7 @@ class _ScheduleCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 15,
             spreadRadius: 0,
             offset: const Offset(0, 4),
@@ -689,7 +689,7 @@ class _ScheduleCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: icon,
@@ -710,7 +710,7 @@ class _ScheduleCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               decoration: BoxDecoration(
-                color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+                color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -797,7 +797,7 @@ class _TappableContactRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: (isClickable ? kPrimaryColor : Colors.grey).withOpacity(0.1),
+                color: (isClickable ? kPrimaryColor : Colors.grey).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -835,7 +835,7 @@ class _TappableContactRow extends StatelessWidget {
               Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: kPrimaryColor.withOpacity(0.6),
+                color: kPrimaryColor.withValues(alpha: 0.6),
               ),
           ],
         ),
@@ -869,7 +869,7 @@ class _BulletinButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 15,
                 spreadRadius: 0,
                 offset: const Offset(0, 4),
@@ -881,7 +881,7 @@ class _BulletinButton extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -908,7 +908,7 @@ class _BulletinButton extends StatelessWidget {
                       'View the latest parish bulletin',
                       style: GoogleFonts.lato(
                         fontSize: 13,
-                        color: textColor.withOpacity(0.7),
+                        color: textColor.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -917,7 +917,7 @@ class _BulletinButton extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -1094,7 +1094,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: widget.subtextColor.withOpacity(0.3),
+              color: widget.subtextColor.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1106,7 +1106,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: kPrimaryColor.withOpacity(0.1),
+                    color: kPrimaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -1257,7 +1257,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                     const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: widget.subtextColor.withOpacity(0.1),
+                        color: widget.subtextColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: TextField(
@@ -1342,7 +1342,7 @@ class _ChoiceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSelected ? color.withOpacity(0.15) : cardColor,
+      color: isSelected ? color.withValues(alpha: 0.15) : cardColor,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -1352,7 +1352,7 @@ class _ChoiceButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? color : Colors.grey.withOpacity(0.3),
+              color: isSelected ? color : Colors.grey.withValues(alpha: 0.3),
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -1411,7 +1411,7 @@ class _IssueChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected ? kPrimaryColor : Colors.grey.withOpacity(0.3),
+              color: isSelected ? kPrimaryColor : Colors.grey.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
