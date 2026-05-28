@@ -235,22 +235,6 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     }
   }
 
-  void _toggleSortOrder() {
-    setState(() {
-      // Cycle through: nearestAndSoonest -> distance -> alphabetical -> nearestAndSoonest
-      if (_sortOrder == SortOrder.nearestAndSoonest) {
-        _sortOrder = SortOrder.distance;
-      } else if (_sortOrder == SortOrder.distance) {
-        _sortOrder = SortOrder.alphabetical;
-      } else {
-        _sortOrder = SortOrder.nearestAndSoonest;
-      }
-      // Reset "show all" when switching sort modes
-      _showAllParishes = false;
-      _applySorting();
-    });
-  }
-
   bool _hasActiveFilters() {
     return _dayFilter != DayFilter.any ||
         _timeOfDayFilter != TimeOfDayFilter.any ||
@@ -563,28 +547,6 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     );
   }
 
-  IconData _getSortIcon() {
-    switch (_sortOrder) {
-      case SortOrder.nearestAndSoonest:
-        return Icons.schedule;
-      case SortOrder.distance:
-        return Icons.near_me;
-      case SortOrder.alphabetical:
-        return Icons.sort_by_alpha;
-    }
-  }
-
-  String _getSortLabel() {
-    switch (_sortOrder) {
-      case SortOrder.nearestAndSoonest:
-        return 'Soonest';
-      case SortOrder.distance:
-        return 'Nearest';
-      case SortOrder.alphabetical:
-        return 'A-Z';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = themeNotifier.isDarkMode;
@@ -725,41 +687,54 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              // Sort toggle button
-              if (canSortByDistance)
-                GestureDetector(
-                  onTap: _toggleSortOrder,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _getSortIcon(),
-                          size: 14,
-                          color: subtextColor,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _getSortLabel(),
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: subtextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
+        // Sort selector — M3 segmented button replaces the older cycling toggle
+        if (canSortByDistance)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<SortOrder>(
+                segments: const [
+                  ButtonSegment(
+                    value: SortOrder.nearestAndSoonest,
+                    label: Text('Soonest'),
+                    icon: Icon(Icons.schedule, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: SortOrder.distance,
+                    label: Text('Nearest'),
+                    icon: Icon(Icons.near_me, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: SortOrder.alphabetical,
+                    label: Text('A–Z'),
+                    icon: Icon(Icons.sort_by_alpha, size: 16),
+                  ),
+                ],
+                selected: {_sortOrder},
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _sortOrder = selection.first;
+                    _showAllParishes = false;
+                    _applySorting();
+                  });
+                },
+                style: SegmentedButton.styleFrom(
+                  selectedBackgroundColor: widget.accentColor.withValues(alpha: 0.15),
+                  selectedForegroundColor: widget.accentColor,
+                  foregroundColor: subtextColor,
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                showSelectedIcon: false,
+              ),
+            ),
+          ),
         // Parish list
         Expanded(
           child: ListView.builder(

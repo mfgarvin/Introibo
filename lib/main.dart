@@ -35,7 +35,8 @@ const Color kBackgroundColor = Color(0xFFFAF6EE); // warm cream parchment
 const Color kBackgroundColorDark = Color(0xFF000000); // true black for OLED
 const Color kPrimaryColor = Color(0xFF8C1F1F); // deep oxblood — dominant light accent
 const Color kSecondaryColor = Color(0xFF4A2828); // deep plum — secondary / headings
-const Color kAccentGold = Color(0xFFC9A227); // rich gold accent (both modes)
+const Color kAccentGold = Color(0xFFC9A227); // rich gold — ornament/icons only (fails AA as text on cream)
+const Color kAccentGoldDeep = Color(0xFF8C5A14); // deep bronze-gold — text-safe on cream (~5.2:1 on parchment)
 const Color kAccentCandlelight = Color(0xFFD4A24A); // candlelight gold — dominant dark accent
 const Color kCardColor = Color(0xFFFFFCF4); // warm card surface (very subtle warm white)
 const Color kCardColorDark = Color(0xFF14100F); // warm-toned near-black card
@@ -47,6 +48,12 @@ const Color kTextDark = Color(0xFFF4E9D8); // warm cream text on dark
 /// accent should adapt to theme.
 Color primaryAccentFor({required bool isDark}) =>
     isDark ? kAccentCandlelight : kPrimaryColor;
+
+/// Text-safe gold accent. On cream backgrounds the bright `kAccentGold` falls
+/// to ~2.5:1 contrast, failing WCAG AA. Use this helper anywhere gold is used
+/// as a foreground color (label text, accent rules, kicker labels).
+Color goldTextAccentFor({required bool isDark}) =>
+    isDark ? kAccentCandlelight : kAccentGoldDeep;
 
 // Theme notifier for app-wide theme management
 class ThemeNotifier extends ChangeNotifier {
@@ -640,7 +647,7 @@ class _HomePageState extends State<HomePage> {
                       final accent = switch (intent) {
                         HeroIntent.mass => primaryAccentFor(isDark: _isDark),
                         HeroIntent.confession => const Color(0xFF5E3370),
-                        HeroIntent.adoration => kAccentGold,
+                        HeroIntent.adoration => goldTextAccentFor(isDark: _isDark),
                       };
                       Navigator.push(
                         context,
@@ -710,58 +717,11 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Live "Next Mass" square tiles (nearby + favorite)
-                  if (_nearbyParishes.isNotEmpty || _favoriteParishes.isNotEmpty) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_nearbyParishes.isNotEmpty)
-                          Expanded(
-                            child: NextMassTile(
-                              parishes: _nearbyParishes,
-                              label: 'NEXT MASS\nNEARBY',
-                              accentColor: primaryAccentFor(isDark: _isDark),
-                              cardColor: _cardColor,
-                              textColor: _textColor,
-                              subtextColor: _subtextColor,
-                              onTap: (parish) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ParishDetailPage(parish: parish),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        if (_nearbyParishes.isNotEmpty && _favoriteParishes.isNotEmpty)
-                          const SizedBox(width: 12),
-                        if (_favoriteParishes.isNotEmpty)
-                          Expanded(
-                            child: NextMassTile(
-                              parishes: _favoriteParishes,
-                              label: 'AT A\nFAVORITE',
-                              accentColor: _isDark ? kAccentGold : Colors.amber.shade800,
-                              cardColor: _cardColor,
-                              textColor: _textColor,
-                              subtextColor: _subtextColor,
-                              onTap: (parish) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ParishDetailPage(parish: parish),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        // If only one tile is present, leave the other half empty
-                        if (_nearbyParishes.isEmpty || _favoriteParishes.isEmpty)
-                          const Expanded(child: SizedBox.shrink()),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                  // Live "Next Mass" tiles (nearby + favorite). Expanded
+                  // square tiles when any next Mass is within 60 min; otherwise
+                  // compact full-width banners stacked vertically so the hero
+                  // card above stays the single dominant surface.
+                  ..._buildNextMassTiles(),
 
                   // Nearby Parishes Horizontal List
                   _buildNearbyParishesList(),
@@ -1051,24 +1011,27 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _QuickAccessButton(
-            icon: CustomIcon.monstrance(color: kAccentGold, size: 28),
-            label: 'Adoration',
-            color: kAccentGold,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FilteredParishListPage(
-                    filter: ParishFilter.adoration,
-                    title: 'Adoration',
-                    accentColor: kAccentGold,
-                    userLocation: _userLocation,
+          child: Builder(builder: (context) {
+            final goldAccent = goldTextAccentFor(isDark: _isDark);
+            return _QuickAccessButton(
+              icon: CustomIcon.monstrance(color: goldAccent, size: 28),
+              label: 'Adoration',
+              color: goldAccent,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FilteredParishListPage(
+                      filter: ParishFilter.adoration,
+                      title: 'Adoration',
+                      accentColor: goldAccent,
+                      userLocation: _userLocation,
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            );
+          }),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1278,6 +1241,74 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
+  }
+
+  /// Renders the Next-Mass tile row(s). Returns a list of widgets so the
+  /// parent can splat them into its Column with the existing spacing.
+  List<Widget> _buildNextMassTiles() {
+    if (_nearbyParishes.isEmpty && _favoriteParishes.isEmpty) return const [];
+
+    final nearbyMin = NextMassTile.findSoonestMinutes(_nearbyParishes);
+    final favoriteMin = NextMassTile.findSoonestMinutes(_favoriteParishes);
+    final imminent = (nearbyMin != null && nearbyMin <= 60) ||
+        (favoriteMin != null && favoriteMin <= 60);
+
+    void open(Parish p) => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ParishDetailPage(parish: p)),
+        );
+
+    final nearbyTile = _nearbyParishes.isNotEmpty
+        ? NextMassTile(
+            parishes: _nearbyParishes,
+            label: imminent ? 'NEXT MASS\nNEARBY' : 'NEXT MASS NEARBY',
+            accentColor: primaryAccentFor(isDark: _isDark),
+            cardColor: _cardColor,
+            textColor: _textColor,
+            subtextColor: _subtextColor,
+            compact: !imminent,
+            onTap: open,
+          )
+        : null;
+    final favoriteTile = _favoriteParishes.isNotEmpty
+        ? NextMassTile(
+            parishes: _favoriteParishes,
+            label: imminent ? 'AT A\nFAVORITE' : 'AT A FAVORITE',
+            accentColor: goldTextAccentFor(isDark: _isDark),
+            cardColor: _cardColor,
+            textColor: _textColor,
+            subtextColor: _subtextColor,
+            compact: !imminent,
+            onTap: open,
+          )
+        : null;
+
+    if (imminent) {
+      // Side-by-side squares — at least one Mass is starting soon
+      return [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (nearbyTile != null) Expanded(child: nearbyTile),
+            if (nearbyTile != null && favoriteTile != null)
+              const SizedBox(width: 12),
+            if (favoriteTile != null) Expanded(child: favoriteTile),
+            if (nearbyTile == null || favoriteTile == null)
+              const Expanded(child: SizedBox.shrink()),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ];
+    } else {
+      // Stacked compact banners — quieter slot when nothing's imminent
+      return [
+        if (nearbyTile != null) nearbyTile,
+        if (nearbyTile != null && favoriteTile != null)
+          const SizedBox(height: 10),
+        if (favoriteTile != null) favoriteTile,
+        const SizedBox(height: 16),
+      ];
+    }
   }
 
   Widget _buildNearbyParishesList() {

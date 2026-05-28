@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/parish.dart';
-import '../main.dart' show kSecondaryColor, kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, kAccentGold, favoritesManager, themeNotifier, primaryAccentFor;
+import '../main.dart' show kSecondaryColor, kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, kAccentGold, favoritesManager, themeNotifier, primaryAccentFor, goldTextAccentFor;
 import '../widgets/custom_icons.dart';
 import '../widgets/stained_glass_header.dart';
 import '../widgets/next_mass_banner.dart';
@@ -353,17 +353,20 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
                   // Adoration Times Card (timeline-grouped)
                   if (parish.adoration.isNotEmpty)
-                    TimelineScheduleCard(
-                      icon: CustomIcon.monstrance(color: kAccentGold, size: 26),
-                      title: 'Adoration',
-                      items: parish.adoration,
-                      emptyMessage: '',
-                      color: kAccentGold,
-                      cardColor: cardColor,
-                      textColor: textColor,
-                      subtextColor: subtextColor,
-                      isDark: isDark,
-                    ),
+                    Builder(builder: (context) {
+                      final goldAccent = goldTextAccentFor(isDark: isDark);
+                      return TimelineScheduleCard(
+                        icon: CustomIcon.monstrance(color: goldAccent, size: 26),
+                        title: 'Adoration',
+                        items: parish.adoration,
+                        emptyMessage: '',
+                        color: goldAccent,
+                        cardColor: cardColor,
+                        textColor: textColor,
+                        subtextColor: subtextColor,
+                        isDark: isDark,
+                      );
+                    }),
                   if (parish.adoration.isNotEmpty)
                     const SizedBox(height: 16),
 

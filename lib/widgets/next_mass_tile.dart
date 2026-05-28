@@ -14,6 +14,10 @@ class NextMassTile extends StatefulWidget {
   final Color cardColor;
   final Color textColor;
   final Color subtextColor;
+
+  /// When true, render as a compact full-width banner instead of a 1:1 square.
+  /// Reserved for "next Mass is far enough away that this isn't the hero".
+  final bool compact;
   final void Function(Parish parish) onTap;
 
   const NextMassTile({
@@ -25,7 +29,25 @@ class NextMassTile extends StatefulWidget {
     required this.textColor,
     required this.subtextColor,
     required this.onTap,
+    this.compact = false,
   });
+
+  /// Minutes until the soonest Mass in [parishes], or null if none.
+  /// Exposed so callers can decide layout (compact vs expanded) before
+  /// instantiating the widget.
+  static int? findSoonestMinutes(List<Parish> parishes) {
+    final now = DateTime.now();
+    int best = 1 << 30;
+    for (final p in parishes) {
+      if (p.massTimes.isEmpty) continue;
+      final entries = ScheduleParser.parseSchedule(p.massTimes);
+      final next = ScheduleParser.findNextOccurrence(entries, now);
+      if (next == null) continue;
+      final m = next.minutesUntilNext(now);
+      if (m < best) best = m;
+    }
+    return best == 1 << 30 ? null : best;
+  }
 
   @override
   State<NextMassTile> createState() => _NextMassTileState();
@@ -81,6 +103,18 @@ class _NextMassTileState extends State<NextMassTile> {
     final whenLabel = _whenLabel(hit.entry, DateTime.now());
     final isImminent = hit.minutes <= 60;
 
+    return widget.compact
+        ? _buildCompact(hit, timeLabel, countdown, whenLabel, isImminent)
+        : _buildExpanded(hit, timeLabel, countdown, whenLabel, isImminent);
+  }
+
+  Widget _buildExpanded(
+    ({Parish parish, ScheduleEntry entry, int minutes}) hit,
+    String timeLabel,
+    String countdown,
+    String whenLabel,
+    bool isImminent,
+  ) {
     final seed = hit.parish.parishId ?? hit.parish.name;
     return AspectRatio(
       aspectRatio: 1.0,
@@ -109,7 +143,6 @@ class _NextMassTileState extends State<NextMassTile> {
               borderRadius: BorderRadius.circular(18),
               child: Stack(
                 children: [
-                  // Full-bleed stained-glass watermark
                   Positioned.fill(
                     child: Opacity(
                       opacity: 0.30,
@@ -119,7 +152,6 @@ class _NextMassTileState extends State<NextMassTile> {
                       ),
                     ),
                   ),
-                  // Diagonal scrim from card color so the upper-left text stays legible
                   Positioned.fill(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -141,7 +173,6 @@ class _NextMassTileState extends State<NextMassTile> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Top: kicker label + countdown chip
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -155,29 +186,10 @@ class _NextMassTileState extends State<NextMassTile> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isImminent
-                                    ? Colors.amber.withValues(alpha: 0.95)
-                                    : widget.accentColor
-                                        .withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                countdown,
-                                style: AppText.label(
-                                  color: isImminent
-                                      ? Colors.black87
-                                      : widget.accentColor,
-                                ),
-                              ),
-                            ),
+                            _countdownChip(countdown, isImminent),
                           ],
                         ),
                         const Spacer(),
-                        // Middle: parish name
                         Text(
                           hit.parish.name,
                           style: AppText.bodyLarge(color: widget.textColor),
@@ -185,7 +197,6 @@ class _NextMassTileState extends State<NextMassTile> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 6),
-                        // Bottom: when + time
                         Row(
                           children: [
                             Container(
@@ -214,6 +225,103 @@ class _NextMassTileState extends State<NextMassTile> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Compact banner: full-width, ~72px tall. Used when next Mass isn't
+  /// imminent — keeps the slot productive without screaming for attention.
+  Widget _buildCompact(
+    ({Parish parish, ScheduleEntry entry, int minutes}) hit,
+    String timeLabel,
+    String countdown,
+    String whenLabel,
+    bool isImminent,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => widget.onTap(hit.parish),
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: widget.cardColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: widget.accentColor.withValues(alpha: 0.22),
+              width: 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: widget.accentColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      widget.label.replaceAll('\n', ' '),
+                      style: AppText.kicker(color: widget.accentColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hit.parish.name,
+                      style: AppText.bodyLarge(color: widget.textColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$whenLabel · $timeLabel',
+                      style: AppText.caption(color: widget.subtextColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _countdownChip(countdown, isImminent),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _countdownChip(String countdown, bool isImminent) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isImminent
+            ? Colors.amber.withValues(alpha: 0.95)
+            : widget.accentColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        countdown,
+        style: AppText.label(
+          color: isImminent ? Colors.black87 : widget.accentColor,
         ),
       ),
     );

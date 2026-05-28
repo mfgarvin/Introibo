@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../pages/filtered_parish_list_page.dart';
 import '../theme/app_text.dart';
+import '../main.dart' show goldTextAccentFor;
 
 /// What kind of schedule a hero suggestion is pointing the user toward.
 enum HeroIntent { mass, confession, adoration }
@@ -179,15 +180,16 @@ class TodayHeroCard extends StatelessWidget {
   }
 
   /// Color hint per intent — gives each kind of suggestion a recognizable
-  /// hue without overriding caller-provided accent.
+  /// hue without overriding caller-provided accent. Adoration uses a deep
+  /// bronze-gold so white text on the gradient stays ≥4.5:1 contrast.
   Color? _accentForIntent(HeroIntent intent) {
     switch (intent) {
       case HeroIntent.mass:
-        return null; // use caller accent (oxblood)
+        return null; // use caller accent (oxblood / candlelight)
       case HeroIntent.confession:
         return const Color(0xFF5E3370); // dignified violet — penitential
       case HeroIntent.adoration:
-        return const Color(0xFFC9A227); // rich gold — Eucharistic
+        return goldTextAccentFor(isDark: isDark); // bronze gold — Eucharistic
     }
   }
 
