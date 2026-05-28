@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/parish.dart';
-import '../main.dart' show kPrimaryColor, kSecondaryColor, kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, favoritesManager, themeNotifier;
+import '../main.dart' show kSecondaryColor, kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, kAccentGold, favoritesManager, themeNotifier, primaryAccentFor;
 import '../widgets/custom_icons.dart';
 import '../widgets/stained_glass_header.dart';
 import '../widgets/next_mass_banner.dart';
@@ -38,6 +38,10 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
   }
 
   Parish get parish => widget.parish;
+
+  Color get _primaryAccent => primaryAccentFor(isDark: themeNotifier.isDarkMode);
+  Color get _secondaryAccent =>
+      themeNotifier.isDarkMode ? _primaryAccent : kSecondaryColor;
 
   Future<void> _launchMaps() async {
     final address = '${parish.address}, ${parish.city} ${parish.zipCode}';
@@ -117,20 +121,27 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
           ),
           // Parish name at bottom
           Positioned(
-            bottom: 20,
+            bottom: 18,
             left: 24,
             right: 24,
             child: Text(
               parish.name,
-              style: GoogleFonts.lato(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+              style: GoogleFonts.cormorantGaramond(
+                fontSize: 34,
+                fontWeight: FontWeight.w700,
                 color: Colors.white,
+                height: 1.1,
+                letterSpacing: 0.2,
                 shadows: [
                   Shadow(
                     offset: const Offset(0, 1),
-                    blurRadius: 4,
-                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 2,
+                    color: Colors.black.withValues(alpha: 0.9),
+                  ),
+                  Shadow(
+                    offset: const Offset(0, 2),
+                    blurRadius: 12,
+                    color: Colors.black.withValues(alpha: 0.7),
                   ),
                 ],
               ),
@@ -210,6 +221,10 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
     final cardColor = isDark ? kCardColorDark : kCardColor;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtextColor = isDark ? Colors.white70 : Colors.black54;
+    // In dark mode, all "primary accent" usages shift toward candlelight gold
+    // so reds don't disappear into the black.
+    final primaryAccent = primaryAccentFor(isDark: isDark);
+    final secondaryAccent = isDark ? primaryAccent : kSecondaryColor;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -220,15 +235,15 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundColor: kSecondaryColor,
+            backgroundColor: isDark ? kCardColorDark : kSecondaryColor,
             leading: Container(
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: cardColor.withValues(alpha: 0.9),
+                color: (isDark ? Colors.white : cardColor).withValues(alpha: 0.9),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: kPrimaryColor, size: 20),
+                icon: Icon(Icons.arrow_back_ios_new, color: primaryAccentFor(isDark: isDark), size: 20),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -236,13 +251,13 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: cardColor.withValues(alpha: 0.9),
+                  color: (isDark ? Colors.white : cardColor).withValues(alpha: 0.9),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
                   icon: Icon(
                     isFavorite ? Icons.star : Icons.star_border,
-                    color: isFavorite ? Colors.amber : kPrimaryColor,
+                    color: isFavorite ? kAccentGold : primaryAccentFor(isDark: isDark),
                     size: 24,
                   ),
                   onPressed: () {
@@ -276,7 +291,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                     NextMassBanner(
                       schedule: parish.massTimes,
                       label: 'NEXT MASS',
-                      accentColor: kSecondaryColor,
+                      accentColor: secondaryAccent,
                       cardColor: cardColor,
                       textColor: textColor,
                       subtextColor: subtextColor,
@@ -286,10 +301,10 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
                   // Address Card (tappable to open in maps)
                   _TappableInfoCard(
-                    icon: const Icon(Icons.location_on, color: kPrimaryColor, size: 26),
+                    icon: Icon(Icons.location_on, color: primaryAccent, size: 26),
                     title: 'Address',
                     content: '${parish.address}\n${parish.city} ${parish.zipCode}',
-                    color: kPrimaryColor,
+                    color: primaryAccent,
                     cardColor: cardColor,
                     textColor: textColor,
                     actionIcon: Icons.directions,
@@ -310,11 +325,11 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
                   // Mass Times Card (timeline-grouped)
                   TimelineScheduleCard(
-                    icon: const Icon(Icons.access_time, color: kSecondaryColor, size: 26),
+                    icon: Icon(Icons.access_time, color: secondaryAccent, size: 26),
                     title: 'Mass Times',
                     items: parish.massTimes,
                     emptyMessage: 'No Mass times available',
-                    color: kSecondaryColor,
+                    color: secondaryAccent,
                     cardColor: cardColor,
                     textColor: textColor,
                     subtextColor: subtextColor,
@@ -322,13 +337,13 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Confession Times Card
-                  _ScheduleCard(
-                    icon: CustomIcon.confession(color: kPrimaryColor, size: 26),
+                  // Confession Times Card (timeline-grouped)
+                  TimelineScheduleCard(
+                    icon: CustomIcon.confession(color: primaryAccent, size: 26),
                     title: 'Confession Times',
                     items: parish.confTimes,
                     emptyMessage: 'By Appointment Only',
-                    color: kPrimaryColor,
+                    color: primaryAccent,
                     cardColor: cardColor,
                     textColor: textColor,
                     subtextColor: subtextColor,
@@ -336,14 +351,14 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Adoration Times Card
+                  // Adoration Times Card (timeline-grouped)
                   if (parish.adoration.isNotEmpty)
-                    _ScheduleCard(
-                      icon: CustomIcon.monstrance(color: Colors.orange, size: 26),
+                    TimelineScheduleCard(
+                      icon: CustomIcon.monstrance(color: kAccentGold, size: 26),
                       title: 'Adoration',
                       items: parish.adoration,
                       emptyMessage: '',
-                      color: Colors.orange,
+                      color: kAccentGold,
                       cardColor: cardColor,
                       textColor: textColor,
                       subtextColor: subtextColor,
@@ -409,9 +424,9 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               const SizedBox(width: 16),
               Text(
                 'Upcoming Events',
-                style: GoogleFonts.lato(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                   color: textColor,
                 ),
               ),
@@ -420,7 +435,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
           const SizedBox(height: 16),
           Text(
             parish.eventsSummary!,
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 14,
               color: textColor,
               height: 1.5,
@@ -438,7 +453,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
         if (parish.lastUpdated != null)
           Text(
             'Data last updated: ${_formatDate(parish.lastUpdated!)}',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 12,
               color: subtextColor,
             ),
@@ -451,24 +466,24 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: kPrimaryColor.withValues(alpha: 0.1),
+              color: _primaryAccent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.fact_check_outlined,
                   size: 16,
-                  color: kPrimaryColor,
+                  color: _primaryAccent,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'Is this information accurate?',
-                  style: GoogleFonts.lato(
+                  style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: kPrimaryColor,
+                    color: _primaryAccent,
                   ),
                 ),
               ],
@@ -516,21 +531,21 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: kSecondaryColor.withValues(alpha: 0.1),
+                  color: _secondaryAccent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.contact_phone,
-                  color: kSecondaryColor,
+                  color: _secondaryAccent,
                   size: 24,
                 ),
               ),
               const SizedBox(width: 16),
               Text(
                 'Contact Information',
-                style: GoogleFonts.lato(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                   color: textColor,
                 ),
               ),
@@ -624,7 +639,7 @@ class _TappableInfoCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: color,
@@ -633,7 +648,7 @@ class _TappableInfoCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       content,
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 15,
                         color: textColor,
                         height: 1.4,
@@ -661,7 +676,7 @@ class _TappableInfoCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       actionLabel,
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 10,
                         color: color,
                         fontWeight: FontWeight.w600,
@@ -678,129 +693,6 @@ class _TappableInfoCard extends StatelessWidget {
   }
 }
 
-class _ScheduleCard extends StatelessWidget {
-  final Widget icon;
-  final String title;
-  final List<String> items;
-  final String emptyMessage;
-  final Color color;
-  final Color cardColor;
-  final Color textColor;
-  final Color subtextColor;
-  final bool isDark;
-
-  const _ScheduleCard({
-    required this.icon,
-    required this.title,
-    required this.items,
-    required this.emptyMessage,
-    required this.color,
-    required this.cardColor,
-    required this.textColor,
-    required this.subtextColor,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 15,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: icon,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                title,
-                style: GoogleFonts.lato(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (items.isEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: subtextColor,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    emptyMessage,
-                    style: GoogleFonts.lato(
-                      fontSize: 14,
-                      color: subtextColor,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            ...items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.only(top: 6),
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          item,
-                          style: GoogleFonts.lato(
-                            fontSize: 15,
-                            color: textColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-        ],
-      ),
-    );
-  }
-}
 
 class _TappableContactRow extends StatelessWidget {
   final IconData icon;
@@ -833,13 +725,13 @@ class _TappableContactRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: (isClickable ? kPrimaryColor : Colors.grey).withValues(alpha: 0.1),
+                color: (isClickable ? Theme.of(context).colorScheme.primary : Colors.grey).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
                 size: 20,
-                color: isClickable ? kPrimaryColor : Colors.grey,
+                color: isClickable ? Theme.of(context).colorScheme.primary : Colors.grey,
               ),
             ),
             const SizedBox(width: 12),
@@ -849,7 +741,7 @@ class _TappableContactRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 12,
                       color: subtextColor,
                     ),
@@ -857,11 +749,11 @@ class _TappableContactRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     value,
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 15,
-                      color: isClickable ? kPrimaryColor : textColor,
+                      color: isClickable ? Theme.of(context).colorScheme.primary : textColor,
                       decoration: isClickable ? TextDecoration.underline : null,
-                      decorationColor: kPrimaryColor,
+                      decorationColor: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ],
@@ -871,7 +763,7 @@ class _TappableContactRow extends StatelessWidget {
               Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: kPrimaryColor.withValues(alpha: 0.6),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
               ),
           ],
         ),
@@ -933,7 +825,7 @@ class _BulletinButton extends StatelessWidget {
                   children: [
                     Text(
                       'Weekly Bulletin',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: textColor,
@@ -942,7 +834,7 @@ class _BulletinButton extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'View the latest parish bulletin',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 13,
                         color: textColor.withValues(alpha: 0.7),
                       ),
@@ -1013,7 +905,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
     if (_isAccurate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please select whether the data is accurate', style: GoogleFonts.lato()),
+          content: Text('Please select whether the data is accurate', style: GoogleFonts.inter()),
           backgroundColor: Colors.red[400],
         ),
       );
@@ -1023,7 +915,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
     if (_isAccurate == false && _selectedIssues.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please select at least one issue', style: GoogleFonts.lato()),
+          content: Text('Please select at least one issue', style: GoogleFonts.inter()),
           backgroundColor: Colors.red[400],
         ),
       );
@@ -1084,7 +976,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Could not open email app', style: GoogleFonts.lato()),
+              content: Text('Could not open email app', style: GoogleFonts.inter()),
               backgroundColor: Colors.red[400],
             ),
           );
@@ -1094,7 +986,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error opening email: $e', style: GoogleFonts.lato()),
+            content: Text('Error opening email: $e', style: GoogleFonts.inter()),
             backgroundColor: Colors.red[400],
           ),
         );
@@ -1142,12 +1034,12 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: kPrimaryColor.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.fact_check,
-                    color: kPrimaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 24,
                   ),
                 ),
@@ -1158,7 +1050,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                     children: [
                       Text(
                         'Verify Parish Data',
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: widget.textColor,
@@ -1167,7 +1059,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                       const SizedBox(height: 2),
                       Text(
                         widget.parish.name,
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
                           color: widget.subtextColor,
                         ),
@@ -1195,7 +1087,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                   // Question
                   Text(
                     'Is the information for this parish accurate?',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: widget.textColor,
@@ -1242,7 +1134,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                     const SizedBox(height: 24),
                     Text(
                       'What needs to be updated?',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: widget.textColor,
@@ -1251,7 +1143,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                     const SizedBox(height: 4),
                     Text(
                       'Select all that apply',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 12,
                         color: widget.subtextColor,
                       ),
@@ -1284,7 +1176,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                     // Comments field
                     Text(
                       'Additional details (optional)',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: widget.textColor,
@@ -1299,13 +1191,13 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                       child: TextField(
                         controller: _commentsController,
                         maxLines: 3,
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           color: widget.textColor,
                         ),
                         decoration: InputDecoration(
                           hintText: 'e.g., "Sunday 10AM Mass has been moved to 10:30AM"',
-                          hintStyle: GoogleFonts.lato(
+                          hintStyle: GoogleFonts.inter(
                             fontSize: 14,
                             color: widget.subtextColor,
                           ),
@@ -1322,7 +1214,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                     child: ElevatedButton(
                       onPressed: _isSubmitting ? null : _submitFeedback,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryColor,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -1341,7 +1233,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                             )
                           : Text(
                               _isAccurate == true ? 'Confirm Data' : 'Submit Feedback',
-                              style: GoogleFonts.lato(
+                              style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1402,7 +1294,7 @@ class _ChoiceButton extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 label,
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected ? color : Colors.grey,
@@ -1437,7 +1329,7 @@ class _IssueChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSelected ? kPrimaryColor : cardColor,
+      color: isSelected ? Theme.of(context).colorScheme.primary : cardColor,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
@@ -1447,7 +1339,7 @@ class _IssueChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected ? kPrimaryColor : Colors.grey.withValues(alpha: 0.3),
+              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -1461,7 +1353,7 @@ class _IssueChip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   color: isSelected ? Colors.white : textColor,

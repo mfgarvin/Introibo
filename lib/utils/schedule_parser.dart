@@ -3,8 +3,10 @@ import 'package:flutter/foundation.dart';
 /// Represents a parsed schedule entry with day and time
 class ScheduleEntry {
   final int dayOfWeek; // 1 = Monday, 7 = Sunday (ISO standard)
-  final int hour; // 0-23
+  final int hour; // 0-23 — start time
   final int minute; // 0-59
+  final int? endHour; // 0-23 — optional end time for ranges like "3:00PM to 3:30PM"
+  final int? endMinute;
   final String originalText;
 
   ScheduleEntry({
@@ -12,7 +14,11 @@ class ScheduleEntry {
     required this.hour,
     required this.minute,
     required this.originalText,
+    this.endHour,
+    this.endMinute,
   });
+
+  bool get hasRange => endHour != null && endMinute != null;
 
   /// Calculate the next occurrence of this schedule entry from now
   DateTime nextOccurrence([DateTime? fromTime]) {
@@ -97,12 +103,14 @@ class ScheduleParser {
       final timesStr = parts.sublist(1).join(':'); // Rejoin in case there are multiple colons
       final times = _extractTimes(timesStr);
 
-      // Create a ScheduleEntry for each time
+      // Create a ScheduleEntry for each time (or range)
       for (final time in times) {
         entries.add(ScheduleEntry(
           dayOfWeek: dayOfWeek,
           hour: time['hour']!,
           minute: time['minute']!,
+          endHour: time['endHour'],
+          endMinute: time['endMinute'],
           originalText: line,
         ));
       }
@@ -124,34 +132,78 @@ class ScheduleParser {
     return null;
   }
 
-  /// Extract all times from a time string (e.g., "9:00AM, 11:00AM, 4:30PM - Vigil Mass")
-  static List<Map<String, int>> _extractTimes(String timesStr) {
-    final times = <Map<String, int>>[];
+  /// Extract all times from a time string. Recognizes ranges connected by
+  /// "to", "until", "-", "–", or "—" and merges them into a single entry.
+  ///
+  /// Each returned map has keys: hour, minute, and optionally endHour/endMinute.
+  /// Examples:
+  ///   "9:00AM, 11:00AM"           → [{9,0}, {11,0}]
+  ///   "Saturday 3:00PM to 3:30PM" → [{15,0,end:15,30}]
+  ///   "9:00AM-9:30AM"             → [{9,0,end:9,30}]
+  static List<Map<String, int?>> _extractTimes(String timesStr) {
+    final results = <Map<String, int?>>[];
 
-    // Regular expression to match times like "9:00AM", "11:30PM", "4:30PM"
     final timeRegex = RegExp(r'(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)', caseSensitive: false);
-    final matches = timeRegex.allMatches(timesStr);
+    final matches = timeRegex.allMatches(timesStr).toList();
 
-    for (final match in matches) {
-      try {
-        int hour = int.parse(match.group(1)!);
-        final minute = int.parse(match.group(2)!);
-        final meridiem = match.group(3)!.toUpperCase();
+    // Connector tokens that indicate a range between two adjacent times
+    final rangeConnector = RegExp(r'\s*(?:to|until|through|thru|[-–—])\s*', caseSensitive: false);
 
-        // Convert to 24-hour format
-        if (meridiem == 'PM' && hour != 12) {
-          hour += 12;
-        } else if (meridiem == 'AM' && hour == 12) {
-          hour = 0;
-        }
-
-        times.add({'hour': hour, 'minute': minute});
-      } catch (e) {
-        debugPrint('Error parsing time from match: $e');
+    int i = 0;
+    while (i < matches.length) {
+      final m = matches[i];
+      final start = _parseMatch(m);
+      if (start == null) {
+        i++;
+        continue;
       }
+
+      // Look at the gap between this match's end and the next match's start.
+      // If it contains a range connector, merge them.
+      if (i + 1 < matches.length) {
+        final next = matches[i + 1];
+        final gap = timesStr.substring(m.end, next.start);
+        // Trim leading/trailing whitespace and check that the gap is JUST a connector
+        // (not, e.g., a comma which means a separate time).
+        final trimmed = gap.trim();
+        if (rangeConnector.hasMatch(trimmed) && !trimmed.contains(',')) {
+          final end = _parseMatch(next);
+          if (end != null) {
+            results.add({
+              'hour': start.hour,
+              'minute': start.minute,
+              'endHour': end.hour,
+              'endMinute': end.minute,
+            });
+            i += 2;
+            continue;
+          }
+        }
+      }
+
+      results.add({'hour': start.hour, 'minute': start.minute});
+      i++;
     }
 
-    return times;
+    return results;
+  }
+
+  /// Parse a single regex match into a 24-hour (hour, minute) pair.
+  static ({int hour, int minute})? _parseMatch(RegExpMatch match) {
+    try {
+      int hour = int.parse(match.group(1)!);
+      final minute = int.parse(match.group(2)!);
+      final meridiem = match.group(3)!.toUpperCase();
+      if (meridiem == 'PM' && hour != 12) {
+        hour += 12;
+      } else if (meridiem == 'AM' && hour == 12) {
+        hour = 0;
+      }
+      return (hour: hour, minute: minute);
+    } catch (e) {
+      debugPrint('Error parsing time from match: $e');
+      return null;
+    }
   }
 
   /// Find the next occurrence from a list of schedule entries
@@ -226,13 +278,25 @@ class UpcomingEntry {
   int get minute => entry.minute;
   String get originalText => entry.originalText;
 
-  /// Human time, e.g. "10:30 AM"
+  /// Human time, e.g. "10:30 AM", or "3:00 – 3:30 PM" for ranges.
+  /// When both endpoints share a meridiem, the first one is dropped for compactness.
   String get timeLabel {
-    final h12 = entry.hour == 0
-        ? 12
-        : (entry.hour > 12 ? entry.hour - 12 : entry.hour);
-    final mer = entry.hour >= 12 ? 'PM' : 'AM';
-    final mm = entry.minute.toString().padLeft(2, '0');
+    final start = _format12(entry.hour, entry.minute);
+    if (!entry.hasRange) return start;
+    final end = _format12(entry.endHour!, entry.endMinute!);
+    final sameMeridiem = (entry.hour >= 12) == (entry.endHour! >= 12);
+    if (sameMeridiem) {
+      // "3:00 – 3:30 PM" — drop the first meridiem
+      final startNoMer = start.replaceFirst(RegExp(r'\s?(AM|PM)$'), '');
+      return '$startNoMer – $end';
+    }
+    return '$start – $end';
+  }
+
+  static String _format12(int hour, int minute) {
+    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final mer = hour >= 12 ? 'PM' : 'AM';
+    final mm = minute.toString().padLeft(2, '0');
     return '$h12:$mm $mer';
   }
 

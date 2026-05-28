@@ -889,3 +889,76 @@ Added filter button to search for events by day and time of day:
    - Uses `ScheduleParser` to parse schedule strings
    - Checks if any schedule entry matches all active filters
    - When filters active, 2-day limit is disabled (shows all matching parishes)
+
+## Session Log: 2026-05-27
+
+Major UI refresh pass. Code-health cleanup first, then the full set of UI ideas the user picked from a proposal list (#2 detail, #3 home, #4 map, #5 motion, #1 typography, #6 dark-mode polish).
+
+### Code health (no UI changes)
+
+- `flutter analyze` cleaned from 117 info-level issues to 0. Removed unused `flutter_dotenv` and discontinued `flutter_map_cancellable_tile_provider` deps.
+- Fixed busy-wait concurrency bug in `lib/services/parish_service.dart` — `getParishes()` was polling every 50ms while another load was in flight; replaced with a shared `_pendingLoad` Future.
+- Bulk-migrated all 92 `Color.withOpacity(x)` calls to `withValues(alpha: x)` for Flutter 3.27+.
+- Ran `dart fix --apply`: 23 auto-fixes (super-params, final fields, const constructors, key params).
+
+### #2 Parish detail polish
+
+- New `lib/widgets/stained_glass_header.dart` — `CustomPainter` that draws a deterministic stained-glass abstract from a seed (`parishId ?? name`). 5 jewel-tone palettes (sapphire, burgundy, forest, vespers violet, twilight teal). Uses 4×3 grid-cell triangulation with per-cell random diagonal — gives uniform shards, no slivers.
+- Replaces the old flat church-icon placeholder on the detail page header.
+- SliverAppBar gained `stretch: true` + `StretchMode.zoomBackground` for over-scroll zoom.
+- New `lib/widgets/next_mass_banner.dart` — pinned banner under the address card with a live ticking countdown ("NEXT MASS · Sunday 10:30 AM · in 2h 15m"). Self-tickers every 30 seconds.
+- New `lib/widgets/timeline_schedule_card.dart` — replaces the flat `_ScheduleCard` for Mass, Confession, and Adoration. Groups entries into Today / Tomorrow / This week / Beyond sections, each with day chip + time + optional note.
+- Schedule parser gained `groupByBucket()` and `UpcomingEntry` helpers.
+- Old `_ScheduleCard` class removed from `parish_detail_page.dart`.
+
+### #3 Home page polish
+
+- New `lib/widgets/today_hero_card.dart` — day-aware suggestion card above the search bar. Adapts headline + intent based on weekday and hour: Sunday morning → Mass; Sunday evening → adoration; Saturday morning → confession; Saturday afternoon → vigil Mass; Friday → confession; weekday morning → daily Mass; weekday after 7 PM → adoration. Tap routes to the matching `FilteredParishListPage` via a `HeroIntent` callback. Tints itself per intent (violet for confession, gold for adoration).
+- New `lib/widgets/next_mass_tile.dart` — square 1:1 tile with live countdown to the soonest Mass in a list of parishes. Used twice on home page in a 2-column row: "NEXT MASS NEARBY" (`_nearbyParishes`) and "AT A FAVORITE" (`_favoriteParishes`), the favorite slot only appearing when the user has starred at least one parish. Tile now has a full-bleed stained-glass watermark at 30% opacity with a diagonal scrim from the card color for legibility.
+- Home page subscribes to `favoritesManager` so the favorites tile reacts instantly to star toggles on the detail page.
+
+### #4 Map view refresh
+
+- Parchment color-matrix `ColorFilter` applied to OSM tiles (warm sepia wash — no new tile provider needed).
+- Bottom swipeable `PageView` of the 40 nearest parishes with `viewportFraction: 0.85`. Cards include a stained-glass chip with a matching Hero tag.
+- Marker tap ↔ card swipe sync via `MapController` (selected marker enlarges and tints teal; selected card emphasized via padding).
+- Old single-modal `_showParishInfo` bottom sheet removed.
+
+### #5 Motion
+
+- Hero animation from each parish card's small stained-glass chip into the full detail-page header. Source: nearby cards in `main.dart`, filtered-list cards in `filtered_parish_list_page.dart`, map carousel cards. Target: `_buildHeaderBackground()` in `parish_detail_page.dart`. Tag helper: `parishHeroTag(seed)` in `stained_glass_header.dart`.
+- The animation felt choppy on Linux desktop during testing — deferred verification until APK build on Android. See `~/.claude/projects/.../memory/hero_anim_linux_choppy.md` for optimization candidates if it persists on a real device.
+
+### #1 + #6 Theme + dark mode overhaul
+
+New palette: **warm parchment + oxblood + gold (light) / true black + candlelight gold (dark).**
+
+Constants in `lib/main.dart`:
+- `kBackgroundColor = #FAF6EE` — warm cream parchment
+- `kBackgroundColorDark = #000000` — true OLED black
+- `kPrimaryColor = #8C1F1F` — deep oxblood (light primary)
+- `kSecondaryColor = #4A2828` — deep plum
+- `kAccentGold = #C9A227`, `kAccentCandlelight = #D4A24A`
+- `kCardColor = #FFFCF4`, `kCardColorDark = #14100F`
+- `primaryAccentFor({required bool isDark})` helper — returns candlelight gold in dark mode, oxblood in light, since red on near-black is hard to read.
+
+Typography:
+- New `lib/theme/app_text.dart` with a unified 7-step scale: `display`, `titleHuge`, `titleLarge`, `titleHero`, `bodyLarge`, `body`, `caption`, `label`, `kicker`. Reach for these instead of inline `GoogleFonts.x(fontSize: …)` calls.
+- Bulk-migrated all 152 `GoogleFonts.lato(...)` calls to `GoogleFonts.inter(...)` for body.
+- Cormorant Garamond reserved for display: app title, section headings, card titles, parish names, hero card headline.
+- `MaterialApp` theme `textTheme` wired to `GoogleFonts.interTextTheme()`.
+
+Dark mode propagation:
+- `parish_detail_page.dart` reads `Theme.of(context).colorScheme.primary` in helper widgets (`_TappableContactRow`, `_BulletinButton`, feedback chip) so accents shift to candlelight gold automatically in dark mode.
+- SliverAppBar background, back/star icons, NextMassBanner accent all use `primaryAccentFor(isDark: ...)` or `Theme.of(context).colorScheme.primary`.
+- HomePage quick-access buttons: Mass=oxblood/candlelight (theme-aware), Confession=violet `#5E3370`, Adoration=gold, Parish Events=plum.
+
+### Range-aware schedule parsing
+
+- `lib/utils/schedule_parser.dart` now recognizes "X to Y", "X until Y", "X-Y", "X–Y", "X—Y" connectors and merges adjacent times into a single `ScheduleEntry` with optional `endHour`/`endMinute`. Previously, "Tuesday: 3:00PM to 3:30PM" rendered as two separate rows.
+- `UpcomingEntry.timeLabel` renders ranges as "3:00 – 3:30 PM" (drops the redundant meridiem when both endpoints share it).
+- Time slot in `TimelineScheduleCard` widened from 78 to 128 px to fit ranges.
+
+### Bulletin scraper handoff doc
+
+- `docs/bulletin_scraper_notes.md` — field-by-field observations and a proposed structured JSON shape for the scraper project at `mfgarvin/bulletin`. To be handed to the Claude working on that repo. Key asks: emit `{day, start, end, note}` structured entries, 24-hour HH:MM, ISO day names, drop the `lonlat` combined string in favor of numeric lat/lon, per-section timestamps.

@@ -371,7 +371,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   const SizedBox(width: 8),
                   Text(
                     'Filter by Time',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: textColor,
@@ -390,7 +390,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                       },
                       child: Text(
                         'Clear',
-                        style: GoogleFonts.lato(color: widget.accentColor),
+                        style: GoogleFonts.inter(color: widget.accentColor),
                       ),
                     ),
                 ],
@@ -400,7 +400,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
               // Day filter
               Text(
                 'When',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: subtextColor,
@@ -433,7 +433,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
               // Time of day filter
               Text(
                 'Time of day',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: subtextColor,
@@ -466,7 +466,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
               // Weekday filter
               Text(
                 'Day of week',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: subtextColor,
@@ -521,7 +521,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   ),
                   child: Text(
                     'Done',
-                    style: GoogleFonts.lato(fontWeight: FontWeight.w600),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -553,7 +553,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         ),
         child: Text(
           label,
-          style: GoogleFonts.lato(
+          style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             color: selected ? Colors.white : textColor,
@@ -602,7 +602,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         ),
         title: Text(
           widget.title,
-          style: GoogleFonts.lato(
+          style: GoogleFonts.inter(
             color: textColor,
             fontWeight: FontWeight.bold,
           ),
@@ -635,7 +635,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           const SizedBox(height: 16),
           Text(
             'No parishes found',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 18,
               color: subtextColor,
             ),
@@ -682,7 +682,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                 ),
                 child: Text(
                   '${displayedParishes.length} parishes',
-                  style: GoogleFonts.lato(
+                  style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: widget.accentColor,
@@ -715,7 +715,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                       const SizedBox(width: 6),
                       Text(
                         'Filter',
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: _hasActiveFilters() ? widget.accentColor : subtextColor,
@@ -747,7 +747,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                         const SizedBox(width: 6),
                         Text(
                           _getSortLabel(),
-                          style: GoogleFonts.lato(
+                          style: GoogleFonts.inter(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: subtextColor,
@@ -801,7 +801,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                           const SizedBox(width: 8),
                           Text(
                             'Show $hiddenCount more parishes',
-                            style: GoogleFonts.lato(
+                            style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: widget.accentColor,
@@ -920,7 +920,7 @@ class _ParishCard extends StatelessWidget {
                     children: [
                       Text(
                         parish.name,
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: textColor,
@@ -929,7 +929,7 @@ class _ParishCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${parish.city} ${parish.zipCode}',
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
                           color: subtextColor,
                         ),
@@ -946,7 +946,7 @@ class _ParishCard extends StatelessWidget {
                     ),
                     child: Text(
                       '${distance!.toStringAsFixed(1)} mi',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: accentColor,
@@ -962,7 +962,7 @@ class _ParishCard extends StatelessWidget {
                     ),
                     child: Text(
                       _formatTimeUntil(minutesUntilNext!),
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: accentColor,
@@ -1034,7 +1034,7 @@ class _ParishCard extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.lato(
+              style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: accentColor,
@@ -1055,7 +1055,7 @@ class _ParishCard extends StatelessWidget {
                   ),
                   child: Text(
                     time,
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 12,
                       color: textColor,
                     ),
@@ -1070,7 +1070,7 @@ class _ParishCard extends StatelessWidget {
                 ),
                 child: Text(
                   '+${times.length - 3} more',
-                  style: GoogleFonts.lato(
+                  style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: accentColor,

@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/parish.dart';
 import '../utils/schedule_parser.dart';
+import '../theme/app_text.dart';
+import 'stained_glass_header.dart';
 
 /// A live tile showing the soonest upcoming Mass across a set of nearby parishes.
 /// Self-tickers to keep the countdown fresh.
@@ -80,6 +81,7 @@ class _NextMassTileState extends State<NextMassTile> {
     final whenLabel = _whenLabel(hit.entry, DateTime.now());
     final isImminent = hit.minutes <= 60;
 
+    final seed = hit.parish.parishId ?? hit.parish.name;
     return AspectRatio(
       aspectRatio: 1.0,
       child: Material(
@@ -103,88 +105,113 @@ class _NextMassTileState extends State<NextMassTile> {
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top: kicker label + countdown chip
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.label,
-                        style: GoogleFonts.lato(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: widget.accentColor,
-                          letterSpacing: 1.2,
-                          height: 1.2,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Stack(
+                children: [
+                  // Full-bleed stained-glass watermark
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: 0.30,
+                      child: StainedGlassHeader(
+                        seed: seed,
+                        overlayDarken: 0.0,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isImminent
-                            ? Colors.amber.withValues(alpha: 0.95)
-                            : widget.accentColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        countdown,
-                        style: GoogleFonts.lato(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isImminent ? Colors.black87 : widget.accentColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                // Middle: parish name
-                Text(
-                  hit.parish.name,
-                  style: GoogleFonts.lato(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: widget.textColor,
-                    height: 1.2,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                // Bottom: when + time
-                Row(
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 14,
+                  // Diagonal scrim from card color so the upper-left text stays legible
+                  Positioned.fill(
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: widget.accentColor,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        '$whenLabel · $timeLabel',
-                        style: GoogleFonts.lato(
-                          fontSize: 12,
-                          color: widget.subtextColor,
-                          fontWeight: FontWeight.w600,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            widget.cardColor.withValues(alpha: 0.95),
+                            widget.cardColor.withValues(alpha: 0.55),
+                            widget.cardColor.withValues(alpha: 0.15),
+                          ],
+                          stops: const [0.0, 0.55, 1.0],
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top: kicker label + countdown chip
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.label,
+                                style:
+                                    AppText.kicker(color: widget.accentColor),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isImminent
+                                    ? Colors.amber.withValues(alpha: 0.95)
+                                    : widget.accentColor
+                                        .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                countdown,
+                                style: AppText.label(
+                                  color: isImminent
+                                      ? Colors.black87
+                                      : widget.accentColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        // Middle: parish name
+                        Text(
+                          hit.parish.name,
+                          style: AppText.bodyLarge(color: widget.textColor),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        // Bottom: when + time
+                        Row(
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: widget.accentColor,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                '$whenLabel · $timeLabel',
+                                style:
+                                    AppText.caption(color: widget.subtextColor),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -207,7 +234,8 @@ class _NextMassTileState extends State<NextMassTile> {
   String _whenLabel(ScheduleEntry entry, DateTime now) {
     final occurrence = entry.nextOccurrence(now);
     final today = DateTime(now.year, now.month, now.day);
-    final eventDay = DateTime(occurrence.year, occurrence.month, occurrence.day);
+    final eventDay =
+        DateTime(occurrence.year, occurrence.month, occurrence.day);
     final days = eventDay.difference(today).inDays;
     if (days == 0) return 'Today';
     if (days == 1) return 'Tomorrow';

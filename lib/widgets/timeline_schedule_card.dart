@@ -82,9 +82,9 @@ class TimelineScheduleCard extends StatelessWidget {
         const SizedBox(width: 16),
         Text(
           title,
-          style: GoogleFonts.lato(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+          style: GoogleFonts.cormorantGaramond(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
             color: textColor,
           ),
         ),
@@ -106,7 +106,7 @@ class TimelineScheduleCard extends StatelessWidget {
           Expanded(
             child: Text(
               emptyMessage,
-              style: GoogleFonts.lato(
+              style: GoogleFonts.inter(
                 fontSize: 14,
                 color: subtextColor,
                 fontStyle: FontStyle.italic,
@@ -123,7 +123,7 @@ class TimelineScheduleCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Text(
         text,
-        style: GoogleFonts.lato(fontSize: 14, color: textColor),
+        style: GoogleFonts.inter(fontSize: 14, color: textColor),
       ),
     );
   }
@@ -139,7 +139,7 @@ class TimelineScheduleCard extends StatelessWidget {
             children: [
               Text(
                 label.toUpperCase(),
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.2,
@@ -183,19 +183,19 @@ class TimelineScheduleCard extends StatelessWidget {
               child: Text(
                 e.dayLabel,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: color,
                 ),
               ),
             ),
-          // Time
+          // Time (or time range)
           SizedBox(
-            width: 78,
+            width: 128,
             child: Text(
               e.timeLabel,
-              style: GoogleFonts.lato(
+              style: GoogleFonts.inter(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: textColor,
@@ -207,7 +207,7 @@ class TimelineScheduleCard extends StatelessWidget {
             Expanded(
               child: Text(
                 note,
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 13,
                   color: subtextColor,
                   fontStyle: FontStyle.italic,

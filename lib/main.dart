@@ -17,6 +17,7 @@ import 'widgets/custom_icons.dart';
 import 'widgets/today_hero_card.dart';
 import 'widgets/next_mass_tile.dart';
 import 'widgets/stained_glass_header.dart';
+import 'theme/app_text.dart';
 
 // Dev override: set to a LatLng to skip GPS, or null to use real location
 const LatLng? kDevLocation = kDebugMode
@@ -29,13 +30,23 @@ Future<void> main() async {
   runApp(const IntroiboApp());
 }
 
-// Colors inspired by travel_app
-const Color kBackgroundColor = Color(0xffFEFEFE);
-const Color kBackgroundColorDark = Color(0xFF1A1A2E);
-const Color kPrimaryColor = Color(0xff3F95A1); // Teal accent
-const Color kSecondaryColor = Color(0xFF003366); // Original dark blue
-const Color kCardColor = Colors.white;
-const Color kCardColorDark = Color(0xFF16213E);
+// Palette: warm parchment + oxblood + gold (light); true black + candlelight (dark)
+const Color kBackgroundColor = Color(0xFFFAF6EE); // warm cream parchment
+const Color kBackgroundColorDark = Color(0xFF000000); // true black for OLED
+const Color kPrimaryColor = Color(0xFF8C1F1F); // deep oxblood — dominant light accent
+const Color kSecondaryColor = Color(0xFF4A2828); // deep plum — secondary / headings
+const Color kAccentGold = Color(0xFFC9A227); // rich gold accent (both modes)
+const Color kAccentCandlelight = Color(0xFFD4A24A); // candlelight gold — dominant dark accent
+const Color kCardColor = Color(0xFFFFFCF4); // warm card surface (very subtle warm white)
+const Color kCardColorDark = Color(0xFF14100F); // warm-toned near-black card
+const Color kTextLight = Color(0xFF2A1B1B); // warm near-black text
+const Color kTextDark = Color(0xFFF4E9D8); // warm cream text on dark
+
+/// In dark mode, the dominant accent shifts to candlelight gold so red doesn't
+/// glow uncomfortably on true black. Use this helper anywhere the "primary"
+/// accent should adapt to theme.
+Color primaryAccentFor({required bool isDark}) =>
+    isDark ? kAccentCandlelight : kPrimaryColor;
 
 // Theme notifier for app-wide theme management
 class ThemeNotifier extends ChangeNotifier {
@@ -151,22 +162,26 @@ class _IntroiboAppState extends State<IntroiboApp> {
       title: 'Introibo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.light().copyWith(
-        textTheme: GoogleFonts.latoTextTheme(),
+        textTheme: GoogleFonts.interTextTheme(),
         scaffoldBackgroundColor: kBackgroundColor,
         primaryColor: kPrimaryColor,
+        cardColor: kCardColor,
         colorScheme: const ColorScheme.light(
           primary: kPrimaryColor,
           secondary: kSecondaryColor,
+          tertiary: kAccentGold,
+          surface: kCardColor,
         ),
         splashFactory: InkRipple.splashFactory,
       ),
       darkTheme: ThemeData.dark().copyWith(
-        textTheme: GoogleFonts.latoTextTheme(ThemeData.dark().textTheme),
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
         scaffoldBackgroundColor: kBackgroundColorDark,
-        primaryColor: kPrimaryColor,
+        primaryColor: kAccentCandlelight,
         colorScheme: const ColorScheme.dark(
-          primary: kPrimaryColor,
-          secondary: kSecondaryColor,
+          primary: kAccentCandlelight,
+          secondary: kPrimaryColor,
+          tertiary: kAccentGold,
           surface: kCardColorDark,
         ),
         cardColor: kCardColorDark,
@@ -279,7 +294,7 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               child: Text(
                 'Offline mode - data may be out of date',
-                style: GoogleFonts.lato(fontSize: 14),
+                style: GoogleFonts.inter(fontSize: 14),
               ),
             ),
           ],
@@ -318,7 +333,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 32),
                 Text(
                   'Internet Connection Required',
-                  style: GoogleFonts.lato(
+                  style: GoogleFonts.inter(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: _textColor,
@@ -328,7 +343,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 16),
                 Text(
                   'Introibo needs to download parish data on first launch. Please connect to the internet and try again.',
-                  style: GoogleFonts.lato(
+                  style: GoogleFonts.inter(
                     fontSize: 15,
                     color: _subtextColor,
                     height: 1.5,
@@ -352,7 +367,7 @@ class _HomePageState extends State<HomePage> {
                         : const Icon(Icons.refresh),
                     label: Text(
                       _isLoading ? 'Connecting...' : 'Try Again',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -538,11 +553,7 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         'Introibo',
-                        style: GoogleFonts.lato(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: kPrimaryColor,
-                        ),
+                        style: AppText.titleHuge(color: primaryAccentFor(isDark: _isDark)),
                       ),
                       PopupMenuButton<String>(
                         onSelected: (value) {
@@ -565,7 +576,7 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 const Icon(Icons.favorite_outline, color: kPrimaryColor, size: 20),
                                 const SizedBox(width: 12),
-                                Text('Favorites', style: GoogleFonts.lato()),
+                                Text('Favorites', style: GoogleFonts.inter()),
                               ],
                             ),
                           ),
@@ -575,7 +586,7 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 const Icon(Icons.settings_outlined, color: kPrimaryColor, size: 20),
                                 const SizedBox(width: 12),
-                                Text('Settings', style: GoogleFonts.lato()),
+                                Text('Settings', style: GoogleFonts.inter()),
                               ],
                             ),
                           ),
@@ -585,7 +596,7 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 const Icon(Icons.feedback_outlined, color: kPrimaryColor, size: 20),
                                 const SizedBox(width: 12),
-                                Text('Feedback', style: GoogleFonts.lato()),
+                                Text('Feedback', style: GoogleFonts.inter()),
                               ],
                             ),
                           ),
@@ -608,7 +619,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 8),
                   Text(
                     'Find Catholic masses near you',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       color: _subtextColor,
                     ),
@@ -618,7 +629,7 @@ class _HomePageState extends State<HomePage> {
                   // Today hero card — day-aware suggestion
                   TodayHeroCard(
                     isDark: _isDark,
-                    accentColor: kSecondaryColor,
+                    accentColor: primaryAccentFor(isDark: _isDark),
                     onSelect: (intent) {
                       final filter = parishFilterForIntent(intent);
                       final title = switch (intent) {
@@ -627,9 +638,9 @@ class _HomePageState extends State<HomePage> {
                         HeroIntent.adoration => 'Adoration',
                       };
                       final accent = switch (intent) {
-                        HeroIntent.mass => kSecondaryColor,
-                        HeroIntent.confession => kPrimaryColor,
-                        HeroIntent.adoration => Colors.orange,
+                        HeroIntent.mass => primaryAccentFor(isDark: _isDark),
+                        HeroIntent.confession => const Color(0xFF5E3370),
+                        HeroIntent.adoration => kAccentGold,
                       };
                       Navigator.push(
                         context,
@@ -649,11 +660,7 @@ class _HomePageState extends State<HomePage> {
                   // Search Section
                   Text(
                     'Search Parishes',
-                    style: GoogleFonts.lato(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _textColor,
-                    ),
+                    style: AppText.titleLarge(color: _textColor),
                   ),
                   const SizedBox(height: 16),
 
@@ -664,11 +671,7 @@ class _HomePageState extends State<HomePage> {
                   // Looking For Section
                   Text(
                     'Looking for',
-                    style: GoogleFonts.lato(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _textColor,
-                    ),
+                    style: AppText.titleLarge(color: _textColor),
                   ),
                   const SizedBox(height: 16),
                   _buildQuickAccessButtons(),
@@ -680,11 +683,7 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         'Nearby Parishes',
-                        style: GoogleFonts.lato(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: _textColor,
-                        ),
+                        style: AppText.titleLarge(color: _textColor),
                       ),
                       TextButton.icon(
                         onPressed: () {
@@ -698,7 +697,7 @@ class _HomePageState extends State<HomePage> {
                         icon: const Icon(Icons.map, size: 18),
                         label: Text(
                           'View All',
-                          style: GoogleFonts.lato(
+                          style: GoogleFonts.inter(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -721,7 +720,7 @@ class _HomePageState extends State<HomePage> {
                             child: NextMassTile(
                               parishes: _nearbyParishes,
                               label: 'NEXT MASS\nNEARBY',
-                              accentColor: kSecondaryColor,
+                              accentColor: primaryAccentFor(isDark: _isDark),
                               cardColor: _cardColor,
                               textColor: _textColor,
                               subtextColor: _subtextColor,
@@ -742,7 +741,7 @@ class _HomePageState extends State<HomePage> {
                             child: NextMassTile(
                               parishes: _favoriteParishes,
                               label: 'AT A\nFAVORITE',
-                              accentColor: Colors.amber.shade700,
+                              accentColor: _isDark ? kAccentGold : Colors.amber.shade800,
                               cardColor: _cardColor,
                               textColor: _textColor,
                               subtextColor: _subtextColor,
@@ -795,7 +794,7 @@ class _HomePageState extends State<HomePage> {
                             Expanded(
                               child: Text(
                                 'About this app',
-                                style: GoogleFonts.lato(
+                                style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                   color: _textColor,
@@ -843,13 +842,13 @@ class _HomePageState extends State<HomePage> {
             controller: _searchController,
             focusNode: _searchFocusNode,
             onChanged: _onSearchChanged,
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 16,
               color: _textColor,
             ),
             decoration: InputDecoration(
               hintText: 'Search by name, city, or ZIP code',
-              hintStyle: GoogleFonts.lato(
+              hintStyle: GoogleFonts.inter(
                 color: _subtextColor,
                 fontSize: 16,
               ),
@@ -926,7 +925,7 @@ class _HomePageState extends State<HomePage> {
                                   children: [
                                     Text(
                                       parish.name,
-                                      style: GoogleFonts.lato(
+                                      style: GoogleFonts.inter(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
                                         color: _textColor,
@@ -935,7 +934,7 @@ class _HomePageState extends State<HomePage> {
                                     const SizedBox(height: 2),
                                     Text(
                                       '${parish.city} ${parish.zipCode}',
-                                      style: GoogleFonts.lato(
+                                      style: GoogleFonts.inter(
                                         fontSize: 13,
                                         color: _subtextColor,
                                       ),
@@ -991,7 +990,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 12),
                 Text(
                   'No parishes found',
-                  style: GoogleFonts.lato(
+                  style: GoogleFonts.inter(
                     fontSize: 15,
                     color: _subtextColor,
                   ),
@@ -1007,31 +1006,34 @@ class _HomePageState extends State<HomePage> {
     return Row(
       children: [
         Expanded(
-          child: _QuickAccessButton(
-            icon: const Icon(Icons.access_time, color: kPrimaryColor, size: 28),
-            label: 'Mass Times',
-            color: kPrimaryColor,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FilteredParishListPage(
-                    filter: ParishFilter.massTimes,
-                    title: 'Mass Times',
-                    accentColor: kPrimaryColor,
-                    userLocation: _userLocation,
+          child: Builder(builder: (context) {
+            final massAccent = primaryAccentFor(isDark: _isDark);
+            return _QuickAccessButton(
+              icon: Icon(Icons.access_time, color: massAccent, size: 28),
+              label: 'Mass Times',
+              color: massAccent,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FilteredParishListPage(
+                      filter: ParishFilter.massTimes,
+                      title: 'Mass Times',
+                      accentColor: massAccent,
+                      userLocation: _userLocation,
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            );
+          }),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _QuickAccessButton(
-            icon: CustomIcon.confession(color: kSecondaryColor, size: 28),
+            icon: CustomIcon.confession(color: const Color(0xFF5E3370), size: 28),
             label: 'Confession',
-            color: kSecondaryColor,
+            color: const Color(0xFF5E3370),
             onTap: () {
               Navigator.push(
                 context,
@@ -1039,7 +1041,7 @@ class _HomePageState extends State<HomePage> {
                   builder: (context) => FilteredParishListPage(
                     filter: ParishFilter.confession,
                     title: 'Confession Times',
-                    accentColor: kSecondaryColor,
+                    accentColor: const Color(0xFF5E3370),
                     userLocation: _userLocation,
                   ),
                 ),
@@ -1050,9 +1052,9 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Expanded(
           child: _QuickAccessButton(
-            icon: CustomIcon.monstrance(color: const Color(0xFFE67E22), size: 28),
+            icon: CustomIcon.monstrance(color: kAccentGold, size: 28),
             label: 'Adoration',
-            color: const Color(0xFFE67E22),
+            color: kAccentGold,
             onTap: () {
               Navigator.push(
                 context,
@@ -1060,7 +1062,7 @@ class _HomePageState extends State<HomePage> {
                   builder: (context) => FilteredParishListPage(
                     filter: ParishFilter.adoration,
                     title: 'Adoration',
-                    accentColor: const Color(0xFFE67E22),
+                    accentColor: kAccentGold,
                     userLocation: _userLocation,
                   ),
                 ),
@@ -1071,15 +1073,15 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Expanded(
           child: _QuickAccessButton(
-            icon: const Icon(Icons.event, color: Color(0xFF9B59B6), size: 28),
+            icon: const Icon(Icons.event, color: kSecondaryColor, size: 28),
             label: 'Parish Events',
-            color: const Color(0xFF9B59B6),
+            color: kSecondaryColor,
             onTap: () {
               _showComingSoon(
                 icon: Icons.event,
                 title: 'Parish Events',
                 message: 'Parish event listings are coming soon. Check back later for updates!',
-                color: const Color(0xFF9B59B6),
+                color: kSecondaryColor,
               );
             },
           ),
@@ -1232,7 +1234,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 16),
               Text(
                 title,
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: _textColor,
@@ -1241,7 +1243,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 8),
               Text(
                 message,
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   color: _subtextColor,
                   height: 1.5,
@@ -1264,7 +1266,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   child: Text(
                     'Got It',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1308,7 +1310,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 12),
               Text(
                 'Finding nearby parishes...',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   color: _subtextColor,
                 ),
@@ -1345,7 +1347,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 12),
               Text(
                 'Location unavailable',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   color: _subtextColor,
                 ),
@@ -1360,7 +1362,7 @@ class _HomePageState extends State<HomePage> {
                 },
                 child: Text(
                   'Try Again',
-                  style: GoogleFonts.lato(
+                  style: GoogleFonts.inter(
                     color: kPrimaryColor,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1398,7 +1400,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 12),
               Text(
                 'No parishes found nearby',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   color: _subtextColor,
                 ),
@@ -1495,7 +1497,7 @@ class _QuickAccessButton extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: GoogleFonts.lato(
+              style: GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: textColor,
@@ -1574,7 +1576,7 @@ class _NearbyParishCard extends StatelessWidget {
                   ),
                   child: Text(
                     '${distance.toStringAsFixed(1)} mi',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: kPrimaryColor,
@@ -1586,7 +1588,7 @@ class _NearbyParishCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               parish.name,
-              style: GoogleFonts.lato(
+              style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: textColor,
@@ -1597,7 +1599,7 @@ class _NearbyParishCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               parish.city,
-              style: GoogleFonts.lato(
+              style: GoogleFonts.inter(
                 fontSize: 13,
                 color: subtextColor,
               ),
@@ -1617,7 +1619,7 @@ class _NearbyParishCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       parish.massTimes.first,
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 11,
                         color: subtextColor,
                       ),
@@ -1668,7 +1670,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     if (_feedbackController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please enter your feedback', style: GoogleFonts.lato()),
+          content: Text('Please enter your feedback', style: GoogleFonts.inter()),
           backgroundColor: Colors.red[400],
         ),
       );
@@ -1707,7 +1709,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Could not open email app', style: GoogleFonts.lato()),
+              content: Text('Could not open email app', style: GoogleFonts.inter()),
               backgroundColor: Colors.red[400],
             ),
           );
@@ -1717,7 +1719,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error opening email: $e', style: GoogleFonts.lato()),
+            content: Text('Error opening email: $e', style: GoogleFonts.inter()),
             backgroundColor: Colors.red[400],
           ),
         );
@@ -1751,7 +1753,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
           ),
           title: Text(
             'Send Feedback',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: textColor,
@@ -1781,7 +1783,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                         children: [
                           Text(
                             'Feedback will be sent to:',
-                            style: GoogleFonts.lato(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
                               color: subtextColor,
                             ),
@@ -1789,7 +1791,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                           const SizedBox(height: 2),
                           Text(
                             'feedback@massgpt.org',
-                            style: GoogleFonts.lato(
+                            style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: kPrimaryColor,
@@ -1806,7 +1808,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
               // Your email (optional)
               Text(
                 'Your Email (optional)',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: textColor,
@@ -1828,10 +1830,10 @@ class _FeedbackPageState extends State<FeedbackPage> {
                 child: TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  style: GoogleFonts.lato(fontSize: 15, color: textColor),
+                  style: GoogleFonts.inter(fontSize: 15, color: textColor),
                   decoration: InputDecoration(
                     hintText: 'your@email.com',
-                    hintStyle: GoogleFonts.lato(color: subtextColor),
+                    hintStyle: GoogleFonts.inter(color: subtextColor),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.all(16),
                   ),
@@ -1842,7 +1844,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
               // Feedback
               Text(
                 'Your Feedback',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: textColor,
@@ -1864,10 +1866,10 @@ class _FeedbackPageState extends State<FeedbackPage> {
                 child: TextField(
                   controller: _feedbackController,
                   maxLines: 6,
-                  style: GoogleFonts.lato(fontSize: 15, color: textColor),
+                  style: GoogleFonts.inter(fontSize: 15, color: textColor),
                   decoration: InputDecoration(
                     hintText: 'Tell us what you think, report a bug, or suggest a feature...',
-                    hintStyle: GoogleFonts.lato(color: subtextColor),
+                    hintStyle: GoogleFonts.inter(color: subtextColor),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.all(16),
                   ),
@@ -1900,7 +1902,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                         )
                       : Text(
                           'Submit Feedback',
-                          style: GoogleFonts.lato(
+                          style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1959,7 +1961,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           title: Text(
             'Settings',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: textColor,
@@ -1975,7 +1977,7 @@ class _SettingsPageState extends State<SettingsPage> {
               // Appearance section
               Text(
                 'Appearance',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: kPrimaryColor,
@@ -2011,7 +2013,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   title: Text(
                     'Dark Mode',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: textColor,
@@ -2019,7 +2021,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   subtitle: Text(
                     isDark ? 'Currently using dark theme' : 'Currently using light theme',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 13,
                       color: subtextColor,
                     ),
@@ -2039,7 +2041,7 @@ class _SettingsPageState extends State<SettingsPage> {
               // App info section
               Text(
                 'About',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: kPrimaryColor,
@@ -2076,7 +2078,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       title: Text(
                         'Version',
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: textColor,
@@ -2084,7 +2086,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       trailing: Text(
                         '1.0.0',
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           color: subtextColor,
                         ),
@@ -2155,7 +2157,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           ),
           title: Text(
             'Favorites',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: textColor,
@@ -2176,7 +2178,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     const SizedBox(height: 16),
                     Text(
                       'No favorites yet',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         color: subtextColor,
@@ -2187,7 +2189,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 40),
                       child: Text(
                         'Tap the star icon on a parish page to add it to your favorites',
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           color: subtextColor,
                         ),
@@ -2247,7 +2249,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                               children: [
                                 Text(
                                   parish.name,
-                                  style: GoogleFonts.lato(
+                                  style: GoogleFonts.inter(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: textColor,
@@ -2256,7 +2258,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                 const SizedBox(height: 4),
                                 Text(
                                   '${parish.city} ${parish.zipCode}',
-                                  style: GoogleFonts.lato(
+                                  style: GoogleFonts.inter(
                                     fontSize: 14,
                                     color: subtextColor,
                                   ),
@@ -2274,7 +2276,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                       Expanded(
                                         child: Text(
                                           parish.massTimes.first,
-                                          style: GoogleFonts.lato(
+                                          style: GoogleFonts.inter(
                                             fontSize: 12,
                                             color: subtextColor,
                                           ),
@@ -2352,7 +2354,7 @@ class _AboutPageState extends State<AboutPage> {
           ),
           title: Text(
             'About',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: textColor,
@@ -2383,7 +2385,7 @@ class _AboutPageState extends State<AboutPage> {
               // App name
               Text(
                 'Introibo',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: textColor,
@@ -2392,7 +2394,7 @@ class _AboutPageState extends State<AboutPage> {
               const SizedBox(height: 8),
               Text(
                 'Version 1.0.0',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   color: subtextColor,
                 ),
@@ -2418,7 +2420,7 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Text(
                       'About This App',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: textColor,
@@ -2428,7 +2430,7 @@ class _AboutPageState extends State<AboutPage> {
                     Text(
                       // TODO: Fill in app description
                       'Introibo helps you find Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 14,
                         color: subtextColor,
                         height: 1.5,
@@ -2458,7 +2460,7 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Text(
                       'Credits',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: textColor,
@@ -2468,7 +2470,7 @@ class _AboutPageState extends State<AboutPage> {
                     Text(
                       // TODO: Fill in credits
                       'Developed with love for the Catholic community.',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 14,
                         color: subtextColor,
                         height: 1.5,
@@ -2498,7 +2500,7 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Text(
                       'Contact',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: textColor,
@@ -2508,7 +2510,7 @@ class _AboutPageState extends State<AboutPage> {
                     Text(
                       // TODO: Fill in contact info
                       'feedback@massgpt.org',
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 14,
                         color: kPrimaryColor,
                         height: 1.5,

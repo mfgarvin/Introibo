@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../utils/schedule_parser.dart';
+import '../theme/app_text.dart';
 
 /// Shows the soonest upcoming event with a live ticking countdown.
 class NextMassBanner extends StatefulWidget {
@@ -101,21 +101,12 @@ class _NextMassBannerState extends State<NextMassBanner> {
               children: [
                 Text(
                   widget.label,
-                  style: GoogleFonts.lato(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.85),
-                    letterSpacing: 1.0,
-                  ),
+                  style: AppText.kicker(color: Colors.white.withValues(alpha: 0.85)),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '$whenLabel · $timeLabel',
-                  style: GoogleFonts.lato(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: AppText.bodyLarge(color: Colors.white).copyWith(fontSize: 16),
                 ),
               ],
             ),
@@ -130,11 +121,7 @@ class _NextMassBannerState extends State<NextMassBanner> {
             ),
             child: Text(
               countdown,
-              style: GoogleFonts.lato(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isImminent ? Colors.black87 : Colors.white,
-              ),
+              style: AppText.label(color: isImminent ? Colors.black87 : Colors.white).copyWith(fontSize: 13),
             ),
           ),
         ],

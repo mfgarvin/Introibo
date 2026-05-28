@@ -192,7 +192,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                   const SizedBox(height: 24),
                   Text(
                     'Finding your location...',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       color: Colors.black54,
                     ),
@@ -255,7 +255,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
                               const SizedBox(width: 6),
                               Text(
                                 '${_nearbyParishes.length} parishes nearby',
-                                style: GoogleFonts.lato(
+                                style: GoogleFonts.inter(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.black87,
@@ -301,7 +301,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
             const SizedBox(height: 24),
             Text(
               'Unable to get location',
-              style: GoogleFonts.lato(
+              style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -310,7 +310,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
             const SizedBox(height: 8),
             Text(
               'Please enable location services and grant permission to use this feature.',
-              style: GoogleFonts.lato(
+              style: GoogleFonts.inter(
                 fontSize: 14,
                 color: Colors.black54,
               ),
@@ -334,7 +334,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
               ),
               child: Text(
                 'Try Again',
-                style: GoogleFonts.lato(
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -490,7 +490,7 @@ class _MapParishCard extends StatelessWidget {
                   children: [
                     Text(
                       parish.name,
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
@@ -502,7 +502,7 @@ class _MapParishCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       parish.city,
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 12,
                         color: Colors.black54,
                       ),
@@ -518,7 +518,7 @@ class _MapParishCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               firstMass,
-                              style: GoogleFonts.lato(
+                              style: GoogleFonts.inter(
                                 fontSize: 11,
                                 color: kSecondaryColor,
                                 fontWeight: FontWeight.w600,

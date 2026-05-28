@@ -86,7 +86,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
         ),
         title: Text(
           'Research a Parish',
-          style: GoogleFonts.lato(
+          style: GoogleFonts.inter(
             color: kPrimaryColor,
             fontWeight: FontWeight.bold,
           ),
@@ -121,13 +121,13 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
                     child: TextField(
                       controller: _searchController,
                       onChanged: _onSearchChanged,
-                      style: GoogleFonts.lato(
+                      style: GoogleFonts.inter(
                         fontSize: 16,
                         color: Colors.black87,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Search by name, city, or ZIP',
-                        hintStyle: GoogleFonts.lato(
+                        hintStyle: GoogleFonts.inter(
                           color: Colors.grey,
                           fontSize: 16,
                         ),
@@ -161,7 +161,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
                         _searchResults.isEmpty
                             ? 'No results found'
                             : '${_searchResults.length} parish${_searchResults.length == 1 ? '' : 'es'} found',
-                        style: GoogleFonts.lato(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           color: Colors.black54,
                           fontWeight: FontWeight.w500,
@@ -202,7 +202,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
           const SizedBox(height: 24),
           Text(
             'Search for parishes',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -211,7 +211,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
           const SizedBox(height: 8),
           Text(
             'Enter a parish name, city, or ZIP code',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 14,
               color: Colors.black54,
             ),
@@ -241,7 +241,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
           const SizedBox(height: 24),
           Text(
             'No parishes found',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -250,7 +250,7 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
           const SizedBox(height: 8),
           Text(
             'Try a different search term',
-            style: GoogleFonts.lato(
+            style: GoogleFonts.inter(
               fontSize: 14,
               color: Colors.black54,
             ),
@@ -332,7 +332,7 @@ class _ParishCard extends StatelessWidget {
                 children: [
                   Text(
                     parish.name,
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
@@ -341,7 +341,7 @@ class _ParishCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${parish.address}, ${parish.city}',
-                    style: GoogleFonts.lato(
+                    style: GoogleFonts.inter(
                       fontSize: 13,
                       color: Colors.black54,
                     ),
@@ -361,7 +361,7 @@ class _ParishCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             parish.massTimes.first,
-                            style: GoogleFonts.lato(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
                               color: kPrimaryColor,
                               fontWeight: FontWeight.w500,

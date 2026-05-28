@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../pages/filtered_parish_list_page.dart';
+import '../theme/app_text.dart';
 
 /// What kind of schedule a hero suggestion is pointing the user toward.
 enum HeroIntent { mass, confession, adoration }
@@ -68,31 +68,18 @@ class TodayHeroCard extends StatelessWidget {
                   children: [
                     Text(
                       suggestion.kicker,
-                      style: GoogleFonts.lato(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white.withValues(alpha: 0.85),
-                        letterSpacing: 1.2,
-                      ),
+                      style: AppText.kicker(color: Colors.white.withValues(alpha: 0.85)),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       suggestion.headline,
-                      style: GoogleFonts.cormorantGaramond(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        height: 1.15,
-                      ),
+                      style: AppText.titleHero(color: Colors.white),
                     ),
                     if (suggestion.subline != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         suggestion.subline!,
-                        style: GoogleFonts.lato(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
+                        style: AppText.caption(color: Colors.white.withValues(alpha: 0.8)),
                       ),
                     ],
                   ],
@@ -196,11 +183,11 @@ class TodayHeroCard extends StatelessWidget {
   Color? _accentForIntent(HeroIntent intent) {
     switch (intent) {
       case HeroIntent.mass:
-        return null; // use caller accent
+        return null; // use caller accent (oxblood)
       case HeroIntent.confession:
-        return const Color(0xFF3F95A1); // teal (matches primary)
+        return const Color(0xFF5E3370); // dignified violet — penitential
       case HeroIntent.adoration:
-        return const Color(0xFFD58A2A); // warm amber
+        return const Color(0xFFC9A227); // rich gold — Eucharistic
     }
   }
 
