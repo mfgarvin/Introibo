@@ -195,13 +195,88 @@ class _IntroiboAppState extends State<IntroiboApp> {
         splashFactory: InkRipple.splashFactory,
       ),
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-      home: const HomePage(),
+      home: const RootShell(),
+    );
+  }
+}
+
+/// Top-level shell hosting the three primary destinations as tabs.
+/// Pre-audit, Map and Favorites lived behind a "View All" link and a
+/// hidden popup menu respectively. Persistent navigation surfaces them.
+class RootShell extends StatefulWidget {
+  const RootShell({super.key});
+
+  @override
+  State<RootShell> createState() => _RootShellState();
+}
+
+class _RootShellState extends State<RootShell> {
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    themeNotifier.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    themeNotifier.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _go(int i) {
+    if (mounted) setState(() => _index = i);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = themeNotifier.isDarkMode;
+    final accent = primaryAccentFor(isDark: isDark);
+    return Scaffold(
+      body: IndexedStack(
+        index: _index,
+        children: [
+          HomePage(onSwitchToMap: () => _go(1)),
+          const FindParishNearMePage(inTab: true),
+          const FavoritesPage(inTab: true),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: _go,
+        backgroundColor: isDark ? kCardColorDark : kCardColor,
+        indicatorColor: accent.withValues(alpha: 0.15),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Map',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.star_border),
+            selectedIcon: Icon(Icons.star),
+            label: 'Favorites',
+          ),
+        ],
+      ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final VoidCallback? onSwitchToMap;
+
+  const HomePage({super.key, this.onSwitchToMap});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -568,8 +643,6 @@ class _HomePageState extends State<HomePage> {
                             _showFeedbackPage();
                           } else if (value == 'settings') {
                             _showSettingsPage();
-                          } else if (value == 'favorites') {
-                            _showFavoritesPage();
                           }
                         },
                         offset: const Offset(0, 50),
@@ -577,16 +650,6 @@ class _HomePageState extends State<HomePage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'favorites',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.favorite_outline, color: kPrimaryColor, size: 20),
-                                const SizedBox(width: 12),
-                                Text('Favorites', style: GoogleFonts.inter()),
-                              ],
-                            ),
-                          ),
                           PopupMenuItem(
                             value: 'settings',
                             child: Row(
@@ -693,14 +756,7 @@ class _HomePageState extends State<HomePage> {
                         style: AppText.titleLarge(color: _textColor),
                       ),
                       TextButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const FindParishNearMePage(),
-                            ),
-                          );
-                        },
+                        onPressed: widget.onSwitchToMap,
                         icon: const Icon(Icons.map, size: 18),
                         label: Text(
                           'View All',
@@ -709,7 +765,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         style: TextButton.styleFrom(
-                          foregroundColor: kPrimaryColor,
+                          foregroundColor: primaryAccentFor(isDark: _isDark),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                       ),
@@ -1087,31 +1143,6 @@ class _HomePageState extends State<HomePage> {
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, animation, secondaryAnimation) {
         return const SettingsPage();
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 1),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOut,
-          )),
-          child: child,
-        );
-      },
-    );
-  }
-
-  void _showFavoritesPage() {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Favorites',
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return FavoritesPage(parishes: _parishes);
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return SlideTransition(
@@ -2136,33 +2167,53 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 class FavoritesPage extends StatefulWidget {
-  final List<Parish> parishes;
+  /// Optional pre-loaded parish list. If null, the page loads its own via
+  /// `parishService` — used when this page is a tab inside RootShell.
+  final List<Parish>? parishes;
 
-  const FavoritesPage({super.key, required this.parishes});
+  /// When the page is shown as a tab, hide the close button (there's nothing
+  /// to pop back to).
+  final bool inTab;
+
+  const FavoritesPage({super.key, this.parishes, this.inTab = false});
 
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
 }
 
 class _FavoritesPageState extends State<FavoritesPage> {
+  List<Parish> _parishes = [];
+
   @override
   void initState() {
     super.initState();
     favoritesManager.addListener(_onFavoritesChanged);
+    themeNotifier.addListener(_onFavoritesChanged);
+    if (widget.parishes != null) {
+      _parishes = widget.parishes!;
+    } else {
+      _loadParishes();
+    }
+  }
+
+  Future<void> _loadParishes() async {
+    final ps = await parishService.getParishes();
+    if (mounted) setState(() => _parishes = ps);
   }
 
   @override
   void dispose() {
     favoritesManager.removeListener(_onFavoritesChanged);
+    themeNotifier.removeListener(_onFavoritesChanged);
     super.dispose();
   }
 
   void _onFavoritesChanged() {
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   List<Parish> get _favoriteParishes {
-    return widget.parishes
+    return _parishes
         .where((p) => favoritesManager.isFavorite(p.name))
         .toList();
   }
@@ -2182,17 +2233,16 @@ class _FavoritesPageState extends State<FavoritesPage> {
         appBar: AppBar(
           backgroundColor: backgroundColor,
           elevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.close, color: textColor),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+          automaticallyImplyLeading: false,
+          leading: widget.inTab
+              ? null
+              : IconButton(
+                  icon: Icon(Icons.close, color: textColor),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
           title: Text(
             'Favorites',
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
+            style: AppText.titleLarge(color: textColor),
           ),
           centerTitle: true,
         ),

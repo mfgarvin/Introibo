@@ -18,7 +18,11 @@ const LatLng? kDevLocation = kDebugMode
     : null;
 
 class FindParishNearMePage extends StatefulWidget {
-  const FindParishNearMePage({super.key});
+  /// When the map is shown as a root tab (inside RootShell), there's nothing
+  /// to pop back to — so we hide the floating back button.
+  final bool inTab;
+
+  const FindParishNearMePage({super.key, this.inTab = false});
 
   @override
   State<FindParishNearMePage> createState() => _FindParishNearMePageState();
@@ -161,28 +165,30 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: kCardColor,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                spreadRadius: 0,
+      appBar: widget.inTab
+          ? null
+          : AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: kCardColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: kPrimaryColor, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ),
-            ],
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: kPrimaryColor, size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-      ),
+            ),
       body: _isLoading
           ? Center(
               child: Column(

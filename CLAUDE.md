@@ -1017,3 +1017,47 @@ Ran a multi-page Material 3 / WCAG 2.2 / Nielsen-heuristics audit via a sub-agen
 - Cycling 3-state sort button on `FilteredParishListPage` should be a `SegmentedButton` (recognition > recall).
 
 Not addressed in this session — deferred for a follow-up pass.
+
+## Session Log: 2026-05-28 (Design Audit Follow-Through)
+
+Worked through 4 of the 5 deferred audit recommendations (the header-darken bump was done in the earlier stained-glass pass).
+
+### Audit #1: Gold-on-light contrast (WCAG AA fix)
+
+- New constant in `lib/main.dart`: `kAccentGoldDeep = Color(0xFF8C5A14)` — text-safe deep bronze-gold (~5.2:1 on parchment, well clear of AA's 4.5:1).
+- New helper `goldTextAccentFor({required bool isDark})` returns `kAccentCandlelight` in dark mode, `kAccentGoldDeep` in light. Drop-in replacement for sites where gold was used as foreground text.
+- `kAccentGold` (#C9A227) kept for **ornament only**: stained-glass palettes, large icons (where 3:1 is acceptable), favorite-star.
+- Sites updated to route through the helper: Adoration quick-access button, favorites `NextMassTile`, Adoration `TimelineScheduleCard` in detail page, hero-card adoration intent, `FilteredParishListPage` adoration route accent. Removed the previous `Colors.amber.shade800` fallback on the favorites tile (also failed AA).
+
+### Audit #5: Sort toggle → M3 SegmentedButton
+
+`FilteredParishListPage` previously cycled `Soonest → Nearest → A-Z` through a single tap target (Nielsen #6 — recognition vs recall violation). Replaced with `SegmentedButton<SortOrder>`:
+
+- Three labeled segments with matching icons (`Icons.schedule` / `Icons.near_me` / `Icons.sort_by_alpha`).
+- Tinted in the page's accent color when selected (`selectedBackgroundColor: widget.accentColor.withValues(alpha: 0.15)`), subtext color when not.
+- `showSelectedIcon: false` to avoid a redundant checkmark on top of the segment icon.
+- Lives on its own padded row below the count/filter row.
+- Removed `_toggleSortOrder`, `_getSortIcon`, `_getSortLabel` — `onSelectionChanged` handles the state transition inline.
+
+### Audit #3: Demote NextMassTile when not imminent
+
+The home page had two full-bleed hero surfaces competing for attention (`TodayHeroCard` + `NextMassTile`). New behavior:
+
+- `NextMassTile` gained a `compact: bool` parameter and a `_buildCompact` branch that renders a ~72 dp full-width banner: accent bar | (kicker / parish name / when·time stack) | countdown chip.
+- New static helper `NextMassTile.findSoonestMinutes(parishes)` lets the parent compute imminence without instantiating the widget.
+- New `_HomePageState._buildNextMassTiles()` decides layout: if **any** soonest Mass across the two parish lists is ≤ 60 min, render both tiles as side-by-side squares (the existing layout — Mass is starting soon, deserves the spotlight). Otherwise stack both as compact banners.
+- Most of the time the home page now has a single dominant surface (`TodayHeroCard`) plus two quieter banners; squares only re-appear when there's something genuinely time-sensitive.
+
+### Audit #2: Bottom NavigationBar
+
+Largest structural change. Promoted Map and Favorites from buried entry points (a "View All" link and a PopupMenu item respectively) into top-level destinations:
+
+- New `RootShell` widget hosts the three tabs in an `IndexedStack` (each tab keeps its state across switches — map zoom and PageView position survive a trip to Home and back). Bottom `NavigationBar` with outline-and-filled icon pairs per M3 convention. Selection indicator and background pick up theme colors.
+- `IntroiboApp.home` now points at `RootShell` instead of `HomePage`.
+- `HomePage` gained an optional `onSwitchToMap` callback; the "View All" button on the Nearby section calls it instead of pushing a new route. Favorites was removed from the church-icon `PopupMenu`. Unused `_showFavoritesPage()` deleted.
+- `FindParishNearMePage` gained `inTab: bool`. When true the floating back-button AppBar is hidden (push-style usage still works for any legacy callers).
+- `FavoritesPage` gained `inTab: bool` and an optional `parishes` parameter. When `parishes` is null the page loads its own list via `parishService`. Close icon hidden when `inTab`. Listens to `themeNotifier` directly now so it rebuilds on theme changes in either tab or modal use.
+
+The church-icon PopupMenu is now a slim `Settings / Feedback` only — About remains as the bottom-of-page link.
+
+Deferred for a follow-up: no work on the liturgical-day strip on home or the first-launch chime.
