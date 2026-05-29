@@ -1,242 +1,249 @@
 import 'package:flutter/foundation.dart';
 
-/// Represents a parsed schedule entry with day and time
+/// A single structured schedule entry (one Mass, confession slot, or adoration
+/// period). Built directly from the pre-parsed `schedules` objects in
+/// `export.json` — see EXPORT_SHAPE_CHANGES.md. No string parsing happens
+/// anymore; every field arrives structured.
 class ScheduleEntry {
   final int dayOfWeek; // 1 = Monday, 7 = Sunday (ISO standard)
   final int hour; // 0-23 — start time
   final int minute; // 0-59
-  final int? endHour; // 0-23 — optional end time for ranges like "3:00PM to 3:30PM"
+  final int? endHour; // 0-23 — optional end time for ranges (e.g. confession windows)
   final int? endMinute;
-  final String originalText;
+
+  /// Non-null for one-off / holiday occurrences (Christmas, weddings, Holy
+  /// Days). When set, the entry occurs on this specific date rather than
+  /// recurring weekly. [dayOfWeek] still reflects the weekday the date falls on.
+  final DateTime? date;
+
+  /// Language note for Mass entries (null = English).
+  final String? language;
+
+  /// Free-text annotation ("Vigil Mass", "Christmas Eve", etc.).
+  final String? note;
 
   ScheduleEntry({
     required this.dayOfWeek,
     required this.hour,
     required this.minute,
-    required this.originalText,
     this.endHour,
     this.endMinute,
+    this.date,
+    this.language,
+    this.note,
   });
 
   bool get hasRange => endHour != null && endMinute != null;
 
-  /// Calculate the next occurrence of this schedule entry from now
+  /// True for dated (holiday / one-off) entries.
+  bool get isDated => date != null;
+
+  static const Map<String, int> _dayMap = {
+    'monday': 1,
+    'tuesday': 2,
+    'wednesday': 3,
+    'thursday': 4,
+    'friday': 5,
+    'saturday': 6,
+    'sunday': 7,
+  };
+
+  /// Build an entry from a structured schedule object:
+  /// `{day, start, end?, mass_date?, language?, notes?}`.
+  /// Returns null if the day or start time can't be read.
+  static ScheduleEntry? fromJson(Map<String, dynamic> json) {
+    final dayOfWeek = _dayMap[(json['day'] as String?)?.trim().toLowerCase()];
+    final start = _parseHm(json['start']);
+    if (dayOfWeek == null || start == null) {
+      debugPrint('Skipping unparseable schedule entry: $json');
+      return null;
+    }
+    final end = _parseHm(json['end']);
+    return ScheduleEntry(
+      dayOfWeek: dayOfWeek,
+      hour: start.hour,
+      minute: start.minute,
+      endHour: end?.hour,
+      endMinute: end?.minute,
+      date: _parseDate(json['mass_date']),
+      language: (json['language'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : (json['language'] as String).trim(),
+      note: (json['notes'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : (json['notes'] as String).trim(),
+    );
+  }
+
+  /// Parse a list of structured schedule objects into entries.
+  static List<ScheduleEntry> listFromJson(dynamic jsonList) {
+    if (jsonList is! List) return [];
+    final out = <ScheduleEntry>[];
+    for (final item in jsonList) {
+      if (item is Map<String, dynamic>) {
+        final e = ScheduleEntry.fromJson(item);
+        if (e != null) out.add(e);
+      }
+    }
+    return out;
+  }
+
+  /// Parse "HH:MM" (24-hour, zero-padded) into hour/minute.
+  static ({int hour, int minute})? _parseHm(dynamic value) {
+    if (value is! String) return null;
+    final parts = value.split(':');
+    if (parts.length != 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) {
+      return null;
+    }
+    return (hour: h, minute: m);
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null || value is! String || value.isEmpty) return null;
+    return DateTime.tryParse(value);
+  }
+
+  /// Calculate the next occurrence of this entry from now.
+  /// Dated entries return their fixed date/time (which may be in the past —
+  /// callers filter those out). Weekly entries roll forward to the next match.
   DateTime nextOccurrence([DateTime? fromTime]) {
     final now = fromTime ?? DateTime.now();
-    final currentDayOfWeek = now.weekday; // 1 = Monday, 7 = Sunday
 
-    // Calculate days until this event
+    if (date != null) {
+      return DateTime(date!.year, date!.month, date!.day, hour, minute);
+    }
+
+    final currentDayOfWeek = now.weekday; // 1 = Monday, 7 = Sunday
     int daysUntil = dayOfWeek - currentDayOfWeek;
 
-    // If the event is today but already passed, add 7 days
     if (daysUntil == 0) {
       final eventTime = DateTime(now.year, now.month, now.day, hour, minute);
       if (eventTime.isBefore(now)) {
         daysUntil = 7;
       }
     } else if (daysUntil < 0) {
-      // Event is earlier in the week, so it's next week
       daysUntil += 7;
     }
 
-    // Create the next occurrence datetime
     final nextDate = now.add(Duration(days: daysUntil));
     return DateTime(nextDate.year, nextDate.month, nextDate.day, hour, minute);
   }
 
-  /// Get minutes until the next occurrence
+  /// Get minutes until the next occurrence (negative for past dated entries).
   int minutesUntilNext([DateTime? fromTime]) {
     final now = fromTime ?? DateTime.now();
-    final next = nextOccurrence(fromTime);
-    return next.difference(now).inMinutes;
+    return nextOccurrence(now).difference(now).inMinutes;
+  }
+
+  /// True if this is a dated entry whose occurrence is already in the past.
+  bool isPast([DateTime? fromTime]) {
+    if (date == null) return false;
+    final now = fromTime ?? DateTime.now();
+    return nextOccurrence(now).isBefore(now);
+  }
+
+  /// Abbreviated weekday, e.g. "Sun".
+  String get dayLabel {
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return names[dayOfWeek - 1];
+  }
+
+  /// Full weekday, e.g. "Sunday".
+  String get dayName {
+    const names = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    ];
+    return names[dayOfWeek - 1];
+  }
+
+  /// Human time, e.g. "10:30 AM", or "3:00 – 3:30 PM" for ranges.
+  /// When both endpoints share a meridiem, the first one is dropped.
+  String get timeLabel {
+    final start = _format12(hour, minute);
+    if (!hasRange) return start;
+    final end = _format12(endHour!, endMinute!);
+    final sameMeridiem = (hour >= 12) == (endHour! >= 12);
+    if (sameMeridiem) {
+      final startNoMer = start.replaceFirst(RegExp(r'\s?(AM|PM)$'), '');
+      return '$startNoMer – $end';
+    }
+    return '$start – $end';
+  }
+
+  /// Compact label for chips and previews, e.g. "Sun · 9:00 AM".
+  String get display => '$dayLabel · $timeLabel';
+
+  /// Combined language + note annotation for muted display, or null.
+  String? get noteLabel {
+    final parts = <String>[];
+    if (language != null) parts.add(language!);
+    if (note != null) parts.add(note!);
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
+  static String _format12(int hour, int minute) {
+    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final mer = hour >= 12 ? 'PM' : 'AM';
+    final mm = minute.toString().padLeft(2, '0');
+    return '$h12:$mm $mer';
   }
 }
 
-/// Parses schedule strings into structured data
+/// Helpers over lists of [ScheduleEntry]. (Formerly a string parser — now that
+/// `export.json` ships structured schedules, this only does occurrence math.)
 class ScheduleParser {
-  // Map of day names to ISO day numbers (1 = Monday, 7 = Sunday)
-  static final Map<String, int> _dayMap = {
-    'monday': 1,
-    'mon': 1,
-    'tuesday': 2,
-    'tue': 2,
-    'tues': 2,
-    'wednesday': 3,
-    'wed': 3,
-    'thursday': 4,
-    'thu': 4,
-    'thurs': 4,
-    'friday': 5,
-    'fri': 5,
-    'saturday': 6,
-    'sat': 6,
-    'sunday': 7,
-    'sun': 7,
-  };
-
-  /// Parse a list of schedule strings (e.g., ["Sunday: 9:00AM, 11:00AM", "Saturday: 4:30PM"])
-  static List<ScheduleEntry> parseSchedule(List<String> scheduleStrings) {
-    final entries = <ScheduleEntry>[];
-
-    for (final scheduleString in scheduleStrings) {
-      entries.addAll(_parseScheduleLine(scheduleString));
-    }
-
-    return entries;
+  /// Entries that are upcoming: weekly entries always qualify; dated entries
+  /// only while still in the future.
+  static List<ScheduleEntry> _upcomingOnly(
+    List<ScheduleEntry> entries,
+    DateTime now,
+  ) {
+    return entries.where((e) => !e.isPast(now)).toList();
   }
 
-  /// Parse a single schedule line
-  static List<ScheduleEntry> _parseScheduleLine(String line) {
-    final entries = <ScheduleEntry>[];
-
-    try {
-      // Split on colon to separate day from times
-      final parts = line.split(':');
-      if (parts.length < 2) return entries;
-
-      // Extract day of week
-      final dayStr = parts[0].trim().toLowerCase();
-      final dayOfWeek = _extractDayOfWeek(dayStr);
-      if (dayOfWeek == null) return entries;
-
-      // Extract times from the rest of the string
-      final timesStr = parts.sublist(1).join(':'); // Rejoin in case there are multiple colons
-      final times = _extractTimes(timesStr);
-
-      // Create a ScheduleEntry for each time (or range)
-      for (final time in times) {
-        entries.add(ScheduleEntry(
-          dayOfWeek: dayOfWeek,
-          hour: time['hour']!,
-          minute: time['minute']!,
-          endHour: time['endHour'],
-          endMinute: time['endMinute'],
-          originalText: line,
-        ));
-      }
-    } catch (e) {
-      debugPrint('Error parsing schedule line "$line": $e');
-    }
-
-    return entries;
+  /// Find the soonest upcoming entry, or null.
+  static ScheduleEntry? findNextOccurrence(
+    List<ScheduleEntry> entries, [
+    DateTime? fromTime,
+  ]) {
+    final now = fromTime ?? DateTime.now();
+    final upcoming = _upcomingOnly(entries, now);
+    if (upcoming.isEmpty) return null;
+    upcoming.sort(
+      (a, b) => a.minutesUntilNext(now).compareTo(b.minutesUntilNext(now)),
+    );
+    return upcoming.first;
   }
 
-  /// Extract day of week from string
-  static int? _extractDayOfWeek(String dayStr) {
-    // Check each day name/abbreviation
-    for (final entry in _dayMap.entries) {
-      if (dayStr.contains(entry.key)) {
-        return entry.value;
-      }
-    }
-    return null;
+  /// Minutes until the soonest upcoming entry, or null.
+  static int? minutesUntilNext(
+    List<ScheduleEntry> entries, [
+    DateTime? fromTime,
+  ]) {
+    final now = fromTime ?? DateTime.now();
+    return findNextOccurrence(entries, now)?.minutesUntilNext(now);
   }
 
-  /// Extract all times from a time string. Recognizes ranges connected by
-  /// "to", "until", "-", "–", or "—" and merges them into a single entry.
-  ///
-  /// Each returned map has keys: hour, minute, and optionally endHour/endMinute.
-  /// Examples:
-  ///   "9:00AM, 11:00AM"           → [{9,0}, {11,0}]
-  ///   "Saturday 3:00PM to 3:30PM" → [{15,0,end:15,30}]
-  ///   "9:00AM-9:30AM"             → [{9,0,end:9,30}]
-  static List<Map<String, int?>> _extractTimes(String timesStr) {
-    final results = <Map<String, int?>>[];
-
-    final timeRegex = RegExp(r'(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)', caseSensitive: false);
-    final matches = timeRegex.allMatches(timesStr).toList();
-
-    // Connector tokens that indicate a range between two adjacent times
-    final rangeConnector = RegExp(r'\s*(?:to|until|through|thru|[-–—])\s*', caseSensitive: false);
-
-    int i = 0;
-    while (i < matches.length) {
-      final m = matches[i];
-      final start = _parseMatch(m);
-      if (start == null) {
-        i++;
-        continue;
-      }
-
-      // Look at the gap between this match's end and the next match's start.
-      // If it contains a range connector, merge them.
-      if (i + 1 < matches.length) {
-        final next = matches[i + 1];
-        final gap = timesStr.substring(m.end, next.start);
-        // Trim leading/trailing whitespace and check that the gap is JUST a connector
-        // (not, e.g., a comma which means a separate time).
-        final trimmed = gap.trim();
-        if (rangeConnector.hasMatch(trimmed) && !trimmed.contains(',')) {
-          final end = _parseMatch(next);
-          if (end != null) {
-            results.add({
-              'hour': start.hour,
-              'minute': start.minute,
-              'endHour': end.hour,
-              'endMinute': end.minute,
-            });
-            i += 2;
-            continue;
-          }
-        }
-      }
-
-      results.add({'hour': start.hour, 'minute': start.minute});
-      i++;
-    }
-
-    return results;
-  }
-
-  /// Parse a single regex match into a 24-hour (hour, minute) pair.
-  static ({int hour, int minute})? _parseMatch(RegExpMatch match) {
-    try {
-      int hour = int.parse(match.group(1)!);
-      final minute = int.parse(match.group(2)!);
-      final meridiem = match.group(3)!.toUpperCase();
-      if (meridiem == 'PM' && hour != 12) {
-        hour += 12;
-      } else if (meridiem == 'AM' && hour == 12) {
-        hour = 0;
-      }
-      return (hour: hour, minute: minute);
-    } catch (e) {
-      debugPrint('Error parsing time from match: $e');
-      return null;
-    }
-  }
-
-  /// Find the next occurrence from a list of schedule entries
-  static ScheduleEntry? findNextOccurrence(List<ScheduleEntry> entries, [DateTime? fromTime]) {
-    if (entries.isEmpty) return null;
-
-    // Sort by minutes until next occurrence
-    entries.sort((a, b) => a.minutesUntilNext(fromTime).compareTo(b.minutesUntilNext(fromTime)));
-
-    return entries.first;
-  }
-
-  /// Get minutes until the next occurrence from a schedule list
-  static int? getMinutesUntilNext(List<String> scheduleStrings, [DateTime? fromTime]) {
-    final entries = parseSchedule(scheduleStrings);
-    final next = findNextOccurrence(entries, fromTime);
-    return next?.minutesUntilNext(fromTime);
-  }
-
-  /// Group schedule entries by relative day buckets, sorted by occurrence.
+  /// Group entries by relative day buckets, sorted by occurrence.
   /// Buckets: 'today', 'tomorrow', 'thisWeek', 'beyond' (8+ days out).
   static Map<String, List<UpcomingEntry>> groupByBucket(
-    List<String> scheduleStrings, [
+    List<ScheduleEntry> entries, [
     DateTime? fromTime,
   ]) {
     final now = fromTime ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final entries = parseSchedule(scheduleStrings);
 
-    final upcoming = entries.map((e) {
+    final upcoming = _upcomingOnly(entries, now).map((e) {
       final next = e.nextOccurrence(now);
       final eventDay = DateTime(next.year, next.month, next.day);
-      return UpcomingEntry(entry: e, occurrence: next, daysFromToday: eventDay.difference(today).inDays);
+      return UpcomingEntry(
+        entry: e,
+        occurrence: next,
+        daysFromToday: eventDay.difference(today).inDays,
+      );
     }).toList()
       ..sort((a, b) => a.occurrence.compareTo(b.occurrence));
 
@@ -276,33 +283,8 @@ class UpcomingEntry {
 
   int get hour => entry.hour;
   int get minute => entry.minute;
-  String get originalText => entry.originalText;
 
-  /// Human time, e.g. "10:30 AM", or "3:00 – 3:30 PM" for ranges.
-  /// When both endpoints share a meridiem, the first one is dropped for compactness.
-  String get timeLabel {
-    final start = _format12(entry.hour, entry.minute);
-    if (!entry.hasRange) return start;
-    final end = _format12(entry.endHour!, entry.endMinute!);
-    final sameMeridiem = (entry.hour >= 12) == (entry.endHour! >= 12);
-    if (sameMeridiem) {
-      // "3:00 – 3:30 PM" — drop the first meridiem
-      final startNoMer = start.replaceFirst(RegExp(r'\s?(AM|PM)$'), '');
-      return '$startNoMer – $end';
-    }
-    return '$start – $end';
-  }
-
-  static String _format12(int hour, int minute) {
-    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-    final mer = hour >= 12 ? 'PM' : 'AM';
-    final mm = minute.toString().padLeft(2, '0');
-    return '$h12:$mm $mer';
-  }
-
-  /// Day label, e.g. "Sun", "Mon"
-  String get dayLabel {
-    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return names[entry.dayOfWeek - 1];
-  }
+  String get timeLabel => entry.timeLabel;
+  String get dayLabel => entry.dayLabel;
+  String? get noteLabel => entry.noteLabel;
 }

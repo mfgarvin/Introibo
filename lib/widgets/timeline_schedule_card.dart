@@ -8,7 +8,7 @@ import '../utils/schedule_parser.dart';
 class TimelineScheduleCard extends StatelessWidget {
   final Widget icon;
   final String title;
-  final List<String> items;
+  final List<ScheduleEntry> items;
   final String emptyMessage;
   final Color color;
   final Color cardColor;
@@ -32,7 +32,7 @@ class TimelineScheduleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final buckets = ScheduleParser.groupByBucket(items);
-    final hasParsedEntries = buckets.values.any((l) => l.isNotEmpty);
+    final hasUpcoming = buckets.values.any((l) => l.isNotEmpty);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -52,11 +52,8 @@ class TimelineScheduleCard extends StatelessWidget {
         children: [
           _header(),
           const SizedBox(height: 16),
-          if (items.isEmpty)
+          if (items.isEmpty || !hasUpcoming)
             _emptyRow()
-          else if (!hasParsedEntries)
-            // Fall back to raw display if parser couldn't read any lines
-            ...items.map((s) => _rawLine(s))
           else ...[
             _section('Today', buckets['today']!, isFirst: true),
             _section('Tomorrow', buckets['tomorrow']!),
@@ -118,16 +115,6 @@ class TimelineScheduleCard extends StatelessWidget {
     );
   }
 
-  Widget _rawLine(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(fontSize: 14, color: textColor),
-      ),
-    );
-  }
-
   Widget _section(String label, List<UpcomingEntry> entries, {bool isFirst = false}) {
     if (entries.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -164,7 +151,7 @@ class TimelineScheduleCard extends StatelessWidget {
 
   Widget _entryRow(UpcomingEntry e, String bucketLabel) {
     final showDay = bucketLabel == 'This week' || bucketLabel == 'Beyond';
-    final note = _extractNote(e.originalText);
+    final note = e.noteLabel;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -218,13 +205,5 @@ class TimelineScheduleCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  /// Extract any annotation after a hyphen, e.g. "4:30PM - Vigil Mass" → "Vigil Mass"
-  String? _extractNote(String original) {
-    final dashIdx = original.indexOf(' - ');
-    if (dashIdx < 0) return null;
-    final note = original.substring(dashIdx + 3).trim();
-    return note.isEmpty ? null : note;
   }
 }

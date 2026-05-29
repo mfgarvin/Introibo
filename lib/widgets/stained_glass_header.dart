@@ -87,16 +87,27 @@ class _StainedGlassPainter extends CustomPainter {
     [Color(0xFF2A1A4A), Color(0xFF503A75), Color(0xFF7C5BA8), Color(0xFFC9A227), Color(0xFFEED68A)],
     // Twilight teal
     [Color(0xFF0B3142), Color(0xFF1B5E7A), Color(0xFF3A8DA8), Color(0xFFE0A458), Color(0xFFF5D78A)],
+    // Emerald & copper
+    [Color(0xFF0A2A1F), Color(0xFF14593F), Color(0xFF2E8B61), Color(0xFFB8732D), Color(0xFFE6B888)],
+    // Indigo & pearl
+    [Color(0xFF161644), Color(0xFF2F2E78), Color(0xFF504DA8), Color(0xFFD9D2C0), Color(0xFFF1ECDD)],
+    // Crimson & saffron
+    [Color(0xFF42060A), Color(0xFF8A1622), Color(0xFFC23842), Color(0xFFE5A623), Color(0xFFF7D77C)],
+    // Midnight plum & rose-gold
+    [Color(0xFF1E0A2A), Color(0xFF4A1E5A), Color(0xFF7A3E8E), Color(0xFFE19A78), Color(0xFFF6D8B8)],
+    // Slate & seafoam
+    [Color(0xFF0F1F2A), Color(0xFF2A4655), Color(0xFF4F7C8A), Color(0xFF8FD0BE), Color(0xFFD6EFE6)],
   ];
 
-  /// Vary a base color in HSL space with small per-shard hue/saturation/
-  /// brightness shifts. Gives more organic palette variation than uniform
-  /// RGB multiplication and avoids muddy results.
+  /// Vary a base color in HSL space with per-shard hue/saturation/brightness
+  /// shifts. Wider ranges than the original pass — the prior ±9° hue felt
+  /// uniform across an entire window. Lightness range stays tighter; pushing
+  /// it further produces muddy / washed-out shards.
   Color _varyColor(Color base, math.Random rng) {
     final hsl = HSLColor.fromColor(base);
-    final dh = (rng.nextDouble() - 0.5) * 18; // ±9° hue shift
-    final ds = (rng.nextDouble() - 0.5) * 0.20; // ±10% saturation
-    final dl = (rng.nextDouble() - 0.5) * 0.18; // ±9% lightness
+    final dh = (rng.nextDouble() - 0.5) * 28; // ±14° hue shift
+    final ds = (rng.nextDouble() - 0.5) * 0.32; // ±16% saturation
+    final dl = (rng.nextDouble() - 0.5) * 0.22; // ±11% lightness
     return hsl
         .withHue((hsl.hue + dh) % 360)
         .withSaturation((hsl.saturation + ds).clamp(0.0, 1.0))

@@ -1,0 +1,11 @@
+name = "introibo-feedback"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+
+# D1 database binding — feedback submissions land here.
+# After running `wrangler d1 create introibo-feedback`, paste the returned
+# database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "introibo-feedback"
+database_id = "REPLACE_WITH_DATABASE_ID"

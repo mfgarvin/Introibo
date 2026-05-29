@@ -1,3 +1,5 @@
+import '../utils/schedule_parser.dart';
+
 class Parish {
   final String name;
   final String? parishId;
@@ -6,9 +8,13 @@ class Parish {
   final String zipCode;
   final String phone;
   final String website;
-  final List<String> massTimes;
-  final List<String> confTimes;
-  final List<String> adoration;
+  final List<ScheduleEntry> massTimes;
+  final List<ScheduleEntry> confTimes;
+  final List<ScheduleEntry> adoration;
+
+  /// True when the parish offers perpetual (24/7) adoration. When set,
+  /// [adoration] is typically empty — render a single "Perpetual" card.
+  final bool adorationIsPerpetual;
   final String? eventsSummary;
   final String? contactInfo;
   final double? latitude;
@@ -28,6 +34,7 @@ class Parish {
     required this.massTimes,
     required this.confTimes,
     this.adoration = const [],
+    this.adorationIsPerpetual = false,
     this.eventsSummary,
     this.contactInfo,
     this.latitude,
@@ -37,13 +44,24 @@ class Parish {
     this.lastUpdated,
   });
 
+  /// True if the parish has any adoration to show (timed slots or perpetual).
+  bool get hasAdoration => adorationIsPerpetual || adoration.isNotEmpty;
+
   factory Parish.fromJson(Map<String, dynamic> json) {
     // Handle zipCode as either int or String
-    String zipCodeString;
-    if (json['zip_code'] != null) {
-      zipCodeString = json['zip_code'].toString();
-    } else {
-      zipCodeString = '';
+    final zipCodeString =
+        json['zip_code'] != null ? json['zip_code'].toString() : '';
+
+    // Structured schedules: { mass: [...], confession: [...], adoration: {...} }
+    final schedules =
+        json['schedules'] is Map<String, dynamic> ? json['schedules'] as Map<String, dynamic> : const {};
+
+    final adorationJson = schedules['adoration'];
+    bool perpetual = false;
+    List<ScheduleEntry> adorationEntries = [];
+    if (adorationJson is Map<String, dynamic>) {
+      perpetual = adorationJson['is_perpetual'] == true;
+      adorationEntries = ScheduleEntry.listFromJson(adorationJson['times']);
     }
 
     return Parish(
@@ -53,24 +71,15 @@ class Parish {
       city: json['city'] ?? 'Unknown city',
       zipCode: zipCodeString,
       phone: json['phone'] ?? 'No Phone Listed',
-      // Support both 'website' (new) and 'www' (legacy) keys
-      website: json['website'] ?? json['www'] ?? 'No Website',
+      website: json['website'] ?? 'No Website',
       contactInfo: json['contact_info'] ?? 'See parish website',
-      massTimes: json['mass_times'] != null
-          ? List<String>.from(json['mass_times'])
-          : [],
-      // Support both 'confessions' (new) and 'conf_times' (legacy) keys
-      confTimes: json['confessions'] != null
-          ? List<String>.from(json['confessions'])
-          : (json['conf_times'] != null
-              ? List<String>.from(json['conf_times'])
-              : []),
-      adoration: json['adoration'] != null
-          ? List<String>.from(json['adoration'])
-          : [],
+      massTimes: ScheduleEntry.listFromJson(schedules['mass']),
+      confTimes: ScheduleEntry.listFromJson(schedules['confession']),
+      adoration: adorationEntries,
+      adorationIsPerpetual: perpetual,
       eventsSummary: json['events_summary'],
-      latitude: _parseLatitude(json),
-      longitude: _parseLongitude(json),
+      latitude: _parseCoord(json['latitude']),
+      longitude: _parseCoord(json['longitude']),
       imageUrl: json['image_url'],
       bulletinUrl: json['bulletin_url'],
       lastUpdated: _parseTimestamp(json['timestamp']),
@@ -83,33 +92,11 @@ class Parish {
     return DateTime.tryParse(value);
   }
 
-  /// Parse latitude from either 'latitude' field or 'lonlat' string
-  static double? _parseLatitude(Map<String, dynamic> json) {
-    if (json['latitude'] != null) {
-      return json['latitude'].toDouble();
-    }
-    // Parse from lonlat format: "longitude,latitude"
-    if (json['lonlat'] != null && json['lonlat'] is String) {
-      final parts = (json['lonlat'] as String).split(',');
-      if (parts.length == 2) {
-        return double.tryParse(parts[1].trim());
-      }
-    }
-    return null;
-  }
-
-  /// Parse longitude from either 'longitude' field or 'lonlat' string
-  static double? _parseLongitude(Map<String, dynamic> json) {
-    if (json['longitude'] != null) {
-      return json['longitude'].toDouble();
-    }
-    // Parse from lonlat format: "longitude,latitude"
-    if (json['lonlat'] != null && json['lonlat'] is String) {
-      final parts = (json['lonlat'] as String).split(',');
-      if (parts.length == 2) {
-        return double.tryParse(parts[0].trim());
-      }
-    }
+  /// Parse a nullable numeric coordinate.
+  static double? _parseCoord(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
     return null;
   }
 }

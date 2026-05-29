@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext (HTTP) is permitted ONLY for the liturgical calendar API, which
+  serves HTTPS over IPv6 only — its IPv4 address answers on port 80 alone, so
+  https:// fails on IPv4-only networks. The data is public and non-sensitive.
+  All other domains keep the secure default (cleartext blocked).
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">calapi.inadiutorium.cz</domain>
+    </domain-config>
+</network-security-config>

@@ -28,7 +28,8 @@ class FindParishNearMePage extends StatefulWidget {
   State<FindParishNearMePage> createState() => _FindParishNearMePageState();
 }
 
-class _FindParishNearMePageState extends State<FindParishNearMePage> {
+class _FindParishNearMePageState extends State<FindParishNearMePage>
+    with WidgetsBindingObserver {
   LatLng? userLocation;
   List<Parish> _parishes = [];
   List<Parish> _nearbyParishes = [];
@@ -50,15 +51,27 @@ class _FindParishNearMePageState extends State<FindParishNearMePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadParishData();
     _getUserLocation();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mapController.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh location on foreground (catches movement + a permission grant
+    // made while backgrounded). Updates the marker/nearby list without moving
+    // the camera, so a user's manual pan/zoom is preserved.
+    if (state == AppLifecycleState.resumed) {
+      _getUserLocation();
+    }
   }
 
   void _rebuildNearby() {
@@ -453,7 +466,7 @@ class _MapParishCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firstMass = parish.massTimes.isNotEmpty ? parish.massTimes.first : null;
+    final firstMass = parish.massTimes.isNotEmpty ? parish.massTimes.first.display : null;
     return Material(
       color: Colors.transparent,
       child: InkWell(

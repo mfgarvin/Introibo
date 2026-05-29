@@ -4,10 +4,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/parish.dart';
 import '../main.dart' show kSecondaryColor, kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, kAccentGold, favoritesManager, themeNotifier, primaryAccentFor, goldTextAccentFor;
+import '../services/feedback_client.dart';
 import '../widgets/custom_icons.dart';
 import '../widgets/stained_glass_header.dart';
 import '../widgets/next_mass_banner.dart';
 import '../widgets/timeline_schedule_card.dart';
+import '../widgets/mass_schedule_card.dart';
 
 class ParishDetailPage extends StatefulWidget {
   final Parish parish;
@@ -255,6 +257,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
+                  tooltip: isFavorite ? 'Remove from home parishes' : 'Mark as home parish',
                   icon: Icon(
                     isFavorite ? Icons.star : Icons.star_border,
                     color: isFavorite ? kAccentGold : primaryAccentFor(isDark: isDark),
@@ -323,8 +326,8 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   if (parish.bulletinUrl != null && parish.bulletinUrl!.isNotEmpty)
                     const SizedBox(height: 16),
 
-                  // Mass Times Card (timeline-grouped)
-                  TimelineScheduleCard(
+                  // Mass Times Card (weekend / weekday schedule)
+                  MassScheduleCard(
                     icon: Icon(Icons.access_time, color: secondaryAccent, size: 26),
                     title: 'Mass Times',
                     items: parish.massTimes,
@@ -351,15 +354,25 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Adoration Times Card (timeline-grouped)
-                  if (parish.adoration.isNotEmpty)
+                  // Adoration Card (perpetual banner, or timeline-grouped slots)
+                  if (parish.hasAdoration)
                     Builder(builder: (context) {
                       final goldAccent = goldTextAccentFor(isDark: isDark);
+                      if (parish.adorationIsPerpetual) {
+                        return _TappableInfoCard(
+                          icon: CustomIcon.monstrance(color: goldAccent, size: 26),
+                          title: 'Adoration',
+                          content: 'Perpetual Adoration\n24 hours a day, 7 days a week',
+                          color: goldAccent,
+                          cardColor: cardColor,
+                          textColor: textColor,
+                        );
+                      }
                       return TimelineScheduleCard(
                         icon: CustomIcon.monstrance(color: goldAccent, size: 26),
                         title: 'Adoration',
                         items: parish.adoration,
-                        emptyMessage: '',
+                        emptyMessage: 'No adoration times available',
                         color: goldAccent,
                         cardColor: cardColor,
                         textColor: textColor,
@@ -367,7 +380,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                         isDark: isDark,
                       );
                     }),
-                  if (parish.adoration.isNotEmpty)
+                  if (parish.hasAdoration)
                     const SizedBox(height: 16),
 
                   // Events Summary Card
@@ -598,8 +611,8 @@ class _TappableInfoCard extends StatelessWidget {
     required this.color,
     required this.cardColor,
     required this.textColor,
-    required this.actionIcon,
-    required this.actionLabel,
+    this.actionIcon = Icons.chevron_right,
+    this.actionLabel = '',
     this.onTap,
   });
 
@@ -929,77 +942,46 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
       _isSubmitting = true;
     });
 
-    // Build email content
     final parish = widget.parish;
-    final subject = Uri.encodeComponent(
-      _isAccurate == true
-          ? 'Data Confirmed: ${parish.name}'
-          : 'Data Issue Report: ${parish.name}',
+    final accurate = _isAccurate == true;
+
+    final categories = _selectedIssues
+        .map((id) => _issueOptions.firstWhere((o) => o['id'] == id)['id'] as String)
+        .toList();
+
+    final body = accurate
+        ? 'User confirmed this parish data is accurate.'
+        : _commentsController.text.trim().isEmpty
+            ? 'No additional details.'
+            : _commentsController.text.trim();
+
+    final result = await submitFeedback(
+      kind: 'parish_data',
+      body: body,
+      parishName: parish.name,
+      parishId: parish.parishId,
+      status: accurate ? 'accurate' : 'issue',
+      issueCategories: accurate ? null : categories,
     );
 
-    final bodyLines = <String>[
-      'Parish: ${parish.name}',
-      'Address: ${parish.address}, ${parish.city} ${parish.zipCode}',
-      '',
-    ];
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
 
-    if (_isAccurate == true) {
-      bodyLines.add('Status: DATA CONFIRMED ACCURATE');
+    if (result.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Thanks for the feedback!', style: GoogleFonts.inter()),
+          backgroundColor: Colors.green[600],
+        ),
+      );
+      Navigator.of(context).pop();
     } else {
-      bodyLines.add('Status: ISSUES REPORTED');
-      bodyLines.add('');
-      bodyLines.add('Fields with issues:');
-      for (final issue in _selectedIssues) {
-        final label = _issueOptions.firstWhere((o) => o['id'] == issue)['label'];
-        bodyLines.add('  - $label');
-      }
-      if (_commentsController.text.trim().isNotEmpty) {
-        bodyLines.add('');
-        bodyLines.add('Additional details:');
-        bodyLines.add(_commentsController.text.trim());
-      }
-    }
-
-    bodyLines.addAll([
-      '',
-      '---',
-      'Sent from Introibo App',
-    ]);
-
-    final body = Uri.encodeComponent(bodyLines.join('\n'));
-    final mailtoUrl = Uri.parse('mailto:feedback@massgpt.org?subject=$subject&body=$body');
-
-    try {
-      if (await canLaunchUrl(mailtoUrl)) {
-        await launchUrl(mailtoUrl);
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not open email app', style: GoogleFonts.inter()),
-              backgroundColor: Colors.red[400],
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening email: $e', style: GoogleFonts.inter()),
-            backgroundColor: Colors.red[400],
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Could not send feedback', style: GoogleFonts.inter()),
+          backgroundColor: Colors.red[400],
+        ),
+      );
     }
   }
 

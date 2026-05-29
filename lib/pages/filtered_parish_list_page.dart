@@ -139,7 +139,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   void _calculateNextOccurrences() {
     for (final parish in _parishes) {
-      List<String> scheduleToCheck = [];
+      List<ScheduleEntry> scheduleToCheck = [];
 
       // Get the appropriate schedule based on filter
       switch (widget.filter) {
@@ -160,7 +160,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
       }
 
       // Calculate minutes until next occurrence
-      final minutes = ScheduleParser.getMinutesUntilNext(scheduleToCheck);
+      final minutes = ScheduleParser.minutesUntilNext(scheduleToCheck);
       if (minutes != null) {
         _minutesUntilNext[parish.name] = minutes;
       }
@@ -181,7 +181,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         break;
       case ParishFilter.adoration:
         _filteredParishes = _parishes
-            .where((p) => p.adoration.isNotEmpty)
+            .where((p) => p.hasAdoration)
             .toList();
         break;
       case ParishFilter.all:
@@ -246,23 +246,22 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     if (!_hasActiveFilters()) return true;
 
     // Get the schedule based on filter type
-    List<String> scheduleStrings;
+    List<ScheduleEntry> entries;
     switch (widget.filter) {
       case ParishFilter.massTimes:
-        scheduleStrings = parish.massTimes;
+        entries = parish.massTimes;
         break;
       case ParishFilter.confession:
-        scheduleStrings = parish.confTimes;
+        entries = parish.confTimes;
         break;
       case ParishFilter.adoration:
-        scheduleStrings = parish.adoration;
+        entries = parish.adoration;
         break;
       case ParishFilter.all:
-        scheduleStrings = [...parish.massTimes, ...parish.confTimes];
+        entries = [...parish.massTimes, ...parish.confTimes];
         break;
     }
 
-    final entries = ScheduleParser.parseSchedule(scheduleStrings);
     if (entries.isEmpty) return false;
 
     final now = DateTime.now();
@@ -953,7 +952,8 @@ class _ParishCard extends StatelessWidget {
               ],
             ),
             // Times section based on filter
-            if (_getTimesToShow().isNotEmpty) ...[
+            if (_getTimesToShow().isNotEmpty ||
+                (filter == ParishFilter.adoration && parish.adorationIsPerpetual)) ...[
               const SizedBox(height: 12),
               Divider(height: 1, color: subtextColor.withValues(alpha: 0.2)),
               const SizedBox(height: 12),
@@ -965,7 +965,7 @@ class _ParishCard extends StatelessWidget {
     );
   }
 
-  List<String> _getTimesToShow() {
+  List<ScheduleEntry> _getTimesToShow() {
     switch (filter) {
       case ParishFilter.massTimes:
         return parish.massTimes;
@@ -996,6 +996,10 @@ class _ParishCard extends StatelessWidget {
         label = 'Mass Times';
     }
 
+    // Perpetual adoration: show a single descriptive chip instead of times.
+    final isPerpetual =
+        filter == ParishFilter.adoration && parish.adorationIsPerpetual;
+
     // Show up to 3 times
     final displayTimes = times.take(3).toList();
     final hasMore = times.length > 3;
@@ -1022,6 +1026,22 @@ class _ParishCard extends StatelessWidget {
           spacing: 8,
           runSpacing: 6,
           children: [
+            if (isPerpetual)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Perpetual (24/7)',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: accentColor,
+                  ),
+                ),
+              ),
             ...displayTimes.map((time) => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -1029,7 +1049,7 @@ class _ParishCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    time,
+                    time.display,
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: textColor,

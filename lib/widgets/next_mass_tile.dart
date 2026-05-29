@@ -18,6 +18,11 @@ class NextMassTile extends StatefulWidget {
   /// When true, render as a compact full-width banner instead of a 1:1 square.
   /// Reserved for "next Mass is far enough away that this isn't the hero".
   final bool compact;
+
+  /// When the soonest Mass isn't today, show a "No more today" chip instead of
+  /// an "in Xh" countdown. Used for the nearby tile, where "no more Masses
+  /// today" is the useful signal.
+  final bool announceNoMoreToday;
   final void Function(Parish parish) onTap;
 
   const NextMassTile({
@@ -30,6 +35,7 @@ class NextMassTile extends StatefulWidget {
     required this.subtextColor,
     required this.onTap,
     this.compact = false,
+    this.announceNoMoreToday = false,
   });
 
   /// Minutes until the soonest Mass in [parishes], or null if none.
@@ -40,8 +46,7 @@ class NextMassTile extends StatefulWidget {
     int best = 1 << 30;
     for (final p in parishes) {
       if (p.massTimes.isEmpty) continue;
-      final entries = ScheduleParser.parseSchedule(p.massTimes);
-      final next = ScheduleParser.findNextOccurrence(entries, now);
+      final next = ScheduleParser.findNextOccurrence(p.massTimes, now);
       if (next == null) continue;
       final m = next.minutesUntilNext(now);
       if (m < best) best = m;
@@ -78,8 +83,7 @@ class _NextMassTileState extends State<NextMassTile> {
 
     for (final p in widget.parishes) {
       if (p.massTimes.isEmpty) continue;
-      final entries = ScheduleParser.parseSchedule(p.massTimes);
-      final next = ScheduleParser.findNextOccurrence(entries, now);
+      final next = ScheduleParser.findNextOccurrence(p.massTimes, now);
       if (next == null) continue;
       final m = next.minutesUntilNext(now);
       if (m < bestMinutes) {
@@ -98,21 +102,41 @@ class _NextMassTileState extends State<NextMassTile> {
     final hit = _findSoonest();
     if (hit == null) return const SizedBox.shrink();
 
-    final timeLabel = _formatTime(hit.entry.hour, hit.entry.minute);
-    final countdown = _formatCountdown(hit.minutes);
-    final whenLabel = _whenLabel(hit.entry, DateTime.now());
-    final isImminent = hit.minutes <= 60;
+    final now = DateTime.now();
+    final occurrence = hit.entry.nextOccurrence(now);
+    final today = DateTime(now.year, now.month, now.day);
+    final daysAway =
+        DateTime(occurrence.year, occurrence.month, occurrence.day)
+            .difference(today)
+            .inDays;
+    final isToday = daysAway == 0;
+    final isImminent = isToday && hit.minutes <= 60;
+
+    final whenLabel = _whenLabel(daysAway, hit.entry.dayOfWeek);
+
+    // When the next Mass is today we show the exact time + a live countdown.
+    // When it's another day, the countdown ("in 18h") is noise — generalize to
+    // a part-of-day phrase and, for the nearby tile, flag that there are no
+    // more Masses today.
+    final String whenLine;
+    final String? chipText;
+    if (isToday) {
+      whenLine = '$whenLabel · ${_formatTime(hit.entry.hour, hit.entry.minute)}';
+      chipText = _formatCountdown(hit.minutes);
+    } else {
+      whenLine = '$whenLabel ${_partOfDay(hit.entry.hour)}';
+      chipText = widget.announceNoMoreToday ? 'No more today' : null;
+    }
 
     return widget.compact
-        ? _buildCompact(hit, timeLabel, countdown, whenLabel, isImminent)
-        : _buildExpanded(hit, timeLabel, countdown, whenLabel, isImminent);
+        ? _buildCompact(hit, whenLine, chipText, isImminent)
+        : _buildExpanded(hit, whenLine, chipText, isImminent);
   }
 
   Widget _buildExpanded(
     ({Parish parish, ScheduleEntry entry, int minutes}) hit,
-    String timeLabel,
-    String countdown,
-    String whenLabel,
+    String whenLine,
+    String? chipText,
     bool isImminent,
   ) {
     final seed = hit.parish.parishId ?? hit.parish.name;
@@ -185,8 +209,10 @@ class _NextMassTileState extends State<NextMassTile> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            _countdownChip(countdown, isImminent),
+                            if (chipText != null) ...[
+                              const SizedBox(width: 6),
+                              _countdownChip(chipText, isImminent),
+                            ],
                           ],
                         ),
                         const Spacer(),
@@ -210,7 +236,7 @@ class _NextMassTileState extends State<NextMassTile> {
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
-                                '$whenLabel · $timeLabel',
+                                whenLine,
                                 style:
                                     AppText.caption(color: widget.subtextColor),
                                 overflow: TextOverflow.ellipsis,
@@ -234,9 +260,8 @@ class _NextMassTileState extends State<NextMassTile> {
   /// imminent — keeps the slot productive without screaming for attention.
   Widget _buildCompact(
     ({Parish parish, ScheduleEntry entry, int minutes}) hit,
-    String timeLabel,
-    String countdown,
-    String whenLabel,
+    String whenLine,
+    String? chipText,
     bool isImminent,
   ) {
     return Material(
@@ -292,7 +317,7 @@ class _NextMassTileState extends State<NextMassTile> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$whenLabel · $timeLabel',
+                      whenLine,
                       style: AppText.caption(color: widget.subtextColor),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -300,8 +325,10 @@ class _NextMassTileState extends State<NextMassTile> {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              _countdownChip(countdown, isImminent),
+              if (chipText != null) ...[
+                const SizedBox(width: 10),
+                _countdownChip(chipText, isImminent),
+              ],
             ],
           ),
         ),
@@ -339,16 +366,20 @@ class _NextMassTileState extends State<NextMassTile> {
     return days == 1 ? 'tomorrow' : 'in ${days}d';
   }
 
-  String _whenLabel(ScheduleEntry entry, DateTime now) {
-    final occurrence = entry.nextOccurrence(now);
-    final today = DateTime(now.year, now.month, now.day);
-    final eventDay =
-        DateTime(occurrence.year, occurrence.month, occurrence.day);
-    final days = eventDay.difference(today).inDays;
-    if (days == 0) return 'Today';
-    if (days == 1) return 'Tomorrow';
+  String _whenLabel(int daysAway, int dayOfWeek) {
+    if (daysAway == 0) return 'Today';
+    if (daysAway == 1) return 'Tomorrow';
     const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return names[entry.dayOfWeek - 1];
+    return names[dayOfWeek - 1];
+  }
+
+  /// Coarse part-of-day used to generalize a non-today Mass time
+  /// (e.g. "Tomorrow morning").
+  String _partOfDay(int hour) {
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    if (hour < 21) return 'evening';
+    return 'night';
   }
 
   String _formatTime(int hour, int minute) {

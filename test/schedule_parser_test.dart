@@ -1,146 +1,171 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:introibo/utils/schedule_parser.dart';
 
+/// Build a structured mass/confession entry like the ones in export.json.
+Map<String, dynamic> massJson(
+  String day,
+  String start, {
+  String? massDate,
+  String? language,
+  String? notes,
+}) =>
+    {
+      'day': day,
+      'start': start,
+      'mass_date': massDate,
+      'language': language,
+      'notes': notes,
+    };
+
+Map<String, dynamic> windowJson(String day, String start, String end,
+        {String? notes}) =>
+    {'day': day, 'start': start, 'end': end, 'notes': notes};
+
 void main() {
-  group('ScheduleParser', () {
-    test('parses single time on Sunday', () {
-      final entries = ScheduleParser.parseSchedule(['Sunday: 9:00AM']);
-
-      expect(entries.length, 1);
-      expect(entries[0].dayOfWeek, 7); // Sunday = 7 in ISO
-      expect(entries[0].hour, 9);
-      expect(entries[0].minute, 0);
+  group('ScheduleEntry.fromJson', () {
+    test('parses a weekly Mass entry', () {
+      final e = ScheduleEntry.fromJson(massJson('Sunday', '09:00'))!;
+      expect(e.dayOfWeek, 7); // Sunday = 7 ISO
+      expect(e.hour, 9);
+      expect(e.minute, 0);
+      expect(e.isDated, false);
+      expect(e.hasRange, false);
     });
 
-    test('parses multiple times on same day', () {
-      final entries = ScheduleParser.parseSchedule(['Sunday: 9:00AM, 11:00AM']);
-
-      expect(entries.length, 2);
-      expect(entries[0].hour, 9);
-      expect(entries[1].hour, 11);
+    test('parses an afternoon 24-hour time', () {
+      final e = ScheduleEntry.fromJson(massJson('Saturday', '16:30'))!;
+      expect(e.dayOfWeek, 6);
+      expect(e.hour, 16);
+      expect(e.minute, 30);
     });
 
-    test('parses PM times correctly', () {
-      final entries = ScheduleParser.parseSchedule(['Saturday: 4:30PM']);
-
-      expect(entries.length, 1);
-      expect(entries[0].dayOfWeek, 6); // Saturday = 6
-      expect(entries[0].hour, 16); // 4:30 PM = 16:30 in 24-hour
-      expect(entries[0].minute, 30);
+    test('parses a confession window with start and end', () {
+      final e = ScheduleEntry.fromJson(windowJson('Saturday', '09:30', '10:00'))!;
+      expect(e.hasRange, true);
+      expect(e.hour, 9);
+      expect(e.endHour, 10);
+      expect(e.endMinute, 0);
     });
 
-    test('handles vigil mass annotations', () {
-      final entries = ScheduleParser.parseSchedule(['Saturday: 4:30PM - Vigil Mass']);
-
-      expect(entries.length, 1);
-      expect(entries[0].hour, 16);
-      expect(entries[0].minute, 30);
+    test('captures language and notes annotations', () {
+      final e = ScheduleEntry.fromJson(
+          massJson('Sunday', '12:30', language: 'Spanish', notes: 'Vigil'))!;
+      expect(e.language, 'Spanish');
+      expect(e.note, 'Vigil');
+      expect(e.noteLabel, 'Spanish · Vigil');
     });
 
-    test('parses multiple schedule lines', () {
-      final entries = ScheduleParser.parseSchedule([
-        'Sunday: 9:00AM, 11:00AM',
-        'Saturday: 8:00AM, 4:30PM - Vigil Mass',
+    test('parses a dated holiday Mass', () {
+      final e = ScheduleEntry.fromJson(
+          massJson('Thursday', '00:00', massDate: '2025-12-25', notes: 'Midnight Mass'))!;
+      expect(e.isDated, true);
+      expect(e.date, DateTime(2025, 12, 25));
+      expect(e.hour, 0);
+    });
+
+    test('returns null for an unparseable entry', () {
+      expect(ScheduleEntry.fromJson({'day': 'Funday', 'start': '09:00'}), isNull);
+      expect(ScheduleEntry.fromJson({'day': 'Sunday', 'start': 'noon'}), isNull);
+    });
+
+    test('listFromJson skips bad entries', () {
+      final list = ScheduleEntry.listFromJson([
+        massJson('Sunday', '09:00'),
+        {'day': 'Funday', 'start': '09:00'},
+        massJson('Monday', '08:00'),
       ]);
+      expect(list.length, 2);
+    });
+  });
 
-      expect(entries.length, 4);
+  group('display helpers', () {
+    test('display gives compact day + time', () {
+      final e = ScheduleEntry.fromJson(massJson('Sunday', '09:00'))!;
+      expect(e.display, 'Sun · 9:00 AM');
     });
 
-    test('handles noon (12:00PM) correctly', () {
-      final entries = ScheduleParser.parseSchedule(['Sunday: 12:00PM']);
-
-      expect(entries.length, 1);
-      expect(entries[0].hour, 12); // 12:00 PM stays as 12
+    test('range timeLabel drops shared meridiem', () {
+      final e = ScheduleEntry.fromJson(windowJson('Saturday', '15:00', '15:30'))!;
+      expect(e.timeLabel, '3:00 – 3:30 PM');
     });
 
-    test('handles midnight (12:00AM) correctly', () {
-      final entries = ScheduleParser.parseSchedule(['Monday: 12:00AM']);
-
-      expect(entries.length, 1);
-      expect(entries[0].hour, 0); // 12:00 AM becomes 0
+    test('noon and midnight format correctly', () {
+      expect(ScheduleEntry.fromJson(massJson('Sunday', '12:00'))!.timeLabel, '12:00 PM');
+      expect(ScheduleEntry.fromJson(massJson('Monday', '00:00'))!.timeLabel, '12:00 AM');
     });
+  });
 
-    test('calculates next occurrence for upcoming event', () {
-      // Test on a Monday at 10:00 AM
-      final testTime = DateTime(2026, 1, 5, 10, 0); // Monday, Jan 5, 2026, 10:00 AM
-
-      // Parse a Wednesday 2:00 PM mass
-      final entries = ScheduleParser.parseSchedule(['Wednesday: 2:00PM']);
-      expect(entries.length, 1);
-
-      final next = entries[0].nextOccurrence(testTime);
-
-      // Should be Wednesday, Jan 7, 2026, 2:00 PM
-      expect(next.weekday, 3); // Wednesday
+  group('occurrence math', () {
+    test('next occurrence for an upcoming weekday', () {
+      final now = DateTime(2026, 1, 5, 10, 0); // Monday
+      final e = ScheduleEntry.fromJson(massJson('Wednesday', '14:00'))!;
+      final next = e.nextOccurrence(now);
+      expect(next.weekday, 3);
       expect(next.hour, 14);
-      expect(next.minute, 0);
     });
 
-    test('calculates next occurrence for event later today', () {
-      // Test on a Monday at 10:00 AM
-      final testTime = DateTime(2026, 1, 5, 10, 0);
-
-      // Parse a Monday 5:00 PM mass
-      final entries = ScheduleParser.parseSchedule(['Monday: 5:00PM']);
-      expect(entries.length, 1);
-
-      final minutesUntil = entries[0].minutesUntilNext(testTime);
-
-      // Should be 7 hours = 420 minutes
-      expect(minutesUntil, 420);
+    test('minutes until later today', () {
+      final now = DateTime(2026, 1, 5, 10, 0);
+      final e = ScheduleEntry.fromJson(massJson('Monday', '17:00'))!;
+      expect(e.minutesUntilNext(now), 420);
     });
 
-    test('calculates next occurrence wraps to next week if event passed', () {
-      // Test on a Monday at 10:00 AM
-      final testTime = DateTime(2026, 1, 5, 10, 0);
-
-      // Parse a Monday 8:00 AM mass (already passed)
-      final entries = ScheduleParser.parseSchedule(['Monday: 8:00AM']);
-      expect(entries.length, 1);
-
-      final next = entries[0].nextOccurrence(testTime);
-
-      // Should be next Monday
-      expect(next.weekday, 1); // Monday
-      expect(next.day, 12); // Jan 12
+    test('wraps to next week if already passed', () {
+      final now = DateTime(2026, 1, 5, 10, 0);
+      final e = ScheduleEntry.fromJson(massJson('Monday', '08:00'))!;
+      final next = e.nextOccurrence(now);
+      expect(next.weekday, 1);
+      expect(next.day, 12);
     });
 
-    test('finds soonest occurrence from multiple times', () {
-      final testTime = DateTime(2026, 1, 5, 10, 0); // Monday 10:00 AM
+    test('dated entry occurs on its fixed date', () {
+      final now = DateTime(2026, 1, 5, 10, 0);
+      final e = ScheduleEntry.fromJson(massJson('Friday', '13:00', massDate: '2026-01-09'))!;
+      final next = e.nextOccurrence(now);
+      expect(next, DateTime(2026, 1, 9, 13, 0));
+      expect(e.isPast(now), false);
+    });
 
-      final entries = ScheduleParser.parseSchedule([
-        'Wednesday: 2:00PM',
-        'Monday: 5:00PM',
-        'Saturday: 9:00AM',
+    test('past dated entry is flagged and excluded from soonest', () {
+      final now = DateTime(2026, 1, 5, 10, 0);
+      final past = ScheduleEntry.fromJson(massJson('Friday', '13:00', massDate: '2026-01-02'))!;
+      expect(past.isPast(now), true);
+
+      final weekly = ScheduleEntry.fromJson(massJson('Monday', '17:00'))!;
+      final next = ScheduleParser.findNextOccurrence([past, weekly], now);
+      expect(next, weekly); // past dated one is skipped
+    });
+  });
+
+  group('ScheduleParser', () {
+    test('finds the soonest from multiple entries', () {
+      final now = DateTime(2026, 1, 5, 10, 0); // Monday
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Wednesday', '14:00'),
+        massJson('Monday', '17:00'),
+        massJson('Saturday', '09:00'),
       ]);
-
-      final next = ScheduleParser.findNextOccurrence(entries, testTime);
-
-      // Should pick Monday 5:00 PM (soonest)
+      final next = ScheduleParser.findNextOccurrence(entries, now);
       expect(next?.dayOfWeek, 1);
       expect(next?.hour, 17);
     });
 
-    test('getMinutesUntilNext returns correct value', () {
-      final testTime = DateTime(2026, 1, 5, 10, 0); // Monday 10:00 AM
-
-      final minutes = ScheduleParser.getMinutesUntilNext(
-        ['Monday: 5:00PM'],
-        testTime,
-      );
-
-      // 7 hours = 420 minutes
-      expect(minutes, 420);
+    test('minutesUntilNext returns null for empty list', () {
+      expect(ScheduleParser.minutesUntilNext([]), isNull);
     });
 
-    test('handles empty schedule gracefully', () {
-      final minutes = ScheduleParser.getMinutesUntilNext([]);
-      expect(minutes, null);
-    });
-
-    test('handles invalid schedule format gracefully', () {
-      final entries = ScheduleParser.parseSchedule(['Invalid schedule']);
-      expect(entries, isEmpty);
+    test('groupByBucket sorts entries into relative day buckets', () {
+      final now = DateTime(2026, 1, 5, 10, 0); // Monday
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Monday', '17:00'),   // today
+        massJson('Tuesday', '08:00'),  // tomorrow
+        massJson('Saturday', '09:00'), // this week
+      ]);
+      final buckets = ScheduleParser.groupByBucket(entries, now);
+      expect(buckets['today']!.length, 1);
+      expect(buckets['tomorrow']!.length, 1);
+      expect(buckets['thisWeek']!.length, 1);
+      expect(buckets['beyond']!.isEmpty, true);
     });
   });
 }

@@ -1061,3 +1061,270 @@ Largest structural change. Promoted Map and Favorites from buried entry points (
 The church-icon PopupMenu is now a slim `Settings / Feedback` only — About remains as the bottom-of-page link.
 
 Deferred for a follow-up: no work on the liturgical-day strip on home or the first-launch chime.
+
+## Session Log: 2026-05-28 (Tweaks Pass)
+
+User scribbled a list of small tweaks. Worked through all ten in one session.
+
+### Home page restructure (`lib/main.dart`)
+
+- **Section reorder.** "Looking for" quick-access row now appears **above** the search bar (formerly below). Section order is: hero card → Looking for → Search → Nearby → Today's Liturgy.
+- **Hamburger menu.** Top-right church-icon `PopupMenuButton` swapped for `Icons.menu`. Menu now has four items: Home Parishes, Settings, Feedback, About. Previously the menu was Settings + Feedback only, with Favorites buried in the bottom nav and About living as a card link at the bottom of the page.
+- **About link removed from the page.** It's in the hamburger menu now. Its slot at the bottom of the page is occupied by the new liturgical tile.
+- **"View All" button on Nearby section removed.** The bottom nav's Map tab covers the same affordance.
+- `HomePage.onSwitchToMap` callback removed (was only used by the deleted View All button). `RootShell` updated.
+
+### Favorites → Home Parishes rename (user-facing only)
+
+User requested "home parishes, not favorites." Done as a UI-string-only rename to avoid touching the SharedPreferences key (`favorite_parishes`) — existing user saves are preserved.
+
+- Bottom nav tab label: `Favorites` → `My Parishes` (compact label; the page title is the longer form).
+- `FavoritesPage` app bar title: `Favorites` → `Home Parishes`.
+- Empty-state copy: "No favorites yet" → "No home parishes yet"; instructional text updated to "Tap the star icon … to mark it as a home parish".
+- `NextMassTile` favorite-slot label: `AT A FAVORITE` → `AT A HOME PARISH` (both compact and expanded variants).
+- Star icon on `ParishDetailPage` gained a `tooltip:` — "Mark as home parish" / "Remove from home parishes".
+- **Class names unchanged** — `FavoritesManager`, `FavoritesPage`, the global `favoritesManager`, `parish_detail_page.dart` imports, etc. all keep their original names. Smaller diff, no rename ripple across the codebase. Renaming the internals is fine to do later if it bothers anyone reading the code.
+
+### Search normalization (`lib/utils/search_normalize.dart`)
+
+New `normalizeForSearch(String)` helper. Lowercases, folds common Latin-extended diacritics (`á → a`, `ñ → n`, etc.), then expands Saint abbreviations:
+
+- `\bsts?\.?\s` → `saints ` (handles "Sts.", "Sts", "St" plural via the `s?`)
+- `\bss\.?\s`  → `saints ` (e.g. "Ss. Peter and Paul")
+- `\bst\.?\s`  → `saint `
+
+Plural rules run before singular so `\bst\b` doesn't eat `ss` partials. Both query and field run through the helper before `.contains()`. Wired into:
+
+- `HomePage._updateSearchResults` (`lib/main.dart`)
+- `ResearchParishPage._updateSearchResults` (`lib/pages/research_parish_page.dart`)
+
+ZIP code matching still uses raw `query` (no normalization).
+
+### Stained glass: more variation (`lib/widgets/stained_glass_header.dart`)
+
+- **Palettes 5 → 10.** Added: emerald & copper, indigo & pearl, crimson & saffron, midnight plum & rose-gold, slate & seafoam. Same `[deep, mid, bright, accent, highlight]` convention as the original five.
+- **`_varyColor` HSL jitter widened.** Hue ±9° → **±14°**, saturation ±10% → **±16%**, lightness ±9% → **±11%**. Pushing lightness much further produces muddy / washed-out shards, but the wider hue+sat range noticeably increases per-shard variation while still reading as a coherent palette.
+
+### Liturgical day tile placeholder (`lib/widgets/liturgical_day_tile.dart`)
+
+New widget at the bottom of HomePage (replacing the deleted About link).
+
+- Color swatch (44×44 rounded box with a colored glow shadow) + kicker line ("TODAY · Green · Ordinary Time") + Cormorant Garamond title + italic memorial subtitle + full-width `OutlinedButton` linking to `https://bible.usccb.org/daily-bible-reading`.
+- **All data hardcoded.** Marked with `// TODO: replace with real data`. The sample is shaped the way the eventual data source should deliver: liturgical color (hex + name), season, mass title, optional memorial.
+- Data source not yet picked. Options to revisit: compute locally (Easter + temporale/sanctorale tables — nontrivial), scrape USCCB daily page (brittle), or find a public liturgical JSON feed.
+
+### Version counter
+
+Semver stays manual in `pubspec.yaml`; build number is derived from `git rev-list --count HEAD` at build time. Currently 43.
+
+- **Android Gradle hook** (`android/app/build.gradle`). New top-level `gitBuildNumber` block runs `git rev-list --count HEAD` at configuration time and assigns to `versionCode`. Falls back to `flutter.versionCode` (from pubspec) when git is unavailable — covers shallow CI checkouts and source-tarball builds.
+- **Display layer.** Added `package_info_plus: ^8.0.0` to `pubspec.yaml`. New `lib/utils/app_version.dart` loads `PackageInfo.fromPlatform()` once in `main()` and exposes `AppVersion.version`, `AppVersion.buildNumber`, and `AppVersion.display` (formatted as `"1.0.0 build 43"`).
+- **About + Settings updated** to render `AppVersion.display` instead of the hardcoded `1.0.0`.
+- **iOS gap.** `Runner.xcodeproj/project.pbxproj` left untouched — programmatic edits there are fragile, and the user is on Linux desktop / Android-only for now. When iOS becomes a target, add a Run Script build phase that runs `git rev-list --count HEAD` and updates `CFBundleVersion` via PlistBuddy, or bump `pubspec.yaml`'s `+N` suffix manually. The Dart display layer is platform-agnostic so it'll Just Work once the iOS native side is wired.
+
+### Cloudflare Worker for feedback (`worker/`)
+
+New subdirectory. The worker is a TypeScript Cloudflare Worker backed by a D1 database. **Not deployed yet** — needs a manual `wrangler login` + D1 create step.
+
+Files:
+
+| File | Purpose |
+|------|---------|
+| `worker/wrangler.toml` | CF config; `database_id` placeholder until D1 is created |
+| `worker/package.json` | Wrangler scripts (`dev`, `deploy`, `db:init`, `db:init-local`, `tail`) |
+| `worker/tsconfig.json` | Strict TS, Workers types |
+| `worker/schema.sql` | `feedback` + `feedback_rate` tables |
+| `worker/src/index.ts` | Handler: `POST /feedback`, `GET /healthz` |
+| `worker/README.md` | Step-by-step setup |
+| `worker/.gitignore` | `node_modules/`, `.wrangler/`, `.dev.vars` |
+
+D1 schema:
+
+- `feedback (id, created_at, kind, parish_name, parish_id, status, issue_categories, reply_email, body, app_version, build_number, platform, client_ip)`. `kind ∈ {'general', 'parish_data'}`.
+- `feedback_rate (client_ip, created_at)` — a write-once ledger for rate limiting. Index on `(client_ip, created_at)`.
+
+Worker behavior:
+
+- Permissive CORS (any origin, POST/OPTIONS).
+- Body limit 8 KB, body+kind required, kind whitelist enforced.
+- Rate limit: **5 submissions per IP per hour**, enforced by `SELECT COUNT(*) FROM feedback_rate WHERE client_ip = ? AND created_at > datetime('now', '-1 hour')` before insert. Returns 429 if exceeded.
+- Returns `{ok: true, id: N}` or `{ok: false, error: "..."}`.
+
+**Setup steps when you pick this up** (also in `worker/README.md`):
+
+```bash
+cd worker
+npm install
+npx wrangler login
+npx wrangler d1 create introibo-feedback
+# paste returned database_id into wrangler.toml
+npm run db:init
+npm run deploy
+# note the printed URL — that's your endpoint
+```
+
+Then either edit `lib/config/feedback_endpoint.dart` and replace the placeholder, or build with `--dart-define=FEEDBACK_ENDPOINT=https://introibo-feedback.<account>.workers.dev/feedback`.
+
+### Feedback wiring (`lib/config/`, `lib/services/`)
+
+- `lib/config/feedback_endpoint.dart` — `kFeedbackEndpoint` const, `String.fromEnvironment('FEEDBACK_ENDPOINT', defaultValue: 'https://introibo-feedback.example.workers.dev/feedback')`. `feedbackEndpointConfigured` getter returns false while the placeholder is in place — submissions short-circuit with a clear "not configured yet" message so it can't silently fail in the field.
+- `lib/services/feedback_client.dart` — `submitFeedback({required String kind, required String body, parishName, parishId, status, issueCategories, replyEmail})`. Wraps `http.post`, 12-second timeout, parses `{ok, error}` JSON. Auto-attaches `app_version`, `build_number`, `platform` from `AppVersion` + `dart:io Platform`.
+- `FeedbackPage._submitFeedback` (`lib/main.dart`) replaced — was opening `mailto:feedback@massgpt.org`, now POSTs `kind: general`. Header copy changed from "Feedback will be sent to: feedback@massgpt.org" to a generic "Your feedback is sent directly to the Introibo team. Add your email if you'd like a reply." Success snackbar (green), error snackbar (red) on failure.
+- `_DataFeedbackSheet._submitFeedback` (`lib/pages/parish_detail_page.dart`) same swap — was opening mailto, now POSTs `kind: parish_data` with the structured `parish_name`, `parish_id`, `status` (`accurate`/`issue`), and `issue_categories` list.
+- `url_launcher` import removed from `lib/main.dart` — no longer used there. Still used in `parish_detail_page.dart` for Maps / phone / website / bulletin launching.
+
+### Build / verification
+
+- `flutter analyze`: clean (0 issues) after all edits.
+- `flutter build apk` (release): success — `build/app/outputs/flutter-apk/app-release.apk` (54 MB). Build number from git: **43** (current commit count at the time of this session).
+
+### Where to pick up
+
+1. **Deploy the Worker.** Follow `worker/README.md`. Update `lib/config/feedback_endpoint.dart` or use the `--dart-define` build flag.
+2. **Wire iOS build number** if/when iOS becomes a target — see "iOS gap" above.
+3. **Replace hardcoded liturgy data** in `lib/widgets/liturgical_day_tile.dart` once a data source is chosen.
+4. **Optional internal rename**: `FavoritesManager`/`FavoritesPage` → `HomeParishesManager`/`HomeParishesPage` to match the user-facing concept. Pure rename; no behavior change.
+
+## Session Log: 2026-05-28 (Structured export.json migration)
+
+The bulletin scraper was rewritten to emit fully **structured** schedules (see
+`EXPORT_SHAPE_CHANGES.md`). Migrated the app off regex string-parsing onto the
+pre-parsed shape. No string schedule parsing remains.
+
+### New data shape consumed
+
+- `schedules.mass[]`: `{day, start "HH:MM", mass_date, language, notes}`
+- `schedules.confession[]`: `{day, start, end, notes}`
+- `schedules.adoration`: `{is_perpetual: bool, times: [{day, start, end, notes}]}`
+- `latitude`/`longitude`: plain nullable floats (the `lonlat` combined string is gone)
+- Legacy keys (`mass_times`, `confessions`, `conf_times`, `www`, `lonlat`) dropped — the new export emits none of them.
+
+### Code changes
+
+- **`lib/utils/schedule_parser.dart`** — gutted the regex line parser. `ScheduleEntry`
+  is now built via `ScheduleEntry.fromJson` / `ScheduleEntry.listFromJson` and carries
+  `date` (holiday/one-off), `language`, `note`, plus display getters (`dayLabel`,
+  `dayName`, `timeLabel`, `display`, `noteLabel`). `ScheduleParser` keeps occurrence
+  math only: `findNextOccurrence`, `minutesUntilNext`, `groupByBucket` — all now take
+  `List<ScheduleEntry>`. Dated entries occur on their fixed date; past dated entries are
+  filtered out of "next/soonest/buckets" via `isPast()`.
+- **`lib/models/parish.dart`** — `massTimes`/`confTimes`/`adoration` are now
+  `List<ScheduleEntry>` (field names kept to minimize call-site churn). Added
+  `adorationIsPerpetual` and `hasAdoration` getter. lat/lon parsed as nullable floats.
+- **Consumers** — `timeline_schedule_card`, `next_mass_banner`, `next_mass_tile`,
+  `filtered_parish_list_page` all consume entries directly (no more `parseSchedule`).
+  Card/preview sites that showed `massTimes.first` as a string now use `.first.display`
+  (e.g. "Sun · 9:00 AM"). The timeline card's note now comes from `entry.noteLabel`
+  (language + notes); the raw-line fallback and `_extractNote` were removed.
+- **Perpetual adoration** — detail page renders a single "Perpetual Adoration" info
+  card; filtered list shows a "Perpetual (24/7)" chip and includes perpetual parishes
+  in the adoration filter via `hasAdoration`.
+- **`test/schedule_parser_test.dart`** — rewritten to test the structured builder,
+  display helpers, dated/holiday handling, and occurrence math (18 tests, all pass).
+
+### Verification
+
+- `flutter analyze`: clean (0 issues).
+- `flutter test`: all pass. A throwaway smoke test loaded all 189 parishes from
+  `export.demo.json` through `Parish.fromJson` without throwing (50 dated holiday Masses,
+  249 confession ranges, 7 perpetual adoration, 186/189 with coords).
+
+### Runtime data source — unchanged (deliberate)
+
+`ParishService` still fetches from the remote
+`https://raw.githubusercontent.com/mfgarvin/bulletin/refs/heads/main/export.json`.
+The user chose to leave this as-is (assumes the remote will serve the new shape).
+**Transition risk:** if the remote still serves the *old* shape, `Parish.fromJson` finds
+no `schedules` key and all schedules come back empty. `export.demo.json` (new shape, 189
+parishes) is available locally for verification but is intentionally **not** bundled.
+
+## Session Log: 2026-05-28 (Detail/Home tweaks + live liturgy)
+
+Four adjustments after the structured-export migration:
+
+### 1. Mass times: weekend / weekday schedule (not a rolling timeline)
+
+- New `lib/widgets/mass_schedule_card.dart`. Replaces `TimelineScheduleCard` for
+  **Mass only** on the detail page (Confession & Adoration keep the timeline view).
+- Groups regular (non-dated) Masses into **Weekend** (Sunday + Saturday at/after
+  noon = Vigil) and **Weekday** (Mon–Fri + Saturday morning). Rows with identical
+  time+note collapse across days, e.g. five entries → one `Mon–Fri · 8:00 AM` row.
+- Upcoming dated/holiday Masses (next ~21 days) appear in a separate
+  **Upcoming / Special** section labelled by date; past dated Masses stay hidden.
+- The live "next Mass" feel is still served by the `NextMassBanner` at the top of
+  the page; the card is now the standing schedule reference.
+
+### 2. Hamburger menu: removed "Home Parishes"
+
+- `lib/main.dart` — dropped the `home_parishes` PopupMenuItem + case and the now-unused
+  `_showHomeParishesPage()`. Menu is Settings / Feedback / About. Home parishes remain
+  reachable via the bottom-nav "My Parishes" tab (so this was redundant).
+
+### 3. Alpha build
+
+- `pubspec.yaml` version `1.0.0+1` → `1.0.0-alpha+1`. `AppVersion.display` therefore
+  reads "1.0.0-alpha build N" with no code change (PackageInfo.version carries the
+  `-alpha`). Android versionName picks it up; versionCode still git-derived.
+
+### 4. Liturgical day tile → live
+
+- New `lib/services/liturgical_service.dart`, two tiers:
+  - **`localToday()`** — offline, deterministic. Computus (Meeus) for Easter, then
+    Advent / Christmas / Lent / Easter / Ordinary boundaries → season + liturgical
+    color + a generic title ("Thursday in Ordinary Time"). Always available.
+  - **`fetchEnriched()`** — best-effort GET to `calapi.inadiutorium.cz` general
+    calendar for the precise celebration title + memorial + color; cached per-day in
+    SharedPreferences; returns null on failure.
+- `lib/widgets/liturgical_day_tile.dart` is now stateful: shows the local baseline
+  instantly, then swaps in the enriched result if the fetch succeeds. Never empty.
+- **calapi networking note:** that host serves HTTPS over **IPv6 only** — its IPv4
+  address (37.157.198.11) refuses :443. Browsers reach it via IPv6 (Happy Eyeballs);
+  Dart's `HttpClient` on an IPv6-less network fails (errno 101). Tried forcing IPv4 —
+  wrong, since calapi's IPv4 refuses 443 (errno 111). Conclusion: do **not** force a
+  family. Enrichment simply no-ops on IPv6-less networks (e.g. this dev box); the local
+  baseline covers it. On a normal dual-stack device the enrichment works.
+
+### Verification
+
+- `flutter analyze` clean; `flutter test` 18/18 pass.
+- Ran on Linux desktop via the Dart MCP tooling and inspected the widget tree (the MCP
+  toolset has no screenshot/tap injection, so verification is tree + logs + runtime
+  errors): home renders parishes with `Sun · 9:00 AM`-style mass previews; the liturgy
+  tile shows `TODAY · GREEN · ORDINARY TIME` / `Thursday in Ordinary Time`; no runtime
+  errors. (Detail-page Mass card + hamburger covered by analyze/compile, not yet eyeballed.)
+
+### Follow-up fixes (same day)
+
+- **Search Saint-matching bug** (`lib/utils/search_normalize.dart`). The old expansion
+  used `\bsts?\.?\s`, where `sts?` also matched bare "st" — so "St. Sebastian" queries
+  became "saints sebastian" and failed to match "Saint Sebastian". Also the trailing `\s`
+  meant a half-typed "st"/"st." never expanded. Rewrote to fold **every** variant
+  (`saint`, `saints`, `st`, `st.`, `sts`, `sts.`, `ss`, `ss.`) to a single canonical
+  `saint` token via `\b(?:saints?|sts|ss|st)\.?(?=\s|$)`, so singular ↔ plural ↔
+  abbreviated all intermatch and partial typing works. `\b` + lookahead leave "street",
+  "first", "christ" untouched. New `test/search_normalize_test.dart` (7 tests).
+- **Location not refreshing on resume** (`lib/main.dart` HomePage, `lib/pages/find_parish_near_me_page.dart`).
+  Location was fetched only in `initState`, so reopening from the background kept a stale
+  position until a force-quit. Both states now `with WidgetsBindingObserver` and re-call
+  `_getUserLocation()` on `AppLifecycleState.resumed` (silent; map preserves the user's
+  pan/zoom since the refresh doesn't move the camera).
+
+### Follow-up tweaks (2026-05-29, pt. 2)
+
+- **calapi over HTTP** — its IPv4 serves only port 80 (443 is IPv6-only), so `_base`
+  switched to `http://` + a scoped Android cleartext exception
+  (`res/xml/network_security_config.xml`, referenced from the manifest). Confirmed LIVE API
+  badge + enriched title on the dev box.
+- **Liturgical tile is now the liturgical color** (`liturgical_day_tile.dart`) — the whole
+  card is `_day.color`; foreground uses a luminance-based `_onColor` (dark ink on White/
+  light colors, near-white otherwise); swatch removed; source badge + readings button
+  recolored to stay legible on any color.
+- **NextMassTile "not today" handling** (`next_mass_tile.dart`) — when the soonest Mass
+  isn't today, the when-line generalizes to a part-of-day phrase ("Tomorrow afternoon")
+  instead of an exact time, and the "in Xh" countdown is dropped. New `announceNoMoreToday`
+  flag (set on the nearby tile in `main.dart`) shows a **"No more today"** chip in that case.
+  Today's behavior (exact time + live countdown) is unchanged.
+
+Note: the Flutter widget-inspector (`get_widget_tree`) repeatedly served **stale/cached
+frames** this session — don't trust it for verifying async swaps or fresh rebuilds; confirm
+via a direct probe, a unit test, or the user.

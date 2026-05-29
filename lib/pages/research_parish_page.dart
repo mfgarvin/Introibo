@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/parish.dart';
 import '../services/parish_service.dart';
 import '../main.dart' show kPrimaryColor, kBackgroundColor, kCardColor;
+import '../utils/search_normalize.dart';
 import 'parish_detail_page.dart';
 
 class ResearchParishPage extends StatefulWidget {
@@ -58,15 +59,15 @@ class _ResearchParishPageState extends State<ResearchParishPage> {
   }
 
   void _updateSearchResults(String query) {
-    final lowerCaseQuery = query.toLowerCase();
+    final normalizedQuery = normalizeForSearch(query);
 
     setState(() {
       if (query.isEmpty) {
         _searchResults.clear();
       } else {
         _searchResults = _parishes.where((parish) {
-          return parish.name.toLowerCase().contains(lowerCaseQuery) ||
-              parish.city.toLowerCase().contains(lowerCaseQuery) ||
+          return normalizeForSearch(parish.name).contains(normalizedQuery) ||
+              normalizeForSearch(parish.city).contains(normalizedQuery) ||
               parish.zipCode.contains(query);
         }).toList();
       }
@@ -360,7 +361,7 @@ class _ParishCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            parish.massTimes.first,
+                            parish.massTimes.first.display,
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               color: kPrimaryColor,

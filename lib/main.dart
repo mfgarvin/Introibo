@@ -7,7 +7,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'models/parish.dart';
 import 'services/parish_service.dart';
 import 'pages/parish_detail_page.dart';
@@ -17,7 +16,11 @@ import 'widgets/custom_icons.dart';
 import 'widgets/today_hero_card.dart';
 import 'widgets/next_mass_tile.dart';
 import 'widgets/stained_glass_header.dart';
+import 'widgets/liturgical_day_tile.dart';
 import 'theme/app_text.dart';
+import 'utils/search_normalize.dart';
+import 'utils/app_version.dart';
+import 'services/feedback_client.dart';
 
 // Dev override: set to a LatLng to skip GPS, or null to use real location
 const LatLng? kDevLocation = kDebugMode
@@ -27,6 +30,7 @@ const LatLng? kDevLocation = kDebugMode
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await favoritesManager.init();
+  await AppVersion.load();
   runApp(const IntroiboApp());
 }
 
@@ -240,10 +244,10 @@ class _RootShellState extends State<RootShell> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: [
-          HomePage(onSwitchToMap: () => _go(1)),
-          const FindParishNearMePage(inTab: true),
-          const FavoritesPage(inTab: true),
+        children: const [
+          HomePage(),
+          FindParishNearMePage(inTab: true),
+          FavoritesPage(inTab: true),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -265,7 +269,7 @@ class _RootShellState extends State<RootShell> {
           NavigationDestination(
             icon: Icon(Icons.star_border),
             selectedIcon: Icon(Icons.star),
-            label: 'Favorites',
+            label: 'My Parishes',
           ),
         ],
       ),
@@ -274,15 +278,13 @@ class _RootShellState extends State<RootShell> {
 }
 
 class HomePage extends StatefulWidget {
-  final VoidCallback? onSwitchToMap;
-
-  const HomePage({super.key, this.onSwitchToMap});
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<Parish> _parishes = [];
@@ -297,6 +299,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadParishData();
     _getUserLocation();
     _searchFocusNode.addListener(_onFocusChange);
@@ -306,6 +309,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _searchFocusNode.removeListener(_onFocusChange);
     _searchFocusNode.dispose();
@@ -313,6 +317,16 @@ class _HomePageState extends State<HomePage> {
     themeNotifier.removeListener(_onThemeChanged);
     favoritesManager.removeListener(_onThemeChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-fetch location when the app returns to the foreground so "nearby"
+    // reflects where the user actually is now (and picks up a permission grant
+    // made in Settings while we were backgrounded). Silent — no spinner flash.
+    if (state == AppLifecycleState.resumed) {
+      _getUserLocation();
+    }
   }
 
   List<Parish> get _favoriteParishes =>
@@ -564,7 +578,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _updateSearchResults(String query) {
-    final lowerCaseQuery = query.toLowerCase();
+    final normalizedQuery = normalizeForSearch(query);
 
     setState(() {
       _showResults = query.isNotEmpty;
@@ -572,8 +586,8 @@ class _HomePageState extends State<HomePage> {
         _searchResults.clear();
       } else {
         _searchResults = _parishes.where((parish) {
-          return parish.name.toLowerCase().contains(lowerCaseQuery) ||
-              parish.city.toLowerCase().contains(lowerCaseQuery) ||
+          return normalizeForSearch(parish.name).contains(normalizedQuery) ||
+              normalizeForSearch(parish.city).contains(normalizedQuery) ||
               parish.zipCode.contains(query);
         }).take(5).toList(); // Limit to 5 results for autocomplete
       }
@@ -639,10 +653,16 @@ class _HomePageState extends State<HomePage> {
                       ),
                       PopupMenuButton<String>(
                         onSelected: (value) {
-                          if (value == 'feedback') {
-                            _showFeedbackPage();
-                          } else if (value == 'settings') {
-                            _showSettingsPage();
+                          switch (value) {
+                            case 'settings':
+                              _showSettingsPage();
+                              break;
+                            case 'feedback':
+                              _showFeedbackPage();
+                              break;
+                            case 'about':
+                              _showAboutPage();
+                              break;
                           }
                         },
                         offset: const Offset(0, 50),
@@ -670,6 +690,16 @@ class _HomePageState extends State<HomePage> {
                               ],
                             ),
                           ),
+                          PopupMenuItem(
+                            value: 'about',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.info_outline, color: kPrimaryColor, size: 20),
+                                const SizedBox(width: 12),
+                                Text('About', style: GoogleFonts.inter()),
+                              ],
+                            ),
+                          ),
                         ],
                         child: Container(
                           padding: const EdgeInsets.all(12),
@@ -678,7 +708,7 @@ class _HomePageState extends State<HomePage> {
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
-                            Icons.church,
+                            Icons.menu,
                             color: kPrimaryColor,
                             size: 24,
                           ),
@@ -727,6 +757,15 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 30),
 
+                  // Looking For Section
+                  Text(
+                    'Looking for',
+                    style: AppText.titleLarge(color: _textColor),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildQuickAccessButtons(),
+                  const SizedBox(height: 30),
+
                   // Search Section
                   Text(
                     'Search Parishes',
@@ -738,38 +777,10 @@ class _HomePageState extends State<HomePage> {
                   _buildSearchBar(),
                   const SizedBox(height: 30),
 
-                  // Looking For Section
-                  Text(
-                    'Looking for',
-                    style: AppText.titleLarge(color: _textColor),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildQuickAccessButtons(),
-                  const SizedBox(height: 30),
-
                   // Nearby Parishes Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Nearby Parishes',
-                        style: AppText.titleLarge(color: _textColor),
-                      ),
-                      TextButton.icon(
-                        onPressed: widget.onSwitchToMap,
-                        icon: const Icon(Icons.map, size: 18),
-                        label: Text(
-                          'View All',
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          foregroundColor: primaryAccentFor(isDark: _isDark),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Nearby Parishes',
+                    style: AppText.titleLarge(color: _textColor),
                   ),
                   const SizedBox(height: 16),
 
@@ -783,49 +794,11 @@ class _HomePageState extends State<HomePage> {
                   _buildNearbyParishesList(),
                   const SizedBox(height: 30),
 
-                  // About Section
-                  Material(
-                    color: kPrimaryColor.withValues(alpha: _isDark ? 0.15 : 0.05),
-                    borderRadius: BorderRadius.circular(20),
-                    child: InkWell(
-                      onTap: _showAboutPage,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: kPrimaryColor.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.info_outline,
-                                color: kPrimaryColor,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                'About this app',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: _textColor,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              size: 16,
-                              color: _subtextColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  // Today's Liturgy
+                  LiturgicalDayTile(
+                    cardColor: _cardColor,
+                    textColor: _textColor,
+                    subtextColor: _subtextColor,
                   ),
                   const SizedBox(height: 40),
                 ],
@@ -1298,13 +1271,14 @@ class _HomePageState extends State<HomePage> {
             textColor: _textColor,
             subtextColor: _subtextColor,
             compact: !imminent,
+            announceNoMoreToday: true,
             onTap: open,
           )
         : null;
     final favoriteTile = _favoriteParishes.isNotEmpty
         ? NextMassTile(
             parishes: _favoriteParishes,
-            label: imminent ? 'AT A\nFAVORITE' : 'AT A FAVORITE',
+            label: imminent ? 'AT A\nHOME PARISH' : 'AT A HOME PARISH',
             accentColor: goldTextAccentFor(isDark: _isDark),
             cardColor: _cardColor,
             textColor: _textColor,
@@ -1680,7 +1654,7 @@ class _NearbyParishCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      parish.massTimes.first,
+                      parish.massTimes.first.display,
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         color: subtextColor,
@@ -1743,55 +1717,30 @@ class _FeedbackPageState extends State<FeedbackPage> {
       _isSubmitting = true;
     });
 
-    final subject = Uri.encodeComponent('Introibo App Feedback');
-    final replyEmail = _emailController.text.trim();
-    final feedback = _feedbackController.text.trim();
+    final result = await submitFeedback(
+      kind: 'general',
+      body: _feedbackController.text.trim(),
+      replyEmail: _emailController.text.trim(),
+    );
 
-    final bodyLines = <String>[
-      feedback,
-      '',
-      '---',
-      'Sent from Introibo App',
-    ];
-    if (replyEmail.isNotEmpty) {
-      bodyLines.insert(0, 'Reply to: $replyEmail');
-      bodyLines.insert(1, '');
-    }
-    final body = Uri.encodeComponent(bodyLines.join('\n'));
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
 
-    final mailtoUrl = Uri.parse('mailto:feedback@massgpt.org?subject=$subject&body=$body');
-
-    try {
-      if (await canLaunchUrl(mailtoUrl)) {
-        await launchUrl(mailtoUrl);
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not open email app', style: GoogleFonts.inter()),
-              backgroundColor: Colors.red[400],
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening email: $e', style: GoogleFonts.inter()),
-            backgroundColor: Colors.red[400],
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
-      }
+    if (result.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Feedback sent — thank you!', style: GoogleFonts.inter()),
+          backgroundColor: Colors.green[600],
+        ),
+      );
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Could not send feedback', style: GoogleFonts.inter()),
+          backgroundColor: Colors.red[400],
+        ),
+      );
     }
   }
 
@@ -1837,29 +1786,16 @@ class _FeedbackPageState extends State<FeedbackPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.email_outlined, color: kPrimaryColor),
+                    const Icon(Icons.send_outlined, color: kPrimaryColor),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Feedback will be sent to:',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: subtextColor,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'feedback@massgpt.org',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: kPrimaryColor,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        'Your feedback is sent directly to the Introibo team. Add your email if you\'d like a reply.',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: subtextColor,
+                          height: 1.4,
+                        ),
                       ),
                     ),
                   ],
@@ -2147,7 +2083,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                       trailing: Text(
-                        '1.0.0',
+                        AppVersion.display,
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           color: subtextColor,
@@ -2241,7 +2177,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   onPressed: () => Navigator.of(context).pop(),
                 ),
           title: Text(
-            'Favorites',
+            'Home Parishes',
             style: AppText.titleLarge(color: textColor),
           ),
           centerTitle: true,
@@ -2258,7 +2194,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'No favorites yet',
+                      'No home parishes yet',
                       style: GoogleFonts.inter(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -2269,7 +2205,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 40),
                       child: Text(
-                        'Tap the star icon on a parish page to add it to your favorites',
+                        'Tap the star icon on a parish page to mark it as a home parish',
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           color: subtextColor,
@@ -2356,7 +2292,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          parish.massTimes.first,
+                                          parish.massTimes.first.display,
                                           style: GoogleFonts.inter(
                                             fontSize: 12,
                                             color: subtextColor,
@@ -2474,7 +2410,7 @@ class _AboutPageState extends State<AboutPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Version 1.0.0',
+                'Version ${AppVersion.display}',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   color: subtextColor,

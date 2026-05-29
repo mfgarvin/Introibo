@@ -5,7 +5,7 @@ import '../theme/app_text.dart';
 
 /// Shows the soonest upcoming event with a live ticking countdown.
 class NextMassBanner extends StatefulWidget {
-  final List<String> schedule;
+  final List<ScheduleEntry> schedule;
   final String label; // e.g., "Next Mass", "Next Confession"
   final Color accentColor;
   final Color cardColor;
@@ -48,10 +48,9 @@ class _NextMassBannerState extends State<NextMassBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = ScheduleParser.parseSchedule(widget.schedule);
-    if (entries.isEmpty) return const SizedBox.shrink();
+    if (widget.schedule.isEmpty) return const SizedBox.shrink();
 
-    final next = ScheduleParser.findNextOccurrence(entries);
+    final next = ScheduleParser.findNextOccurrence(widget.schedule);
     if (next == null) return const SizedBox.shrink();
 
     final now = DateTime.now();

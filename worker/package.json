@@ -1,0 +1,16 @@
+{
+  "name": "introibo-feedback",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute introibo-feedback --remote --file=./schema.sql",
+    "db:init-local": "wrangler d1 execute introibo-feedback --local --file=./schema.sql",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240512.0",
+    "typescript": "^5.4.0",
+    "wrangler": "^3.60.0"
+  }
+}
