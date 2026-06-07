@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/schedule_parser.dart';
+import 'language_badge.dart';
 
 /// Mass schedule card that presents the *standing weekly schedule* split into
 /// a Weekend section (Saturday Vigil + Sunday) and a Weekday section, rather
@@ -165,7 +166,7 @@ class MassScheduleCard extends StatelessWidget {
         children: [
           _sectionLabel(label),
           const SizedBox(height: 10),
-          ...rows.map((r) => _row(r.daysLabel, r.entry.timeLabel, r.entry.noteLabel)),
+          ...rows.map((r) => _row(r.daysLabel, r.entry.timeLabel, r.entry.note, r.entry.languageBadge)),
         ],
       ),
     );
@@ -183,14 +184,14 @@ class MassScheduleCard extends StatelessWidget {
           ...entries.map((e) {
             final d = e.nextOccurrence(now);
             final dateLabel = '${e.dayLabel} ${d.month}/${d.day}';
-            return _row(dateLabel, e.timeLabel, e.noteLabel);
+            return _row(dateLabel, e.timeLabel, e.note, e.languageBadge);
           }),
         ],
       ),
     );
   }
 
-  Widget _row(String dayLabel, String timeLabel, String? note) {
+  Widget _row(String dayLabel, String timeLabel, String? note, [String? languageBadge]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -216,13 +217,23 @@ class MassScheduleCard extends StatelessWidget {
           ),
           SizedBox(
             width: 128,
-            child: Text(
-              timeLabel,
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    timeLabel,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+                if (languageBadge != null) ...[
+                  const SizedBox(width: 6),
+                  LanguageBadge(label: languageBadge, color: color),
+                ],
+              ],
             ),
           ),
           if (note != null)

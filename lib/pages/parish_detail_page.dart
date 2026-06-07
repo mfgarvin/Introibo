@@ -10,22 +10,75 @@ import '../widgets/stained_glass_header.dart';
 import '../widgets/next_mass_banner.dart';
 import '../widgets/timeline_schedule_card.dart';
 import '../widgets/mass_schedule_card.dart';
+import 'filtered_parish_list_page.dart' show ParishFilter;
 
 class ParishDetailPage extends StatefulWidget {
   final Parish parish;
 
-  const ParishDetailPage({super.key, required this.parish});
+  /// When set (e.g. arriving from a Mass/Confession/Adoration search), the page
+  /// scrolls to and briefly highlights the matching schedule card on open.
+  final ParishFilter? focus;
+
+  const ParishDetailPage({super.key, required this.parish, this.focus});
 
   @override
   State<ParishDetailPage> createState() => _ParishDetailPageState();
 }
 
 class _ParishDetailPageState extends State<ParishDetailPage> {
+  final _massKey = GlobalKey();
+  final _confKey = GlobalKey();
+  final _adoreKey = GlobalKey();
+
+  /// Which schedule card is currently highlighted (briefly, after auto-focus).
+  ParishFilter? _highlight;
+
   @override
   void initState() {
     super.initState();
     favoritesManager.addListener(_onChanged);
     themeNotifier.addListener(_onChanged);
+    _scheduleAutoFocus();
+  }
+
+  /// On open, if we arrived with a focus, scroll the matching card into view and
+  /// pulse a highlight so the user lands on what they searched for.
+  void _scheduleAutoFocus() {
+    final focus = widget.focus;
+    final key = _keyForFilter(focus);
+    if (key == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Let the Hero header settle before scrolling.
+      await Future.delayed(const Duration(milliseconds: 350));
+      final ctx = key.currentContext;
+      if (!mounted || ctx == null || !ctx.mounted) return;
+      await Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+        alignment: 0.08,
+      );
+      if (!mounted) return;
+      setState(() => _highlight = focus);
+      await Future.delayed(const Duration(milliseconds: 2500));
+      if (!mounted) return;
+      setState(() => _highlight = null);
+    });
+  }
+
+  GlobalKey? _keyForFilter(ParishFilter? filter) {
+    switch (filter) {
+      case ParishFilter.massTimes:
+        return widget.parish.massTimes.isNotEmpty ? _massKey : null;
+      case ParishFilter.confession:
+        return _confKey;
+      case ParishFilter.adoration:
+        return widget.parish.hasAdoration ? _adoreKey : null;
+      case ParishFilter.all:
+      case null:
+        return null;
+    }
   }
 
   @override
@@ -37,6 +90,38 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
   void _onChanged() {
     setState(() {});
+  }
+
+  /// Attaches a [GlobalKey] (scroll target) and a brief highlight ring to a
+  /// schedule card when it's the focused one.
+  Widget _focusWrap(ParishFilter which, GlobalKey key, Widget child) {
+    final highlighted = _highlight == which;
+    final accent = primaryAccentFor(isDark: themeNotifier.isDarkMode);
+    return AnimatedContainer(
+      key: key,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        // Fading gold wash + glow behind the flashed border.
+        color: highlighted ? kAccentGold.withValues(alpha: 0.22) : Colors.transparent,
+        border: Border.all(
+          color: highlighted ? accent : Colors.transparent,
+          width: 2,
+        ),
+        boxShadow: highlighted
+            ? [
+                BoxShadow(
+                  color: kAccentGold.withValues(alpha: 0.55),
+                  blurRadius: 26,
+                  spreadRadius: 2,
+                ),
+              ]
+            : const [],
+      ),
+      padding: const EdgeInsets.all(5),
+      child: child,
+    );
   }
 
   Parish get parish => widget.parish;
@@ -327,36 +412,47 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                     const SizedBox(height: 16),
 
                   // Mass Times Card (weekend / weekday schedule)
-                  MassScheduleCard(
-                    icon: Icon(Icons.access_time, color: secondaryAccent, size: 26),
-                    title: 'Mass Times',
-                    items: parish.massTimes,
-                    emptyMessage: 'No Mass times available',
-                    color: secondaryAccent,
-                    cardColor: cardColor,
-                    textColor: textColor,
-                    subtextColor: subtextColor,
-                    isDark: isDark,
+                  _focusWrap(
+                    ParishFilter.massTimes,
+                    _massKey,
+                    MassScheduleCard(
+                      icon: Icon(Icons.access_time, color: secondaryAccent, size: 26),
+                      title: 'Mass Times',
+                      items: parish.massTimes,
+                      emptyMessage: 'No Mass times available',
+                      color: secondaryAccent,
+                      cardColor: cardColor,
+                      textColor: textColor,
+                      subtextColor: subtextColor,
+                      isDark: isDark,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
                   // Confession Times Card (timeline-grouped)
-                  TimelineScheduleCard(
-                    icon: CustomIcon.confession(color: primaryAccent, size: 26),
-                    title: 'Confession Times',
-                    items: parish.confTimes,
-                    emptyMessage: 'By Appointment Only',
-                    color: primaryAccent,
-                    cardColor: cardColor,
-                    textColor: textColor,
-                    subtextColor: subtextColor,
-                    isDark: isDark,
+                  _focusWrap(
+                    ParishFilter.confession,
+                    _confKey,
+                    TimelineScheduleCard(
+                      icon: CustomIcon.confession(color: primaryAccent, size: 26),
+                      title: 'Confession Times',
+                      items: parish.confTimes,
+                      emptyMessage: 'By Appointment Only',
+                      color: primaryAccent,
+                      cardColor: cardColor,
+                      textColor: textColor,
+                      subtextColor: subtextColor,
+                      isDark: isDark,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
                   // Adoration Card (perpetual banner, or timeline-grouped slots)
                   if (parish.hasAdoration)
-                    Builder(builder: (context) {
+                    _focusWrap(
+                      ParishFilter.adoration,
+                      _adoreKey,
+                      Builder(builder: (context) {
                       final goldAccent = goldTextAccentFor(isDark: isDark);
                       if (parish.adorationIsPerpetual) {
                         return _TappableInfoCard(
@@ -380,6 +476,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                         isDark: isDark,
                       );
                     }),
+                    ),
                   if (parish.hasAdoration)
                     const SizedBox(height: 16),
 

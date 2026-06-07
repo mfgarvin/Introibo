@@ -103,9 +103,32 @@ class _NextMassBannerState extends State<NextMassBanner> {
                   style: AppText.kicker(color: Colors.white.withValues(alpha: 0.85)),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '$whenLabel · $timeLabel',
-                  style: AppText.bodyLarge(color: Colors.white).copyWith(fontSize: 16),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        '$whenLabel · $timeLabel',
+                        style: AppText.bodyLarge(color: Colors.white).copyWith(fontSize: 16),
+                      ),
+                    ),
+                    if (next.languageBadge != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          next.languageBadge!,
+                          style: AppText.label(color: Colors.white).copyWith(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

@@ -6,7 +6,7 @@
 /// Override at build time with `--dart-define=FEEDBACK_ENDPOINT=https://...`.
 const String kFeedbackEndpoint = String.fromEnvironment(
   'FEEDBACK_ENDPOINT',
-  defaultValue: 'https://introibo-feedback.example.workers.dev/feedback',
+  defaultValue: 'https://introibo-feedback.mfgarvin.workers.dev/feedback',
 );
 
 /// Whether the endpoint is configured to a real URL (vs. the placeholder).

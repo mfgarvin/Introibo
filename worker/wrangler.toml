@@ -8,4 +8,4 @@ compatibility_date = "2026-05-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "introibo-feedback"
-database_id = "REPLACE_WITH_DATABASE_ID"
+database_id = "f2c446a8-d21c-46fc-a747-46fe8a75ed75"

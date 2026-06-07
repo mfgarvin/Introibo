@@ -9,6 +9,7 @@ import '../utils/schedule_parser.dart';
 import '../main.dart' show kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, themeNotifier;
 import 'parish_detail_page.dart';
 import '../widgets/stained_glass_header.dart';
+import '../widgets/language_badge.dart';
 
 enum ParishFilter {
   massTimes,
@@ -36,6 +37,12 @@ enum TimeOfDayFilter {
   afternoon,  // 12pm-5pm
   evening,    // 5pm-9pm
   night,      // 9pm-5am
+}
+
+enum LanguageFilter {
+  any,
+  spanish,
+  other, // any non-English Mass that isn't Spanish
 }
 
 class FilteredParishListPage extends StatefulWidget {
@@ -66,7 +73,12 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   bool _showAllParishes = false;
   DayFilter _dayFilter = DayFilter.any;
   TimeOfDayFilter _timeOfDayFilter = TimeOfDayFilter.any;
+  LanguageFilter _languageFilter = LanguageFilter.any;
   Set<int> _selectedWeekdays = {}; // 1=Monday, 7=Sunday
+
+  /// Language filtering only applies to Mass schedules (which carry a language).
+  bool get _languageFilterApplies =>
+      widget.filter == ParishFilter.massTimes || widget.filter == ParishFilter.all;
 
   /// 2 days in minutes
   static const int _twoDaysInMinutes = 2880;
@@ -238,7 +250,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   bool _hasActiveFilters() {
     return _dayFilter != DayFilter.any ||
         _timeOfDayFilter != TimeOfDayFilter.any ||
-        _selectedWeekdays.isNotEmpty;
+        _selectedWeekdays.isNotEmpty ||
+        (_languageFilterApplies && _languageFilter != LanguageFilter.any);
   }
 
   /// Check if a parish has any schedule entries matching the current filters
@@ -268,6 +281,15 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     final today = DateTime(now.year, now.month, now.day);
 
     for (final entry in entries) {
+      // Check language filter (Mass-only; confession/adoration carry no language
+      // so they never satisfy a Spanish/Other request).
+      if (_languageFilterApplies && _languageFilter != LanguageFilter.any) {
+        final matchesLanguage = _languageFilter == LanguageFilter.spanish
+            ? entry.isSpanish
+            : entry.isOtherLanguage;
+        if (!matchesLanguage) continue;
+      }
+
       // Check weekday filter
       if (_selectedWeekdays.isNotEmpty && !_selectedWeekdays.contains(entry.dayOfWeek)) {
         continue;
@@ -367,6 +389,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                         setSheetState(() {
                           _dayFilter = DayFilter.any;
                           _timeOfDayFilter = TimeOfDayFilter.any;
+                          _languageFilter = LanguageFilter.any;
                           _selectedWeekdays = {};
                         });
                         setState(() {});
@@ -445,6 +468,37 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                 ],
               ),
               const SizedBox(height: 16),
+
+              // Language filter (Mass only)
+              if (_languageFilterApplies) ...[
+                Text(
+                  'Language',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: subtextColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildFilterChip('Any', _languageFilter == LanguageFilter.any, () {
+                      setSheetState(() => _languageFilter = LanguageFilter.any);
+                      setState(() {});
+                    }, cardColor, textColor, subtextColor),
+                    _buildFilterChip('Spanish', _languageFilter == LanguageFilter.spanish, () {
+                      setSheetState(() => _languageFilter = LanguageFilter.spanish);
+                      setState(() {});
+                    }, cardColor, textColor, subtextColor),
+                    _buildFilterChip('Other language', _languageFilter == LanguageFilter.other, () {
+                      setSheetState(() => _languageFilter = LanguageFilter.other);
+                      setState(() {});
+                    }, cardColor, textColor, subtextColor),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Weekday filter
               Text(
@@ -808,7 +862,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ParishDetailPage(parish: parish),
+                        builder: (context) =>
+                            ParishDetailPage(parish: parish, focus: widget.filter),
                       ),
                     );
                   },
@@ -1042,20 +1097,34 @@ class _ParishCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ...displayTimes.map((time) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: subtextColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    time.display,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: textColor,
+            ...displayTimes.map((time) {
+              final badge = filter == ParishFilter.adoration
+                  ? null
+                  : time.languageBadge;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: subtextColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      time.display,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: textColor,
+                      ),
                     ),
-                  ),
-                )),
+                    if (badge != null) ...[
+                      const SizedBox(width: 6),
+                      LanguageBadge(label: badge, color: accentColor),
+                    ],
+                  ],
+                ),
+              );
+            }),
             if (hasMore)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

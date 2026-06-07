@@ -177,12 +177,55 @@ class ScheduleEntry {
   String get display => '$dayLabel · $timeLabel';
 
   /// Combined language + note annotation for muted display, or null.
+  /// Mass views prefer [languageBadge] + [note] separately; this stays for
+  /// confession/adoration cards (which never carry a language).
   String? get noteLabel {
     final parts = <String>[];
     if (language != null) parts.add(language!);
     if (note != null) parts.add(note!);
     return parts.isEmpty ? null : parts.join(' · ');
   }
+
+  /// Keyword → short badge map, checked in order so that compound strings like
+  /// "English & Italian" or "Bilingual (English-Polish)" resolve to the
+  /// non-English language they mention.
+  static const List<({String keyword, String badge})> _languageBadges = [
+    (keyword: 'spanish', badge: 'ES'),
+    (keyword: 'polish', badge: 'PL'),
+    (keyword: 'croatian', badge: 'HR'),
+    (keyword: 'slovenian', badge: 'SL'),
+    (keyword: 'italian', badge: 'IT'),
+    (keyword: 'german', badge: 'DE'),
+    (keyword: 'korean', badge: 'KO'),
+    (keyword: 'swahili', badge: 'SW'),
+    (keyword: 'latin', badge: 'LA'),
+  ];
+
+  /// True when this entry is plain English (or unspecified, which means English).
+  bool get isEnglish {
+    final lang = language?.toLowerCase().trim();
+    return lang == null || lang.isEmpty || lang == 'english';
+  }
+
+  /// Short uppercase badge for a non-English Mass (e.g. "ES", "PL"), or null
+  /// when the Mass is in English. Falls back to "BIL" for generic bilingual
+  /// notes and a 2-letter slice for anything unrecognized.
+  String? get languageBadge {
+    if (isEnglish) return null;
+    final lang = language!.toLowerCase();
+    for (final entry in _languageBadges) {
+      if (lang.contains(entry.keyword)) return entry.badge;
+    }
+    if (lang.contains('bilingual')) return 'BIL';
+    return language!.replaceAll(RegExp(r'[^A-Za-z]'), '').substring(0, 2).toUpperCase();
+  }
+
+  /// True when this Mass is (at least partly) in Spanish.
+  bool get isSpanish =>
+      !isEnglish && language!.toLowerCase().contains('spanish');
+
+  /// True for a non-English Mass that isn't Spanish (Polish, Croatian, Latin…).
+  bool get isOtherLanguage => !isEnglish && !isSpanish;
 
   static String _format12(int hour, int minute) {
     final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);

@@ -55,6 +55,33 @@ void main() {
       expect(e.noteLabel, 'Spanish · Vigil');
     });
 
+    test('language badge + classification', () {
+      ScheduleEntry lang(String? l) =>
+          ScheduleEntry.fromJson(massJson('Sunday', '09:00', language: l))!;
+
+      // English (explicit, null, or empty) carries no badge.
+      expect(lang(null).languageBadge, isNull);
+      expect(lang('English').languageBadge, isNull);
+      expect(lang(null).isEnglish, true);
+
+      // Known languages map to short codes.
+      expect(lang('Spanish').languageBadge, 'ES');
+      expect(lang('Polish').languageBadge, 'PL');
+      expect(lang('Latin N.O.').languageBadge, 'LA');
+
+      // Compound strings resolve to the non-English language they mention.
+      expect(lang('English & Italian').languageBadge, 'IT');
+      expect(lang('Bilingual (English-Polish)').languageBadge, 'PL');
+      expect(lang('Bilingual').languageBadge, 'BIL');
+
+      // Spanish vs. Other classification (used by the search filter).
+      expect(lang('Spanish').isSpanish, true);
+      expect(lang('Spanish').isOtherLanguage, false);
+      expect(lang('Polish').isOtherLanguage, true);
+      expect(lang('Polish').isSpanish, false);
+      expect(lang('English').isOtherLanguage, false);
+    });
+
     test('parses a dated holiday Mass', () {
       final e = ScheduleEntry.fromJson(
           massJson('Thursday', '00:00', massDate: '2025-12-25', notes: 'Midnight Mass'))!;
