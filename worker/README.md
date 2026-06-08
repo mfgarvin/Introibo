@@ -3,6 +3,13 @@
 Cloudflare Worker that accepts feedback submissions from the Flutter app and
 stores them in a D1 database.
 
+**Status:** deployed and live at
+`https://introibo-feedback.mfgarvin.workers.dev` (D1 db `introibo-feedback`,
+account mfjgarvin@gmail.com). The app's `lib/config/feedback_endpoint.dart`
+already points at it. The one-time setup below is only needed to recreate the
+deployment from scratch; for day-to-day use you only need **Deploy** (to push
+code changes) and **Inspect submissions**.
+
 ## Endpoints
 
 - `POST /feedback` — body: JSON shaped like `FeedbackBody` in `src/index.ts`.
@@ -45,6 +52,28 @@ Then take the printed URL and paste it into
 `lib/config/feedback_endpoint.dart` in the Flutter app.
 
 ## Inspect submissions
+
+The easiest way is the bundled viewer, `logs.sh`. It runs against the remote D1
+and needs an authenticated wrangler session (see setup above) plus `python3`.
+
+```bash
+./worker/logs.sh              # interactive menu (recent / by kind / detail / stats)
+```
+
+One-shot commands (skip the menu):
+
+```bash
+./worker/logs.sh recent 20    # 20 most recent submissions (table)
+./worker/logs.sh parish_data  # parish-data feedback only
+./worker/logs.sh general      # general app feedback only
+./worker/logs.sh show 42      # full detail of submission #42
+./worker/logs.sh stats        # counts by kind + last-24h count
+```
+
+It can be run from anywhere in the repo (it `cd`s into `worker/` itself) and
+uses the pinned local wrangler, falling back to `npx wrangler`.
+
+Or query D1 directly:
 
 ```bash
 npx wrangler d1 execute introibo-feedback --remote \
