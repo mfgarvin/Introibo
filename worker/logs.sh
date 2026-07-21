@@ -27,8 +27,17 @@ fi
 # Run a SQL query against remote D1 and emit the results array as JSON.
 # Strips wrangler's banner by asking for --json and parsing only stdout.
 query() {
-  local sql="$1"
-  $WRANGLER d1 execute "$DB" --remote --json --command "$sql" 2>/dev/null \
+  local sql="$1" raw
+  raw="$($WRANGLER d1 execute "$DB" --remote --json --command "$sql" 2>/dev/null)"
+  # wrangler emits an {"error": …} object (not the [{results:…}] array) when
+  # it can't reach D1 — almost always an expired login. Surface that plainly
+  # instead of letting python choke on the unexpected shape.
+  if [ -z "$raw" ] || printf '%s' "$raw" | grep -q '"error"'; then
+    echo "ERROR: wrangler could not query D1 (likely not authenticated)." >&2
+    echo "       Run 'npx wrangler login' (or set CLOUDFLARE_API_TOKEN) and retry." >&2
+    exit 1
+  fi
+  printf '%s' "$raw" \
     | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)[0]['results']))"
 }
 

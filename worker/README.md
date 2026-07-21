@@ -1,20 +1,71 @@
-# Introibo Feedback Worker
+# ParishFinder Feedback Worker
 
 Cloudflare Worker that accepts feedback submissions from the Flutter app and
 stores them in a D1 database.
+
+> The Worker, its URL, and the D1 database are still named `introibo-feedback`
+> (the app's old name) — deliberately unchanged so the live endpoint the shipped
+> app points at keeps working. Only the app's public name changed to ParishFinder.
 
 **Status:** deployed and live at
 `https://introibo-feedback.mfgarvin.workers.dev` (D1 db `introibo-feedback`,
 account mfjgarvin@gmail.com). The app's `lib/config/feedback_endpoint.dart`
 already points at it. The one-time setup below is only needed to recreate the
 deployment from scratch; for day-to-day use you only need **Deploy** (to push
-code changes) and **Inspect submissions**.
+code changes) and **View feedback**.
 
 ## Endpoints
 
 - `POST /feedback` — body: JSON shaped like `FeedbackBody` in `src/index.ts`.
   Returns `{ ok: true, id: N }` on success, `{ ok: false, error: "..." }` otherwise.
 - `GET /healthz` — returns `{ ok: true }`.
+- `GET /admin` — HTML dashboard to browse/filter feedback (Basic Auth).
+- `GET /admin/data` — JSON feed the dashboard fetches (Basic Auth).
+- `POST /admin/digest` — fire the Discord digest on demand, for testing (Basic Auth).
+
+## Monitoring the feedback
+
+Two ways, both driven by the Worker itself (no local wrangler auth needed):
+
+### 1. Web dashboard — `/admin`
+
+A single self-contained page that lists every submission with kind/parish/status
+filters, free-text search, and expandable full detail. Open it in a browser:
+
+```
+https://introibo-feedback.mfgarvin.workers.dev/admin
+```
+
+It's protected by **HTTP Basic Auth** — any username, password = the
+`ADMIN_PASSWORD` secret. Set it once:
+
+```bash
+npx wrangler secret put ADMIN_PASSWORD      # paste a strong password
+```
+
+### 2. Daily Discord digest (Cron Trigger)
+
+`wrangler.toml` schedules `scheduled()` at **12:00 UTC** (≈ 8am US Eastern). It
+queries the last 24h of feedback and POSTs a summary to a Discord webhook — the
+same push-to-webhook pattern the bulletin monitor uses. Quiet days still send a
+one-line heartbeat so you know the pipeline is alive.
+
+Configure the destination (and, optionally, a dashboard link included in the
+message):
+
+```bash
+npx wrangler secret put DISCORD_WEBHOOK_URL   # Discord channel → Integrations → Webhooks → Copy URL
+npx wrangler secret put DASHBOARD_URL         # optional, e.g. https://…workers.dev/admin
+npx wrangler deploy                           # cron trigger is registered on deploy
+```
+
+Test it immediately without waiting for the cron (uses the same Basic-Auth password):
+
+```bash
+curl -u admin:$ADMIN_PASSWORD -X POST https://introibo-feedback.mfgarvin.workers.dev/admin/digest
+```
+
+To change the time, edit `crons` in `wrangler.toml` (UTC) and redeploy.
 
 ## One-time setup
 
@@ -51,10 +102,13 @@ npm run deploy
 Then take the printed URL and paste it into
 `lib/config/feedback_endpoint.dart` in the Flutter app.
 
-## Inspect submissions
+## Inspect submissions (CLI)
 
-The easiest way is the bundled viewer, `logs.sh`. It runs against the remote D1
-and needs an authenticated wrangler session (see setup above) plus `python3`.
+For terminal use there's the bundled viewer, `logs.sh` — handy but note it needs
+a local authenticated wrangler session (`npx wrangler login`) plus `python3`, so
+for casual checking the `/admin` dashboard above is usually less friction. If
+`logs.sh` errors out, it's almost always an expired login; it now says so
+explicitly instead of printing a Python traceback.
 
 ```bash
 ./worker/logs.sh              # interactive menu (recent / by kind / detail / stats)

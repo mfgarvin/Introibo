@@ -2,6 +2,12 @@ name = "introibo-feedback"
 main = "src/index.ts"
 compatibility_date = "2026-05-01"
 
+# Daily feedback digest → Discord. 12:00 UTC ≈ 8am US Eastern (summer/EDT;
+# 7am in winter/EST). The scheduled() handler in src/index.ts posts a 24h
+# summary to the DISCORD_WEBHOOK_URL secret.
+[triggers]
+crons = ["0 12 * * *"]
+
 # D1 database binding — feedback submissions land here.
 # After running `wrangler d1 create introibo-feedback`, paste the returned
 # database_id below.
