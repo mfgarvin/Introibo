@@ -68,40 +68,6 @@ class _LiturgicalDayTileState extends State<LiturgicalDayTile> {
 
   String get _title => _day.title;
 
-  /// Testing aid: shows whether the displayed data is the offline built-in
-  /// calendar or the live API enrichment. Tinted with [_onColor] so it stays
-  /// legible against any liturgical color (the LIVE/BUILT-IN distinction is
-  /// carried by the icon + label, not color).
-  Widget _sourceBadge() {
-    final isApi = _day.source == LiturgicalSource.api;
-    final label = isApi ? 'LIVE API' : 'BUILT-IN';
-    final icon = isApi ? Icons.cloud_done_outlined : Icons.calculate_outlined;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: _onColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _onColor.withValues(alpha: 0.45), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: _onColor),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: _onColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final memorial = _day.memorial;
@@ -123,22 +89,14 @@ class _LiturgicalDayTileState extends State<LiturgicalDayTile> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _kicker,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                    color: onColor.withValues(alpha: 0.85),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              _sourceBadge(),
-            ],
+          Text(
+            _kicker,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: onColor.withValues(alpha: 0.85),
+            ),
           ),
           const SizedBox(height: 6),
           Text(

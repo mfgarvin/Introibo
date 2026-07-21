@@ -18,6 +18,7 @@ import 'widgets/next_mass_tile.dart';
 import 'widgets/stained_glass_header.dart';
 import 'widgets/liturgical_day_tile.dart';
 import 'theme/app_text.dart';
+import 'utils/schedule_parser.dart';
 import 'utils/search_normalize.dart';
 import 'utils/app_version.dart';
 import 'services/feedback_client.dart';
@@ -766,6 +767,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   _buildQuickAccessButtons(),
                   const SizedBox(height: 30),
 
+                  // Your Home Parishes — quick launcher for saved parishes, so
+                  // returning users can jump straight into the parishes they
+                  // care about. Hidden entirely when there are no favorites.
+                  ..._buildHomeParishesSection(),
+
                   // Search Section
                   Text(
                     'Search Parishes',
@@ -1247,73 +1253,92 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  /// Renders the Next-Mass tile row(s). Returns a list of widgets so the
-  /// parent can splat them into its Column with the existing spacing.
+  /// Renders the live "Next Mass Nearby" tile. Returns a list of widgets so the
+  /// parent can splat them into its Column with the existing spacing. Home
+  /// parishes now have their own quick-launcher section (see
+  /// [_buildHomeParishesSection]), so this is nearby-only.
   List<Widget> _buildNextMassTiles() {
-    if (_nearbyParishes.isEmpty && _favoriteParishes.isEmpty) return const [];
+    if (_nearbyParishes.isEmpty) return const [];
 
     final nearbyMin = NextMassTile.findSoonestMinutes(_nearbyParishes);
-    final favoriteMin = NextMassTile.findSoonestMinutes(_favoriteParishes);
-    final imminent = (nearbyMin != null && nearbyMin <= 60) ||
-        (favoriteMin != null && favoriteMin <= 60);
+    final imminent = nearbyMin != null && nearbyMin <= 60;
 
     void open(Parish p) => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => ParishDetailPage(parish: p)),
         );
 
-    final nearbyTile = _nearbyParishes.isNotEmpty
-        ? NextMassTile(
-            parishes: _nearbyParishes,
-            label: imminent ? 'NEXT MASS\nNEARBY' : 'NEXT MASS NEARBY',
-            accentColor: primaryAccentFor(isDark: _isDark),
-            cardColor: _cardColor,
-            textColor: _textColor,
-            subtextColor: _subtextColor,
-            compact: !imminent,
-            announceNoMoreToday: true,
-            onTap: open,
-          )
-        : null;
-    final favoriteTile = _favoriteParishes.isNotEmpty
-        ? NextMassTile(
-            parishes: _favoriteParishes,
-            label: imminent ? 'AT A\nHOME PARISH' : 'AT A HOME PARISH',
-            accentColor: goldTextAccentFor(isDark: _isDark),
-            cardColor: _cardColor,
-            textColor: _textColor,
-            subtextColor: _subtextColor,
-            compact: !imminent,
-            onTap: open,
-          )
-        : null;
+    final nearbyTile = NextMassTile(
+      parishes: _nearbyParishes,
+      label: imminent ? 'NEXT MASS\nNEARBY' : 'NEXT MASS NEARBY',
+      accentColor: primaryAccentFor(isDark: _isDark),
+      cardColor: _cardColor,
+      textColor: _textColor,
+      subtextColor: _subtextColor,
+      compact: !imminent,
+      announceNoMoreToday: true,
+      onTap: open,
+    );
 
     if (imminent) {
-      // Side-by-side squares — at least one Mass is starting soon
+      // Imminent → prominent square, kept to the left half.
       return [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (nearbyTile != null) Expanded(child: nearbyTile),
-            if (nearbyTile != null && favoriteTile != null)
-              const SizedBox(width: 12),
-            if (favoriteTile != null) Expanded(child: favoriteTile),
-            if (nearbyTile == null || favoriteTile == null)
-              const Expanded(child: SizedBox.shrink()),
+            Expanded(child: nearbyTile),
+            const Expanded(child: SizedBox.shrink()),
           ],
         ),
         const SizedBox(height: 16),
       ];
-    } else {
-      // Stacked compact banners — quieter slot when nothing's imminent
-      return [
-        if (nearbyTile != null) nearbyTile,
-        if (nearbyTile != null && favoriteTile != null)
-          const SizedBox(height: 10),
-        if (favoriteTile != null) favoriteTile,
-        const SizedBox(height: 16),
-      ];
     }
+    // Quieter compact banner when nothing's imminent.
+    return [nearbyTile, const SizedBox(height: 16)];
+  }
+
+  /// Horizontal quick-launcher of every home (favorite) parish, so returning
+  /// users can jump straight into the parishes they follow. Each card shows the
+  /// parish and its next upcoming Mass. Empty when no favorites are saved.
+  List<Widget> _buildHomeParishesSection() {
+    final favorites = _favoriteParishes;
+    if (favorites.isEmpty) return const [];
+
+    return [
+      Text(
+        'Your Home Parishes',
+        style: AppText.titleLarge(color: _textColor),
+      ),
+      const SizedBox(height: 16),
+      SizedBox(
+        height: 150,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          itemCount: favorites.length,
+          separatorBuilder: (context, index) => const SizedBox(width: 12),
+          itemBuilder: (context, index) {
+            final parish = favorites[index];
+            return _HomeParishCard(
+              parish: parish,
+              cardColor: _cardColor,
+              textColor: _textColor,
+              subtextColor: _subtextColor,
+              accentColor: primaryAccentFor(isDark: _isDark),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ParishDetailPage(parish: parish),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+      const SizedBox(height: 30),
+    ];
   }
 
   Widget _buildNearbyParishesList() {
@@ -1665,6 +1690,113 @@ class _NearbyParishCard extends StatelessWidget {
                   ),
                 ],
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact card for a saved "home parish" on the Home tab's quick-launcher.
+/// Shows the parish and its next upcoming Mass. Deliberately does NOT wrap the
+/// stained-glass avatar in a [Hero] — a favorited parish can also appear in the
+/// Nearby list on the same screen, and two Heroes sharing a tag on one route is
+/// a runtime error.
+class _HomeParishCard extends StatelessWidget {
+  final Parish parish;
+  final Color cardColor;
+  final Color textColor;
+  final Color subtextColor;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  const _HomeParishCard({
+    required this.parish,
+    required this.cardColor,
+    required this.textColor,
+    required this.subtextColor,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final next = ScheduleParser.findNextOccurrence(parish.massTimes);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 170,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: StainedGlassHeader(
+                      seed: parish.parishId ?? parish.name,
+                      overlayDarken: 0.0,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.star, color: Colors.amber, size: 18),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              parish.name,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              parish.city,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: subtextColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Icon(Icons.access_time, size: 14, color: accentColor),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    next != null ? 'Next · ${next.display}' : 'Schedule unavailable',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: subtextColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -2224,7 +2356,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   final parish = favorites[index];
                   return GestureDetector(
                     onTap: () {
-                      Navigator.of(context).pop();
                       Navigator.push(
                         context,
                         MaterialPageRoute(

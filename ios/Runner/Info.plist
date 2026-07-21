@@ -49,5 +49,25 @@
 	<string>Your location is used to show nearby parishes.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Your location is used to show nearby parishes.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!--
+		  Cleartext (HTTP) is permitted ONLY for the liturgical calendar API,
+		  which serves HTTPS over IPv6 only — its IPv4 address answers on port 80
+		  alone, so https:// fails on IPv4-only networks. The data is public and
+		  non-sensitive; all other domains keep the secure default. Mirrors
+		  android/app/src/main/res/xml/network_security_config.xml.
+		-->
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>calapi.inadiutorium.cz</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>
