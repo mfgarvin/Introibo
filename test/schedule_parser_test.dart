@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:introibo/utils/schedule_parser.dart';
+import 'package:parishfinder/utils/schedule_parser.dart';
 
 /// Build a structured mass/confession entry like the ones in export.json.
 Map<String, dynamic> massJson(

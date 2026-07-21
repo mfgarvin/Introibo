@@ -1,4 +1,4 @@
-# Introibo — QA Specsheet
+# ParishFinder — QA Specsheet
 
 > **Purpose.** A hand-off checklist for a lighter QA model (e.g. Haiku) to verify
 > the app against its intended behavior. Each item is a concrete, checkable
@@ -46,7 +46,7 @@ it. State which.
 - [ ] When fresh data loads successfully, **no** offline snackbar appears.
 
 ### 2.2 Header
-- [ ] Title reads **"Introibo"** in the display font, in the theme's primary accent (oxblood light / candlelight dark).
+- [ ] Title reads **"ParishFinder"** in the display font, in the theme's primary accent (oxblood light / candlelight dark).
 - [ ] Subtitle "Find Catholic masses near you".
 - [ ] A **menu (⋮/hamburger) button** opens a popup with **Settings**, **Feedback**, **About** — each opens as a bottom-up slide dialog.
 

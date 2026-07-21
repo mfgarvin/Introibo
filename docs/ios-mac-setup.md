@@ -1,6 +1,6 @@
 # iOS / Mac Setup — Pick-up Guide
 
-> Notes for shipping **Introibo** on iOS, written to be read cold when you return
+> Notes for shipping **ParishFinder** on iOS, written to be read cold when you return
 > to this. Everything below assumes you're picking up on a Mac. Nothing here can
 > be finished on the Linux dev box — iOS builds, the Simulator, code signing, and
 > CocoaPods are macOS + Xcode only.
@@ -77,9 +77,9 @@ session.
 ## Still needs a Mac (deferred)
 
 - **Bundle identifier** — still the placeholder `$(PRODUCT_BUNDLE_IDENTIFIER)`.
-  Pick a real reverse-DNS id (e.g. `com.mfgarvin.introibo`), register it in your
+  Pick a real reverse-DNS id (e.g. `com.mfgarvin.parishfinder`), register it in your
   Apple Developer account. (Note: Android `applicationId` is still
-  `com.example.introibo` in `android/app/build.gradle` — worth fixing too.)
+  `com.example.parishfinder` in `android/app/build.gradle` — worth fixing too.)
 - **Signing** — set a team + provisioning profile; Xcode "Automatically manage
   signing" is fine to start.
 - **App icon** — verify `ios/Runner/Assets.xcassets/AppIcon` has the full iOS
@@ -106,7 +106,7 @@ open ios/Runner.xcworkspace         # must open with NO "project is damaged" err
 #    and sits after "Embed Frameworks", before "Thin Binary".
 
 # 3. Signing + identity (Xcode → Runner → Signing & Capabilities)
-#    - set Team, set Bundle Identifier (e.g. com.mfgarvin.introibo)
+#    - set Team, set Bundle Identifier (e.g. com.mfgarvin.parishfinder)
 
 # 4. Run on the Simulator
 open -a Simulator

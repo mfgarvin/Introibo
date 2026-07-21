@@ -238,7 +238,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                           child: TileLayer(
                             urlTemplate:
                                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                            userAgentPackageName: 'com.example.introibo',
+                            userAgentPackageName: 'com.example.parishfinder',
                           ),
                         ),
                         MarkerLayer(

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Introibo is a Flutter mobile application for finding Catholic parishes and mass times in the Cleveland/Akron, Ohio area. It provides two main features:
+ParishFinder is a Flutter mobile application for finding Catholic parishes and mass times in the Cleveland/Akron, Ohio area. It provides two main features:
 1. **Research a Parish** - Search parishes by name, city, or ZIP code
 2. **Find a Parish Near Me** - Interactive map showing nearby parishes using GPS
 
@@ -30,7 +30,7 @@ flutter build linux          # Build Linux desktop
 ### Application Flow
 
 ```
-main.dart (IntroiboApp)
+main.dart (ParishFinderApp)
     └── RootShell (bottom NavigationBar over an IndexedStack — tabs keep state)
             ├── Home tab     → HomePage
             │                    ├── inline search → ParishDetailPage

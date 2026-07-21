@@ -1,4 +1,4 @@
-# Introibo
+# ParishFinder
 
 A Flutter mobile app for finding Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.
 
@@ -36,8 +36,8 @@ A Flutter mobile app for finding Catholic parishes and Mass times in the Clevela
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/introibo.git
-cd introibo
+git clone https://github.com/yourusername/parishfinder.git
+cd parishfinder
 
 # Install dependencies
 flutter pub get

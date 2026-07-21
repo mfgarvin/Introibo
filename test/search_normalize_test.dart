@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:introibo/utils/search_normalize.dart';
+import 'package:parishfinder/utils/search_normalize.dart';
 
 /// Mirrors how the search uses it: normalize the field and the query, then
 /// substring-match.

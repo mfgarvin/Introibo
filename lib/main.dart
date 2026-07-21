@@ -32,7 +32,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await favoritesManager.init();
   await AppVersion.load();
-  runApp(const IntroiboApp());
+  runApp(const ParishFinderApp());
 }
 
 // Palette: warm parchment + oxblood + gold (light); true black + candlelight (dark)
@@ -133,14 +133,14 @@ class FavoritesManager extends ChangeNotifier {
 // Global favorites manager instance
 final favoritesManager = FavoritesManager();
 
-class IntroiboApp extends StatefulWidget {
-  const IntroiboApp({super.key});
+class ParishFinderApp extends StatefulWidget {
+  const ParishFinderApp({super.key});
 
   @override
-  State<IntroiboApp> createState() => _IntroiboAppState();
+  State<ParishFinderApp> createState() => _ParishFinderAppState();
 }
 
-class _IntroiboAppState extends State<IntroiboApp> {
+class _ParishFinderAppState extends State<ParishFinderApp> {
   @override
   void initState() {
     super.initState();
@@ -171,7 +171,7 @@ class _IntroiboAppState extends State<IntroiboApp> {
     );
 
     return MaterialApp(
-      title: 'Introibo',
+      title: 'ParishFinder',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.light().copyWith(
         textTheme: GoogleFonts.interTextTheme(),
@@ -439,7 +439,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Introibo needs to download parish data on first launch. Please connect to the internet and try again.',
+                  'ParishFinder needs to download parish data on first launch. Please connect to the internet and try again.',
                   style: GoogleFonts.inter(
                     fontSize: 15,
                     color: _subtextColor,
@@ -649,7 +649,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Introibo',
+                        'ParishFinder',
                         style: AppText.titleHuge(color: primaryAccentFor(isDark: _isDark)),
                       ),
                       PopupMenuButton<String>(
@@ -1922,7 +1922,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Your feedback is sent directly to the Introibo team. Add your email if you\'d like a reply.',
+                        'Your feedback is sent directly to the ParishFinder team. Add your email if you\'d like a reply.',
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           color: subtextColor,
@@ -2532,7 +2532,7 @@ class _AboutPageState extends State<AboutPage> {
               const SizedBox(height: 24),
               // App name
               Text(
-                'Introibo',
+                'ParishFinder',
                 style: GoogleFonts.inter(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -2577,7 +2577,7 @@ class _AboutPageState extends State<AboutPage> {
                     const SizedBox(height: 12),
                     Text(
                       // TODO: Fill in app description
-                      'Introibo helps you find Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.',
+                      'ParishFinder helps you find Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.',
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         color: subtextColor,

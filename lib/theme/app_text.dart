@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Unified typography scale for Introibo.
+/// Unified typography scale for ParishFinder.
 ///
 /// Two families:
 ///   • Cormorant Garamond — display, headings, parish names. Set the tone.
@@ -25,7 +25,7 @@ class AppText {
         shadows: shadows,
       );
 
-  /// App title / page hero (Introibo, About).
+  /// App title / page hero (ParishFinder, About).
   static TextStyle titleHuge({Color? color}) => GoogleFonts.cormorantGaramond(
         fontSize: 28,
         fontWeight: FontWeight.w700,

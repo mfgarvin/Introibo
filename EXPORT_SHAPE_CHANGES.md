@@ -1,4 +1,4 @@
-# `export.json` Shape Changes — for the Introibo App
+# `export.json` Shape Changes — for the ParishFinder App
 
 This is a **breaking** change to `export.json`. The scraper now emits fully
 structured schedules instead of display strings. The app no longer needs
@@ -123,7 +123,7 @@ The old `lonlat` comma-string is removed.
 - `name`, `parish_id`, `address`, `city`, `zip_code`, `phone`, `website`,
   `bulletin_url`, `timestamp`, `events_summary` all unchanged.
 
-## Migration steps for Introibo
+## Migration steps for ParishFinder
 
 1. Update `Parish.fromJson` in `lib/models/parish.dart`:
    - Read `latitude` / `longitude` as nullable doubles; drop `lonlat` parsing.

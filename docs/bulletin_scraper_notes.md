@@ -1,9 +1,9 @@
-# Bulletin Scraper — Notes from the Introibo App Side
+# Bulletin Scraper — Notes from the ParishFinder App Side
 
 This document is intended to be handed to whatever is maintaining the
 [bulletin scraper](https://github.com/mfgarvin/bulletin) that produces
 `export.json`. It captures concrete data-quality observations made while
-building the Introibo Flutter app, and recommends a JSON shape that the app
+building the ParishFinder Flutter app, and recommends a JSON shape that the app
 can consume without lossy heuristics.
 
 The app currently pulls from:
@@ -117,7 +117,7 @@ combined string is harder to consume and easy to invert by mistake.
 Currently optional. The detail page only shows the "Weekly Bulletin"
 button when present. One observation: the user noted that the **content
 of the bulletin sometimes doesn't match the parish's stated mass times**.
-That's not something Introibo can fix — but the scraper should consider
+That's not something ParishFinder can fix — but the scraper should consider
 re-running parses on a regular cadence and surfacing discrepancies (e.g.,
 times in the bulletin PDF that don't match `mass_times`) for manual review.
 
@@ -145,7 +145,7 @@ observed beyond occasional length variability. Consider:
 - Split into `[{title, date, summary}]` structured events so the app can
   build a small "Upcoming events" list view.
 
-The latter is a bigger lift but would let Introibo wire up the "Parish
+The latter is a bigger lift but would let ParishFinder wire up the "Parish
 Events" quick-access button on the home page, which is currently a
 "Coming Soon" placeholder.
 
@@ -189,7 +189,7 @@ For a clean future:
 }
 ```
 
-If you adopt this, the Introibo `Parish.fromJson` factory in
+If you adopt this, the ParishFinder `Parish.fromJson` factory in
 `lib/models/parish.dart` will need a parallel update (the schedule parser
 can be bypassed — entries arrive pre-parsed), and that's a worthwhile
 trade for ridding the codebase of regex-based schedule scraping.
