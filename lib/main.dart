@@ -28,6 +28,16 @@ const LatLng? kDevLocation = kDebugMode
     ? LatLng(41.48, -81.78) // Lakewood, OH - near several parishes
     : null;
 
+// If the user's nearest parish in our dataset is farther than this, we treat
+// them as outside the supported coverage area (currently the Cleveland/Akron
+// diocese) and surface a "not yet supported" notice. Data-driven rather than a
+// hardcoded boundary: inside the diocese the nearest parish is always close.
+const double kSupportedRadiusMiles = 60;
+
+// One-time first-launch data-accuracy disclaimer. Versioned so we can re-show it
+// if the wording materially changes (bump the suffix).
+const String kDisclaimerSeenKey = 'disclaimer_seen_v1';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await favoritesManager.init();
@@ -222,6 +232,10 @@ class _RootShellState extends State<RootShell> {
   void initState() {
     super.initState();
     themeNotifier.addListener(_onChanged);
+    // Show the one-time data-accuracy disclaimer after the first frame so a
+    // dialog context (Overlay/Navigator) is available.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeShowFirstRunDisclaimer());
   }
 
   @override
@@ -236,6 +250,19 @@ class _RootShellState extends State<RootShell> {
 
   void _go(int i) {
     if (mounted) setState(() => _index = i);
+  }
+
+  Future<void> _maybeShowFirstRunDisclaimer() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(kDisclaimerSeenKey) ?? false) return;
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const FirstRunDisclaimerDialog(),
+    );
+    // Only mark as seen once acknowledged, so an early kill re-shows it.
+    await prefs.setBool(kDisclaimerSeenKey, true);
   }
 
   @override
@@ -278,6 +305,58 @@ class _RootShellState extends State<RootShell> {
   }
 }
 
+/// One-time, first-launch modal reminding users that schedule data may be
+/// inaccurate and that the parish bulletin / parish office is the final say.
+/// Shown once (gated by [kDisclaimerSeenKey]); not location-dependent.
+class FirstRunDisclaimerDialog extends StatelessWidget {
+  const FirstRunDisclaimerDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = themeNotifier.isDarkMode;
+    final accent = primaryAccentFor(isDark: isDark);
+    final textColor = isDark ? Colors.white : const Color(0xFF1C1512);
+    final subtext = isDark ? Colors.white70 : const Color(0xFF6B5D54);
+    return AlertDialog(
+      backgroundColor: isDark ? kCardColorDark : kCardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(Icons.info_outline, color: accent, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Before you begin',
+              style: AppText.titleLarge(color: textColor),
+            ),
+          ),
+        ],
+      ),
+      content: Text(
+        'ParishFinder gathers Mass, Confession, and Adoration times from parish '
+        'bulletins and other sources, so details can be out of date or '
+        'incorrect.\n\n'
+        'Always confirm with the parish bulletin or by contacting the parish '
+        'directly before you rely on a time.',
+        style: GoogleFonts.inter(fontSize: 15, height: 1.5, color: subtext),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          style: TextButton.styleFrom(
+            foregroundColor: accent,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+          child: Text(
+            'I understand',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -296,6 +375,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Timer? _debounce;
   LatLng? _userLocation;
   bool _locationLoading = true;
+  // True when the user's nearest parish is beyond kSupportedRadiusMiles — i.e.
+  // they're outside the supported diocese. Drives the coverage notice banner.
+  bool _outsideCoverage = false;
+  bool _coverageNoticeDismissed = false;
 
   @override
   void initState() {
@@ -566,9 +649,69 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     parishesWithDistance.sort((a, b) => a.value.compareTo(b.value));
 
+    // Nearest parish distance tells us whether the user is in a supported area.
+    final nearestMiles =
+        parishesWithDistance.isEmpty ? double.infinity : parishesWithDistance.first.value;
+
     setState(() {
       _nearbyParishes = parishesWithDistance.take(10).map((e) => e.key).toList();
+      _outsideCoverage = nearestMiles > kSupportedRadiusMiles;
     });
+  }
+
+  /// Dismissible notice shown when the user's location falls outside the
+  /// supported diocese (nearest parish beyond [kSupportedRadiusMiles]).
+  /// Collapses to nothing when in-coverage, location-unknown, or dismissed.
+  Widget _buildCoverageBanner() {
+    if (_userLocation == null ||
+        !_outsideCoverage ||
+        _coverageNoticeDismissed) {
+      return const SizedBox.shrink();
+    }
+    final accent = goldTextAccentFor(isDark: _isDark);
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: _isDark ? 0.14 : 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.location_off_outlined, color: accent, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your diocese is not yet supported',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _textColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'ParishFinder currently covers the Cleveland/Akron area. '
+                  'Parishes shown may be far from you.',
+                  style: GoogleFonts.inter(fontSize: 13, color: _subtextColor),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, size: 18, color: _subtextColor),
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Dismiss',
+            onPressed: () => setState(() => _coverageNoticeDismissed = true),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onSearchChanged(String query) {
@@ -725,6 +868,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       color: _subtextColor,
                     ),
                   ),
+                  // Location-triggered notice when the user is outside the
+                  // supported diocese. Independent of the first-run disclaimer.
+                  _buildCoverageBanner(),
                   const SizedBox(height: 24),
 
                   // Today hero card — day-aware suggestion
