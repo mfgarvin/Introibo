@@ -92,12 +92,13 @@ network connection (an "Internet Required" screen handles that case). Use the lo
 - `bulletinUrl`, `eventsSummary`, `imageUrl`, `contactInfo` — optional
 - `latitude`, `longitude` — nullable plain floats (now present in the data)
 - `lastUpdated` — parsed from the per-record `timestamp`
+- `inviteFeedback: bool` — from `invite_feedback`; true (13 of 189) means the schedule was never machine-verified from a bulletin, so `ParishDetailPage` shows an `InviteFeedbackCard` under the next-Mass banner asking the user to confirm or correct the times. Defaults to false if the key is missing (older cached JSON).
 
 JSON comes from the **structured** `export.json` shape:
 - `schedules.mass[]`: `{day, start "HH:MM", mass_date, language, notes}`
 - `schedules.confession[]`: `{day, start, end, notes}`
 - `schedules.adoration`: `{is_perpetual, times: [{day, start, end, notes}]}`
-- plain numeric `latitude`/`longitude`, plus `bulletin_url`, `timestamp`
+- plain numeric `latitude`/`longitude`, plus `bulletin_url`, `timestamp`, `invite_feedback`
 - Legacy keys (`mass_times`, `confessions`, `conf_times`, `www`, `lonlat`) are gone.
 
 ### Key Dependencies

@@ -23,6 +23,15 @@ class Parish {
   final String? bulletinUrl;
   final DateTime? lastUpdated;
 
+  /// True when this parish's schedule was never machine-verified from a
+  /// bulletin — either it's hand-maintained (no bulletin to scrape) or the
+  /// scraper can't read the parish's website. True for 13 of 189 records.
+  ///
+  /// A churchgoer looking at the screen knows more than the data does here, so
+  /// the detail page invites feedback up front. `false` is *not* a correctness
+  /// guarantee — feedback is welcome everywhere; this only says where to ask.
+  final bool inviteFeedback;
+
   Parish({
     required this.name,
     this.parishId,
@@ -42,6 +51,7 @@ class Parish {
     this.imageUrl,
     this.bulletinUrl,
     this.lastUpdated,
+    this.inviteFeedback = false,
   });
 
   /// True if the parish has any adoration to show (timed slots or perpetual).
@@ -83,6 +93,9 @@ class Parish {
       imageUrl: json['image_url'],
       bulletinUrl: json['bulletin_url'],
       lastUpdated: _parseTimestamp(json['timestamp']),
+      // Always present in current exports; older cached JSON may lack it, in
+      // which case the quieter default (don't ask) is the right one.
+      inviteFeedback: json['invite_feedback'] == true,
     );
   }
 

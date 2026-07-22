@@ -11,6 +11,7 @@ import '../utils/parish_palette.dart';
 import '../widgets/next_mass_banner.dart';
 import '../widgets/timeline_schedule_card.dart';
 import '../widgets/mass_schedule_card.dart';
+import '../widgets/invite_feedback_card.dart';
 import 'filtered_parish_list_page.dart' show ParishFilter;
 
 class ParishDetailPage extends StatefulWidget {
@@ -377,6 +378,21 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                       cardColor: cardColor,
                       textColor: textColor,
                       subtextColor: subtextColor,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Feedback invitation for parishes whose schedule was never
+                  // verified from a bulletin. Sits directly under the next-Mass
+                  // banner so it reads as a caveat on the time shown above it.
+                  if (parish.inviteFeedback) ...[
+                    InviteFeedbackCard(
+                      accent: goldTextAccentFor(isDark: isDark),
+                      cardColor: cardColor,
+                      textColor: textColor,
+                      subtextColor: subtextColor,
+                      onTap: () => _showDataFeedbackSheet(
+                          cardColor, textColor, subtextColor),
                     ),
                     const SizedBox(height: 16),
                   ],
