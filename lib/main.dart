@@ -1457,7 +1457,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ),
       const SizedBox(height: 16),
       SizedBox(
-        height: 150,
+        // Tall enough for a 2-line parish name plus the avatar row and the
+        // pinned "Next ·" line without overflowing the card (was 150 → 19px
+        // overflow when the name wrapped to two lines).
+        height: 176,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
