@@ -7,6 +7,7 @@ import '../main.dart' show kSecondaryColor, kBackgroundColor, kBackgroundColorDa
 import '../services/feedback_client.dart';
 import '../widgets/custom_icons.dart';
 import '../widgets/stained_glass_header.dart';
+import '../utils/parish_palette.dart';
 import '../widgets/next_mass_banner.dart';
 import '../widgets/timeline_schedule_card.dart';
 import '../widgets/mass_schedule_card.dart';
@@ -179,7 +180,10 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
     return '$month-$day-$year';
   }
 
-  Widget _buildHeaderBackground() {
+  /// The header's flying layer: artwork only. The parish name is layered on
+  /// top by [_buildHeaderBackground] so it never enters the Hero's overlay
+  /// subtree (text there renders un-Materialed, with a yellow double underline).
+  Widget _buildHeaderArtwork() {
     final hasImage = parish.imageUrl != null && parish.imageUrl!.isNotEmpty;
 
     if (hasImage) {
@@ -206,35 +210,6 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               ),
             ),
           ),
-          // Parish name at bottom
-          Positioned(
-            bottom: 18,
-            left: 24,
-            right: 24,
-            child: Text(
-              parish.name,
-              style: GoogleFonts.cormorantGaramond(
-                fontSize: 34,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                height: 1.1,
-                letterSpacing: 0.2,
-                shadows: [
-                  Shadow(
-                    offset: const Offset(0, 1),
-                    blurRadius: 2,
-                    color: Colors.black.withValues(alpha: 0.9),
-                  ),
-                  Shadow(
-                    offset: const Offset(0, 2),
-                    blurRadius: 12,
-                    color: Colors.black.withValues(alpha: 0.7),
-                  ),
-                ],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
         ],
       );
     } else {
@@ -243,30 +218,16 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
     }
   }
 
-  Widget _buildPlaceholderBackground() {
-    final seed = parish.parishId ?? parish.name;
+  /// Full header: the (Hero-flown) artwork with the parish name laid over it.
+  Widget _buildHeaderBackground() {
     return Stack(
       fit: StackFit.expand,
       children: [
-        StainedGlassHeader(seed: seed),
-        // Bottom-anchored dark scrim so the name always sits on a calm band
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 110,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.55),
-                ],
-              ),
-            ),
-          ),
+        ParishGlassHero(
+          seed: parish.parishId ?? parish.name,
+          patron: parish.name,
+          overlayDarken: headerDarkenFor(paletteForParish(parish.name)),
+          child: _buildHeaderArtwork(),
         ),
         Positioned(
           bottom: 18,
@@ -294,6 +255,42 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
               ],
             ),
             textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaceholderBackground() {
+    final seed = parish.parishId ?? parish.name;
+    // The pale palettes need more scrim under the white parish name than the
+    // deep ones do — both values are derived from the palette, not fixed.
+    final palette = paletteForParish(parish.name);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        StainedGlassHeader(
+          seed: seed,
+          patron: parish.name,
+          overlayDarken: headerDarkenFor(palette),
+        ),
+        // Bottom-anchored dark scrim so the name always sits on a calm band
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 110,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: scrimFor(palette)),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -361,10 +358,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                 StretchMode.blurBackground,
               ],
               collapseMode: CollapseMode.parallax,
-              background: Hero(
-                tag: parishHeroTag(parish.parishId ?? parish.name),
-                child: _buildHeaderBackground(),
-              ),
+              background: _buildHeaderBackground(),
             ),
           ),
           // Content

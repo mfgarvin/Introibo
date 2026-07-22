@@ -326,18 +326,17 @@ class FirstRunDisclaimerDialog extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Before you begin',
+              'You should know',
               style: AppText.titleLarge(color: textColor),
             ),
           ),
         ],
       ),
       content: Text(
-        'ParishFinder gathers Mass, Confession, and Adoration times from parish '
-        'bulletins and other sources, so details can be out of date or '
-        'incorrect.\n\n'
-        'Always confirm with the parish bulletin or by contacting the parish '
-        'directly before you rely on a time.',
+        'ParishFinder gathers its information through automated processes, and '
+        'could occasionally be wrong.\n\n'
+        'You are encouraged to double check with the parish bulletin or parish '
+        'offices before making plans.',
         style: GoogleFonts.inter(fontSize: 15, height: 1.5, color: subtext),
       ),
       actions: [
@@ -696,8 +695,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'ParishFinder currently covers the Cleveland/Akron area. '
-                  'Parishes shown may be far from you.',
+                  'ParishFinder currently covers the Diocese of Cleveland '
+                  '(NE Ohio). Parishes shown will be quite far from you.',
                   style: GoogleFonts.inter(fontSize: 13, color: _subtextColor),
                 ),
               ],
@@ -1763,8 +1762,10 @@ class _NearbyParishCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Hero(
-                  tag: parishHeroTag(parish.parishId ?? parish.name),
+                ParishGlassHero(
+                  seed: parish.parishId ?? parish.name,
+                  patron: parish.name,
+                  borderRadius: 8,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: SizedBox(
@@ -1772,6 +1773,7 @@ class _NearbyParishCard extends StatelessWidget {
                       height: 36,
                       child: StainedGlassHeader(
                         seed: parish.parishId ?? parish.name,
+                        patron: parish.name,
                         overlayDarken: 0.0,
                       ),
                     ),

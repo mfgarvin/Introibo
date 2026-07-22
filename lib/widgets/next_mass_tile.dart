@@ -172,6 +172,7 @@ class _NextMassTileState extends State<NextMassTile> {
                       opacity: 0.30,
                       child: StainedGlassHeader(
                         seed: seed,
+                        patron: hit.parish.name,
                         overlayDarken: 0.0,
                       ),
                     ),

@@ -487,8 +487,10 @@ class _MapParishCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Hero(
-                tag: parishHeroTag(parish.parishId ?? parish.name),
+              ParishGlassHero(
+                seed: parish.parishId ?? parish.name,
+                patron: parish.name,
+                borderRadius: 12,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
@@ -496,6 +498,7 @@ class _MapParishCard extends StatelessWidget {
                     height: 64,
                     child: StainedGlassHeader(
                       seed: parish.parishId ?? parish.name,
+                      patron: parish.name,
                       overlayDarken: 0.0,
                     ),
                   ),

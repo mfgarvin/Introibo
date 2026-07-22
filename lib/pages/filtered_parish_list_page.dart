@@ -928,8 +928,10 @@ class _ParishCard extends StatelessWidget {
             // Header row
             Row(
               children: [
-                Hero(
-                  tag: parishHeroTag(parish.parishId ?? parish.name),
+                ParishGlassHero(
+                  seed: parish.parishId ?? parish.name,
+                  patron: parish.name,
+                  borderRadius: 10,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: SizedBox(
@@ -937,6 +939,7 @@ class _ParishCard extends StatelessWidget {
                       height: 44,
                       child: StainedGlassHeader(
                         seed: parish.parishId ?? parish.name,
+                        patron: parish.name,
                         overlayDarken: 0.0,
                       ),
                     ),
