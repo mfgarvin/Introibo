@@ -6,9 +6,7 @@ plugins {
 }
 
 // Build number derived from git commit count. Auto-increments with every
-// commit; semver (versionName) stays manually controlled in pubspec.yaml.
-// Falls back to flutter.versionCode when git isn't available (e.g. shallow
-// CI checkouts or unpacked source tarballs).
+// commit; semver (versionName) is bumped by tool/release.sh in pubspec.yaml.
 def gitBuildNumber = {
     try {
         def stdout = new ByteArrayOutputStream()
@@ -23,6 +21,32 @@ def gitBuildNumber = {
         return null
     }
 }()
+
+// The pubspec build number (`version: x.y.z+N`) is the committed *floor*.
+// tool/release.sh keeps it in step with the commit count at each release, so a
+// rewritten history (squash-merge, rebase) can never hand Play a versionCode
+// lower than the last release. Play rejects any upload at or below a code it
+// has already seen, and that rejection is permanent for that code.
+def pubspecBuildNumber = flutter.versionCode.toString().isInteger()
+        ? flutter.versionCode.toString().toInteger()
+        : 1
+
+// A debug build may fall back to the pubspec floor, but a release must never
+// ship a silently-wrong (lower) build number — fail loudly instead.
+def isReleaseBuild = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains('release')
+}
+if (gitBuildNumber == null && isReleaseBuild) {
+    throw new GradleException(
+            "Cannot derive a build number: 'git rev-list --count HEAD' failed. " +
+            "Release builds require a full (non-shallow) git checkout so the " +
+            "versionCode keeps increasing. Falling back to the pubspec build " +
+            "number ${pubspecBuildNumber} would be rejected by Play.")
+}
+
+def resolvedVersionCode = gitBuildNumber == null
+        ? pubspecBuildNumber
+        : Math.max(gitBuildNumber, pubspecBuildNumber)
 
 android {
     namespace = "com.example.parishfinder"
@@ -49,7 +73,7 @@ android {
         // minSdkVersion 21
         // targetSdkVersion 35
         // targetSdk = flutter.targetSdkVersion
-        versionCode = gitBuildNumber ?: flutter.versionCode
+        versionCode = resolvedVersionCode
         versionName = flutter.versionName
     }
 
