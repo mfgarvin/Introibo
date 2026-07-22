@@ -115,7 +115,8 @@ class TimelineScheduleCard extends StatelessWidget {
     );
   }
 
-  Widget _section(String label, List<UpcomingEntry> entries, {bool isFirst = false}) {
+  Widget _section(String label, List<UpcomingEntry> entries,
+      {bool isFirst = false}) {
     if (entries.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: EdgeInsets.only(top: isFirst ? 0 : 16),
@@ -149,58 +150,79 @@ class TimelineScheduleCard extends StatelessWidget {
     );
   }
 
+  /// Notes longer than this get their own full-width line below the time
+  /// instead of competing with it for the tail of the row.
+  static const _inlineNoteMaxChars = 28;
+
   Widget _entryRow(UpcomingEntry e, String bucketLabel) {
     final showDay = bucketLabel == 'This week' || bucketLabel == 'Beyond';
     final note = e.noteLabel;
+    final inlineNote =
+        note != null && note.length <= _inlineNoteMaxChars ? note : null;
+    final blockNote = note != null && inlineNote == null ? note : null;
+    final noteStyle = GoogleFonts.inter(
+      fontSize: 13,
+      color: subtextColor,
+      fontStyle: FontStyle.italic,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Day chip (only shown for this-week / beyond)
-          if (showDay)
-            Container(
-              width: 38,
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              margin: const EdgeInsets.only(right: 10),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                e.dayLabel,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: color,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Day chip (only shown for this-week / beyond)
+              if (showDay)
+                Container(
+                  width: 38,
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    e.dayLabel,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                ),
+              // Time (or time range)
+              SizedBox(
+                width: 128,
+                child: Text(
+                  e.timeLabel,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
                 ),
               ),
-            ),
-          // Time (or time range)
-          SizedBox(
-            width: 128,
-            child: Text(
-              e.timeLabel,
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
-            ),
+              // Short note inline (e.g. "Vigil Mass", "Spanish")
+              if (inlineNote != null)
+                Expanded(
+                  child: Text(
+                    inlineNote,
+                    style: noteStyle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
           ),
-          // Note (e.g. "Vigil Mass", "Spanish")
-          if (note != null)
-            Expanded(
-              child: Text(
-                note,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: subtextColor,
-                  fontStyle: FontStyle.italic,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+          // Long note: full width under the row, indented past the day chip.
+          if (blockNote != null)
+            Padding(
+              padding: EdgeInsets.only(left: showDay ? 48 : 0, top: 2),
+              child: Text(blockNote, style: noteStyle),
             ),
         ],
       ),

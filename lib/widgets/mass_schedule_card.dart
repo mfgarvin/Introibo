@@ -52,7 +52,8 @@ class MassScheduleCard extends StatelessWidget {
         .toList()
       ..sort((a, b) => a.nextOccurrence(now).compareTo(b.nextOccurrence(now)));
 
-    final hasAny = weekend.isNotEmpty || weekday.isNotEmpty || special.isNotEmpty;
+    final hasAny =
+        weekend.isNotEmpty || weekday.isNotEmpty || special.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -75,7 +76,11 @@ class MassScheduleCard extends StatelessWidget {
           if (!hasAny)
             _emptyRow()
           else ...[
-            _weeklySection('Weekend', weekend, isFirst: true),
+            // Weekend reads chronologically as the weekend is kept — Saturday
+            // vigil first, then Sunday morning — so it orders by day, not by
+            // clock time (which would bury a 4:30 PM vigil under 9:00 AM).
+            _weeklySection('Weekend', weekend,
+                isFirst: true, dayFirstOrder: true),
             _weeklySection('Weekday', weekday, isFirst: weekend.isEmpty),
             _specialSection(special, now),
           ],
@@ -156,9 +161,14 @@ class MassScheduleCard extends StatelessWidget {
 
   /// Weekend / weekday section. Rows with identical time + note are collapsed
   /// across days, e.g. five Mon–Fri 8:00 AM entries render as one "Mon–Fri" row.
-  Widget _weeklySection(String label, List<ScheduleEntry> entries, {bool isFirst = false}) {
+  Widget _weeklySection(
+    String label,
+    List<ScheduleEntry> entries, {
+    bool isFirst = false,
+    bool dayFirstOrder = false,
+  }) {
     if (entries.isEmpty) return const SizedBox.shrink();
-    final rows = _collapse(entries);
+    final rows = _collapse(entries, dayFirstOrder: dayFirstOrder);
     return Padding(
       padding: EdgeInsets.only(top: isFirst ? 0 : 16),
       child: Column(
@@ -166,7 +176,8 @@ class MassScheduleCard extends StatelessWidget {
         children: [
           _sectionLabel(label),
           const SizedBox(height: 10),
-          ...rows.map((r) => _row(r.daysLabel, r.entry.timeLabel, r.entry.note, r.entry.languageBadge)),
+          ...rows.map((r) => _row(r.daysLabel, r.entry.timeLabel, r.entry.note,
+              r.entry.languageBadge)),
         ],
       ),
     );
@@ -191,62 +202,86 @@ class MassScheduleCard extends StatelessWidget {
     );
   }
 
-  Widget _row(String dayLabel, String timeLabel, String? note, [String? languageBadge]) {
+  /// Notes longer than this get their own full-width line below the time
+  /// instead of competing with it for the ~120px tail of the row.
+  static const _inlineNoteMaxChars = 28;
+
+  Widget _row(String dayLabel, String timeLabel, String? note,
+      [String? languageBadge]) {
+    final inlineNote =
+        note != null && note.length <= _inlineNoteMaxChars ? note : null;
+    final blockNote = note != null && inlineNote == null ? note : null;
+
+    final noteStyle = GoogleFonts.inter(
+      fontSize: 13,
+      color: subtextColor,
+      fontStyle: FontStyle.italic,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 64,
-            padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
-            margin: const EdgeInsets.only(right: 10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              dayLabel,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 128,
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    timeLabel,
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 64,
+                padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+                margin: const EdgeInsets.only(right: 10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  dayLabel,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
                   ),
                 ),
-                if (languageBadge != null) ...[
-                  const SizedBox(width: 6),
-                  LanguageBadge(label: languageBadge, color: color),
-                ],
-              ],
-            ),
-          ),
-          if (note != null)
-            Expanded(
-              child: Text(
-                note,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: subtextColor,
-                  fontStyle: FontStyle.italic,
-                ),
-                overflow: TextOverflow.ellipsis,
               ),
+              SizedBox(
+                width: 128,
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        timeLabel,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                    ),
+                    if (languageBadge != null) ...[
+                      const SizedBox(width: 6),
+                      LanguageBadge(label: languageBadge, color: color),
+                    ],
+                  ],
+                ),
+              ),
+              if (inlineNote != null)
+                Expanded(
+                  child: Text(
+                    inlineNote,
+                    style: noteStyle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+          // Long note: full width under the row, aligned with the time column
+          // so it reads as an annotation on that Mass rather than a new entry.
+          if (blockNote != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 74, top: 2),
+              child: Text(blockNote, style: noteStyle),
             ),
         ],
       ),
@@ -254,9 +289,12 @@ class MassScheduleCard extends StatelessWidget {
   }
 
   /// Collapse entries that share an identical time + note into a single row
-  /// spanning multiple days. Preserves day order (Mon..Sun) within a row and
-  /// row order by earliest start time.
-  List<_CollapsedRow> _collapse(List<ScheduleEntry> entries) {
+  /// spanning multiple days. Preserves day order (Mon..Sun) within a row.
+  /// Rows sort by start time, or by day-then-time when [dayFirstOrder] is set.
+  List<_CollapsedRow> _collapse(
+    List<ScheduleEntry> entries, {
+    bool dayFirstOrder = false,
+  }) {
     final groups = <String, List<ScheduleEntry>>{};
     for (final e in entries) {
       final key = '${e.hour}:${e.minute}:${e.endHour}:${e.endMinute}:'
@@ -266,9 +304,16 @@ class MassScheduleCard extends StatelessWidget {
 
     final rows = groups.values.map((g) {
       final days = g.map((e) => e.dayOfWeek).toSet().toList()..sort();
-      return _CollapsedRow(entry: g.first, daysLabel: _daysLabel(days));
+      return _CollapsedRow(
+        entry: g.first,
+        daysLabel: _daysLabel(days),
+        firstDay: days.first,
+      );
     }).toList()
       ..sort((a, b) {
+        if (dayFirstOrder && a.firstDay != b.firstDay) {
+          return a.firstDay.compareTo(b.firstDay);
+        }
         final at = a.entry.hour * 60 + a.entry.minute;
         final bt = b.entry.hour * 60 + b.entry.minute;
         return at.compareTo(bt);
@@ -291,5 +336,13 @@ class MassScheduleCard extends StatelessWidget {
 class _CollapsedRow {
   final ScheduleEntry entry;
   final String daysLabel;
-  _CollapsedRow({required this.entry, required this.daysLabel});
+
+  /// Earliest ISO weekday in the row — the sort key for day-ordered sections.
+  final int firstDay;
+
+  _CollapsedRow({
+    required this.entry,
+    required this.daysLabel,
+    required this.firstDay,
+  });
 }
