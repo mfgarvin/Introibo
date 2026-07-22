@@ -82,40 +82,69 @@ label 12 (bold) · kicker 10 (all-caps, `letter-spacing: 1.3`).
 The kicker style — tiny, bold, wide-tracked, all-caps Inter ("NEXT MASS NEARBY",
 "TONIGHT") — is a recurring signature and worth echoing in marketing assets.
 
-## 5. The signature motif: generative stained glass
+## 5. The signature motif: the parish window
 
 **This is the strongest visual cue in the app, and the most promising basis for
 an icon.**
 
-Every parish is given a unique, deterministic stained-glass "window," generated
-from a seed derived from its ID. It appears as a small rounded chip in lists and
-full-bleed as the parish detail page header, and the chip morphs into the header
-during navigation. Users learn parishes by their window.
+Every parish is given its own stained-glass "window," generated deterministically
+from its ID. It appears as a small rounded chip in lists and full-bleed as the
+parish detail page header, and the chip flies into the header on navigation.
+Users learn parishes by their window.
 
-Construction, in order:
+The construction is a **Chartres armature panel** — a medallion held in an iron
+frame against a deep field:
 
-1. A **quarry tiling** of rhombic panes (taller than wide, ~0.78 aspect), laid in
-   interlocking half-offset rows, with vertices lightly jittered so no two panes
-   are identical — the geometry of a real Gothic quarry window, not a regular grid.
-2. A circular **roundel / medallion** centered in the upper third, occupying about
-   a quarter of the short dimension. Eight radial wedges alternating gold and a
-   bright palette tone, around a small dark hub jewel. Panes are cut away where
-   the roundel overlaps.
-3. **Lead came** rendered as a near-black (`#050507`) stroke over every edge, with
-   small filled dots stamped at vertices to suggest soldered joints, and a heavier
-   ring around the roundel.
-4. Each pane filled with a radial gradient (light corner → base → shadowed edge)
-   so glass reads as lit from behind, plus a soft warm white glow from the upper
-   left across the whole window.
+1. A **deep field** of a single glass tone, crossed by a faint diagonal **diaper**
+   lattice at about 7% white — the ghost of a leaded quarry, not a full one.
+2. A **quatrefoil fleuron** tucked into each corner: four small circles arranged
+   around a point. Dropped below 70px, where they only add noise.
+3. A central **roundel**: eight wedges of alternating glass around a small bright
+   hub, ringed by heavy lead came.
+4. A lighter **iron armature ring** outside the came, at roughly half its weight —
+   the two concentric rings are a hierarchy, not a double border.
 
-Ten jewel-tone palettes rotate by seed — sapphire & gold, burgundy & rose, forest
-& ember, vespers violet, twilight teal, emerald & copper, indigo & pearl, crimson
-& saffron, midnight plum & rose-gold, slate & seafoam. Each is five stops:
-`[deep, mid, bright, accent, highlight]`, with the accent (usually gold or amber)
-dominating the roundel.
+Two rules the geometry must obey, both learned by getting them wrong first:
 
-For a single fixed brand asset, **sapphire & gold** is the most representative:
-`#0B2A4A` · `#1E5F8A` · `#3A7CA5` · `#C9A227` · `#E8D7A1`.
+- **Nothing rotates randomly.** The roundel's wedges are offset by half a wedge so
+  that a *pane of glass* sits on the vertical, not a lead line. The four wedges
+  sharing the accent colour then land on the four axes and read as an upright
+  cross. An earlier version started the wedges at a random angle per parish and
+  the result looked tilted and careless.
+- **Every size is composed, not cropped.** The artwork is drawn for whatever box
+  it is given, and line weights scale with that box. A 44px chip is not a
+  centre-crop of a wide header.
+
+Restraint is the point. An earlier pass jittered every vertex and scattered hue by
+±14° per pane; it read as busy rather than made. Per-pane variation is now ±3°
+hue, ±3% saturation, ±3.5% lightness — enough to feel handmade, not enough to
+fracture the palette.
+
+## 5a. Colour is inferred from the patron
+
+A parish's palette is not random. Its **name** is read for what it is named after,
+and that chooses the colour:
+
+- **Family** — the hue. Nine of them: Marian (blues), martyr (crimsons), apostolic
+  (indigo and sea), doctor (ambers and golds), religious (greens and earths),
+  luminous (Christological white-golds), spirit (flame), contemplative (violets),
+  angelic (pearl and silver).
+- **Member** — which of the three or four palettes in that family. Where the
+  patron carries a national tradition — an Irish monk, a Polish martyr, an Italian
+  friar — the palettes suited to it are preferred.
+
+28 palettes in total, **12 of them pale**, so the range runs from Chartres blue to
+a grisaille barely tinted at all. In a diocese of 189 parishes, 188 names resolve
+to a patron; the one that doesn't is spread across the families by hash so it
+never looks like a fallback.
+
+Two consequences for any asset work:
+
+- **The colour means something.** A Marian parish reads blue; a martyr reads red.
+  Don't treat the palettes as interchangeable swatches.
+- **A single brand asset needs a fixed palette**, since the per-parish variety
+  doesn't apply. Use **Sapphire Vigil** — `#0B2A4A` · `#1E5F8A` · `#3A7CA5` ·
+  `#C9A227` · `#E8D7A1` — the Marian blue-and-gold that reads most like the app.
 
 ## 6. Iconography
 
@@ -152,9 +181,11 @@ App icon and store assets. Deliverables:
 
 Constraints worth designing around:
 
-- It must survive being masked to a **circle** and shrunk to ~48px. The quarry
-  tiling turns to mush at that size; the **roundel alone** is likely the right
-  answer for the icon, with the tiling as texture at larger sizes only.
+- It must survive being masked to a **circle** and shrunk to ~48px. The app has
+  already solved this for itself: at chip sizes it drops the corner fleurons and
+  leans on the **roundel**, which is a single legible shape. The icon should do
+  the same — the roundel and its came, with the diaper field behind it, and the
+  fleurons only if they still read.
 - The icon lives on both light and dark home screens — it needs its own background,
   and it cannot rely on the parchment surface being there.
 - No crosses-as-logo unless handled with real care; the stained-glass roundel is
