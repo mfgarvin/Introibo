@@ -150,6 +150,64 @@ void main() {
     }
   });
 
+  group('tabs kept alive by IndexedStack', () {
+    // Reproduces the RootShell arrangement: three tabs alive at once, two of
+    // which render the same parish's chip. Without HeroMode the tags collide
+    // and a flight can start from the offstage tab.
+    Widget shell({required bool heroMode}) {
+      final tabs = [
+        Center(key: const ValueKey('home'), child: _chip()),
+        // Stands in for the Map tab's carousel: same parish, parked at the
+        // bottom of the screen, off to one side.
+        Align(
+          key: const ValueKey('map'),
+          alignment: const Alignment(0.9, 0.95),
+          child: _chip(),
+        ),
+      ];
+      return MaterialApp(
+        home: Scaffold(
+          body: IndexedStack(
+            index: 0,
+            children: [
+              for (var i = 0; i < tabs.length; i++)
+                if (heroMode) HeroMode(enabled: i == 0, child: tabs[i]) else tabs[i],
+            ],
+          ),
+        ),
+      );
+    }
+
+    testWidgets('duplicate tags collide without HeroMode', (tester) async {
+      await tester.pumpWidget(shell(heroMode: false));
+      final nav = tester.state<NavigatorState>(find.byType(Navigator));
+      nav.push(MaterialPageRoute<void>(
+        builder: (_) => Scaffold(body: SizedBox(height: 200, child: _header())),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        tester.takeException(),
+        isA<FlutterError>().having(
+          (e) => e.message, 'message', contains('multiple heroes that share the same tag')),
+        reason: 'this is the bug HeroMode exists to prevent',
+      );
+    });
+
+    testWidgets('HeroMode leaves only the visible tab in play', (tester) async {
+      await tester.pumpWidget(shell(heroMode: true));
+      final nav = tester.state<NavigatorState>(find.byType(Navigator));
+      nav.push(MaterialPageRoute<void>(
+        builder: (_) => Scaffold(body: SizedBox(height: 200, child: _header())),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.takeException(), isNull);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   testWidgets('flight uses a straight-line rect tween', (tester) async {
     await tester.pumpWidget(app());
     final hero = tester.widget<Hero>(find.byType(Hero));

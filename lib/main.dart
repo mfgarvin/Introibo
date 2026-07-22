@@ -252,6 +252,23 @@ class _RootShellState extends State<RootShell> {
     if (mounted) setState(() => _index = i);
   }
 
+  /// [IndexedStack] keeps every tab alive, so all three sit in the tree at once
+  /// and the same parish can own a [Hero] on more than one of them — Home's
+  /// nearby row and the Map tab's carousel both render its glass chip with the
+  /// same tag. Two heroes sharing a tag on one route means a flight can start
+  /// from the offstage one: the carousel card, parked at the bottom of the
+  /// screen at an x-offset set by its page index, which is why a chip appeared
+  /// to fly in from the bottom corner. [HeroMode] keeps only the visible tab's
+  /// heroes in play.
+  ///
+  /// Debug builds assert on the duplicate tag; release builds strip the assert
+  /// and silently pick one, so this only showed up on an installed APK.
+  static const List<Widget> _tabs = [
+    HomePage(),
+    FindParishNearMePage(inTab: true),
+    FavoritesPage(inTab: true),
+  ];
+
   Future<void> _maybeShowFirstRunDisclaimer() async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(kDisclaimerSeenKey) ?? false) return;
@@ -272,10 +289,9 @@ class _RootShellState extends State<RootShell> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [
-          HomePage(),
-          FindParishNearMePage(inTab: true),
-          FavoritesPage(inTab: true),
+        children: [
+          for (var i = 0; i < _tabs.length; i++)
+            HeroMode(enabled: i == _index, child: _tabs[i]),
         ],
       ),
       bottomNavigationBar: NavigationBar(
