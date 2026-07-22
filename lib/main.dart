@@ -90,54 +90,90 @@ class ThemeNotifier extends ChangeNotifier {
 // Global theme notifier instance
 final themeNotifier = ThemeNotifier();
 
-// Favorites manager for storing favorite parishes with persistence
+// Favorites manager for storing favorite ("home") parishes with persistence.
+//
+// Entries are keyed per *parish*, not per name — several parishes in the
+// diocese share a name (there are two "Saint Francis de Sales", three "Saint
+// Mary", …) and keying by name favorited all of them at once. The
+// SharedPreferences key stays `favorite_parishes` so existing saves survive;
+// legacy bare-name entries are upgraded by [migrateLegacyKeys] once parish
+// data is available.
 class FavoritesManager extends ChangeNotifier {
   static const String _prefsKey = 'favorite_parishes';
-  final Set<String> _favoriteNames = {};
+  final Set<String> _favoriteKeys = {};
   bool _initialized = false;
 
   bool get initialized => _initialized;
+
+  /// Stable identity for a parish: its `parish_id` when present, otherwise
+  /// name + city + address (8 of 189 records ship without an id).
+  static String keyFor(Parish parish) {
+    final id = parish.parishId?.trim();
+    if (id != null && id.isNotEmpty) return 'id:$id';
+    return 'np:${parish.name}|${parish.city}|${parish.address}';
+  }
+
+  static bool _isLegacyName(String entry) =>
+      !entry.startsWith('id:') && !entry.startsWith('np:');
 
   Future<void> init() async {
     if (_initialized) return;
     final prefs = await SharedPreferences.getInstance();
     final savedFavorites = prefs.getStringList(_prefsKey) ?? [];
-    _favoriteNames.addAll(savedFavorites);
+    _favoriteKeys.addAll(savedFavorites);
     _initialized = true;
     notifyListeners();
   }
 
-  Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_prefsKey, _favoriteNames.toList());
-  }
+  /// Rewrite pre-keying saves (bare parish names) into stable keys. A name
+  /// shared by several parishes resolves to the first match in the data — the
+  /// old save simply doesn't say which one was meant. No-op once migrated.
+  void migrateLegacyKeys(List<Parish> parishes) {
+    if (parishes.isEmpty) return;
+    final legacy = _favoriteKeys.where(_isLegacyName).toList();
+    if (legacy.isEmpty) return;
 
-  bool isFavorite(String parishName) => _favoriteNames.contains(parishName);
-
-  void toggleFavorite(String parishName) {
-    if (_favoriteNames.contains(parishName)) {
-      _favoriteNames.remove(parishName);
-    } else {
-      _favoriteNames.add(parishName);
+    for (final name in legacy) {
+      _favoriteKeys.remove(name);
+      final match = parishes.where((p) => p.name == name);
+      if (match.isNotEmpty) _favoriteKeys.add(keyFor(match.first));
     }
     _save();
     notifyListeners();
   }
 
-  void addFavorite(String parishName) {
-    _favoriteNames.add(parishName);
+  Future<void> _save() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_prefsKey, _favoriteKeys.toList());
+  }
+
+  bool isFavorite(Parish parish) => _favoriteKeys.contains(keyFor(parish));
+
+  void toggleFavorite(Parish parish) {
+    final key = keyFor(parish);
+    if (_favoriteKeys.contains(key)) {
+      _favoriteKeys.remove(key);
+    } else {
+      _favoriteKeys.add(key);
+    }
     _save();
     notifyListeners();
   }
 
-  void removeFavorite(String parishName) {
-    _favoriteNames.remove(parishName);
+  void addFavorite(Parish parish) {
+    _favoriteKeys.add(keyFor(parish));
     _save();
     notifyListeners();
   }
 
-  Set<String> get favorites => Set.unmodifiable(_favoriteNames);
-  int get count => _favoriteNames.length;
+  void removeFavorite(Parish parish) {
+    _favoriteKeys.remove(keyFor(parish));
+    _save();
+    notifyListeners();
+  }
+
+  Set<String> get favorites => Set.unmodifiable(_favoriteKeys);
+  int get count => _favoriteKeys.length;
 }
 
 // Global favorites manager instance
@@ -429,7 +465,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   List<Parish> get _favoriteParishes =>
-      _parishes.where((p) => favoritesManager.isFavorite(p.name)).toList();
+      _parishes.where((p) => favoritesManager.isFavorite(p)).toList();
 
   void _onThemeChanged() {
     setState(() {});
@@ -446,6 +482,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _loadParishData() async {
     try {
       final parishes = await parishService.getParishes();
+      favoritesManager.migrateLegacyKeys(parishes);
 
       setState(() {
         _parishes = parishes;
@@ -2433,6 +2470,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Future<void> _loadParishes() async {
     final ps = await parishService.getParishes();
+    favoritesManager.migrateLegacyKeys(ps);
     if (mounted) setState(() => _parishes = ps);
   }
 
@@ -2449,7 +2487,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   List<Parish> get _favoriteParishes {
     return _parishes
-        .where((p) => favoritesManager.isFavorite(p.name))
+        .where((p) => favoritesManager.isFavorite(p))
         .toList();
   }
 
@@ -2611,7 +2649,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                               color: Colors.amber,
                             ),
                             onPressed: () {
-                              favoritesManager.toggleFavorite(parish.name);
+                              favoritesManager.toggleFavorite(parish);
                             },
                           ),
                         ],

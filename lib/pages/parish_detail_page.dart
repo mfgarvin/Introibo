@@ -299,7 +299,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isFavorite = favoritesManager.isFavorite(parish.name);
+    final isFavorite = favoritesManager.isFavorite(parish);
     final isDark = themeNotifier.isDarkMode;
     final backgroundColor = isDark ? kBackgroundColorDark : kBackgroundColor;
     final cardColor = isDark ? kCardColorDark : kCardColor;
@@ -346,7 +346,7 @@ class _ParishDetailPageState extends State<ParishDetailPage> {
                     size: 24,
                   ),
                   onPressed: () {
-                    favoritesManager.toggleFavorite(parish.name);
+                    favoritesManager.toggleFavorite(parish);
                   },
                 ),
               ),
