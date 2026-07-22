@@ -1185,3 +1185,113 @@ Four adjustments after the structured-export migration:
 Note: the Flutter widget-inspector (`get_widget_tree`) repeatedly served **stale/cached
 frames** this session — don't trust it for verifying async swaps or fresh rebuilds; confirm
 via a direct probe, a unit test, or the user.
+
+## Session Log: 2026-06-07 (Language badges, context-aware detail, Worker deployed)
+
+- **Mass language badges.** `ScheduleEntry` gained `languageBadge` (ES/PL/HR/LA…),
+  `isEnglish`/`isSpanish`/`isOtherLanguage`. Badges render in the Mass card, Next Mass
+  banner, and filtered-list chips via a shared `LanguageBadge`; Mass search gained a
+  Spanish / other-language filter.
+- **Context-aware detail page.** `ParishDetailPage` takes an optional focus; arriving
+  from a Mass/Confession/Adoration search auto-scrolls to that card and flashes a gold
+  highlight (~2.5s).
+- **Feedback Worker deployed** to `introibo-feedback.mfgarvin.workers.dev` (D1-backed);
+  `feedback_endpoint.dart` points at it, so submissions went live. No secrets committed.
+- `worker/logs.sh` — interactive D1 viewer (menu + `recent`/`show <id>`/`stats`
+  one-shots), resolving the pinned local wrangler and falling back to npx.
+- **This file was split out of `CLAUDE.md`** in the same commit (1323 lines removed
+  from the always-loaded context file) and finally tracked in git.
+
+## Session Log: 2026-07-21 (Rename to ParishFinder, home parishes, feedback monitoring)
+
+Six weeks after the last session; four separate pieces of work.
+
+- **Home parishes quick launcher.** A horizontal row of saved-parish cards on Home,
+  each with its own next-Mass line (`_HomeParishCard`); the standalone next-mass tile
+  became nearby-only. Dropped the liturgy tile's LIVE/BUILT-IN source badge — it was a
+  testing aid that shipped by accident.
+- **Rename Introibo → ParishFinder**, in two tiers: display + code (app title, pubspec
+  name, `IntroiboApp` → `ParishFinderApp`, docs), then app identity (Android
+  applicationId/namespace/Kotlin package, iOS bundle id + display name, map tile UA).
+  Deliberately **not** renamed: the Cloudflare Worker and its D1 (the shipped app points
+  at the `introibo-feedback` URL), and this log, which records the earlier
+  MassGPT → Introibo rename as it happened.
+- **Feedback monitoring.** The Worker gained a Basic-Auth `/admin` dashboard
+  (self-contained HTML, filter/search/expand, theme-aware), an `/admin/data` JSON feed,
+  and a `scheduled()` Cron handler posting a daily Discord digest (~8am ET) with a
+  one-line heartbeat on quiet days. Constant-time password compare; admin routes are not
+  CORS-open; secrets set out-of-band via `wrangler secret put`.
+- **QA + iOS docs.** `docs/QA_SPEC.md` (hand-off checklist for a lighter model),
+  `docs/ios-mac-setup.md`, `docs/feedback-test-plan.md`, and `worker/test-feedback.sh`
+  (contract tests for `POST /feedback`; rows carry a `[[QA-SONNET]]` marker because
+  submissions hit the **live** D1). iOS config: git-derived build number Run Script, ATS
+  cleartext exception, location usage strings.
+
+## Session Log: 2026-07-22 (Armature glass redesign + hero flight fixes)
+
+The per-parish generative stained glass was rebuilt, and two Hero bugs behind it were
+found only on a real device.
+
+- **Armature painter.** Replaced the jittered quarry tiling with a Chartres-style panel:
+  deep field, faint diaper lattice, corner quatrefoil fleurons, and a centre roundel of
+  eight wedges offset by half a wedge so *accent glass* — not a lead line — sits on the
+  vertical and reads as an upright cross. Two rules the geometry must keep obeying:
+  nothing rotates randomly, and every size is **composed, not cropped** (the old
+  `FittedBox` over a fixed 400×200 reference meant a 44px chip was a centre-crop of a
+  wide render).
+- **Patron-inferred palettes.** 28 palettes (12 pale) across 9 hue families, up from 10
+  flat jewel tones; family inferred from what the parish is named after, steered by
+  national tradition. 188/189 real names match. **Geometry seed and patron are separate**
+  — widgets seed geometry with `parishId ?? name`, and 181 of 189 parishes have an opaque
+  id like "0689", so inferring the patron from the seed would have mis-coloured 142 of
+  189. Seeds use a stable FNV-1a hash, not `String.hashCode`, which Dart doesn't
+  guarantee across VM versions.
+- **Hero flight, two bugs.** MaterialApp's default `MaterialRectArcTween` swept the chip
+  along a curve, so it read as flying in from off-screen (fixed with a plain `RectTween`);
+  and the parish name lived inside the Hero subtree, which renders in the Navigator
+  overlay with no Material ancestor — that's what drew the yellow double underline across
+  the title mid-flight.
+- **Duplicate hero tags across live tabs.** `RootShell`'s `IndexedStack` keeps all three
+  tabs alive, so Home's nearby row and the Map carousel both rendered the same parish's
+  chip with the same tag; the flight could start from the *offstage* one, parked at the
+  bottom of the screen. Fixed with `HeroMode(enabled: i == _index)`. **Debug builds assert
+  on the duplicate tag; release builds strip the assert and silently pick one** — which is
+  why this only ever appeared on an installed APK.
+- Also: first-run data disclaimer + out-of-diocese notice (60mi radius, data-driven),
+  a 19px overflow fix in the home-parish card, and `docs/design-language.md` rewritten
+  for the new construction.
+
+## Session Log: 2026-07-22 (Favorites keying, schedule readability, versioning)
+
+Reported bugs plus a versioning pass. All device-unverified at time of writing.
+
+- **Home parishes were keyed by parish *name*.** The diocese has six name collisions
+  (two "Saint Francis de Sales", three "Saint Mary", …), so favoriting one favorited all
+  of them. `FavoritesManager` now keys by `parish_id`, falling back to
+  `name|city|address` for the 8 records with no id. The SharedPreferences key
+  (`favorite_parishes`) is unchanged and `migrateLegacyKeys()` upgrades old bare-name
+  saves on first parish load — an ambiguous legacy name resolves to the first match,
+  because the old save simply doesn't record which parish was meant.
+- **Weekend Masses sorted by clock time**, burying a 4:30 PM Saturday vigil below the
+  9:00 AM Sunday Masses. The Weekend section now sorts by day-then-time; the Weekday
+  section still sorts by time, which is correct there.
+- **Long schedule notes were unreadable** — a single ellipsized line in the row's
+  leftover ~120px, and some notes run past 100 characters. Notes ≤28 chars stay inline;
+  longer ones get a full-width line under the time, untruncated. Same treatment in the
+  confession/adoration timeline card.
+- **Versioning hardened.** The pubspec `+N` is now a committed *floor* rather than a
+  fallback: builds take `max(commit count, floor)`, so a squash-merge or rebase that
+  shortens history can't hand Play a lower versionCode. A **release** build that can't
+  read the commit count now fails loudly instead of silently shipping build 1; debug
+  builds still fall back. New `tool/release.sh` (`beta`/`release`/`patch`/`minor`/
+  `major`/`show`, `--dry-run`, `--no-tag`) bumps the version, commits, and tags — it
+  also keeps the floor in step with the commit count, which is what makes the floor
+  meaningful. Note there is **no JVM on the dev box**, so the Gradle change is unverified
+  until an APK build runs.
+- **`invite_feedback` support.** New `Parish.inviteFeedback` (from the export field,
+  true for 13 of 189 parishes whose schedule was never machine-verified from a bulletin)
+  drives an `InviteFeedbackCard` under the next-Mass banner, opening the existing
+  feedback sheet. Gold, phrased as an invitation rather than a warning — the parish isn't
+  at fault. Defaults to false when the key is absent, which matters for JSON cached
+  before the field existed. Note the local `export.demo.json` predates the field;
+  `../bulletin-v2/export.json` is the current shape.
