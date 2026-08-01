@@ -43,7 +43,7 @@ Catholic Mass, confession and adoration times for Cleveland and Akron parishes.
 ```
 Discover the Life of the Church in Greater Cleveland and Akron.
 
-ParishFinder brings together Mass, confession, and adoration schedules for 189
+ParishFinder brings together Mass, confession, and adoration schedules for 184
 Catholic parishes across the Cleveland and Akron area — compiled from parish
 bulletins and websites so you don't have to hunt through a dozen of them.
 
@@ -99,9 +99,11 @@ Not affiliated with or endorsed by the Roman Catholic Diocese of Cleveland.
 Map data © OpenStreetMap contributors.
 ```
 
-> **Verify the "189 parishes" figure** against the live `export.json` before
-> publishing, and re-check the disclaimer line — you should state plainly that
-> you are not affiliated with the diocese, since the app covers its parishes.
+> **Verify the "184 parishes" figure** against the live `export.json` before
+> publishing — count *parishes*, not worship sites; the diocese has more of the
+> latter (roughly 189), and the two numbers are easy to conflate. Re-check the
+> disclaimer line too — you should state plainly that you are not affiliated
+> with the diocese, since the app covers its parishes.
 
 ---
 

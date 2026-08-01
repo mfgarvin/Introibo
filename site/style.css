@@ -136,22 +136,28 @@ a:hover { color: var(--accent); }
   margin: 1.5rem 0 2.25rem;
 }
 
-.actions { display: flex; flex-wrap: wrap; gap: 0.9rem 1.5rem; align-items: center; }
-
-.btn {
-  display: inline-flex; align-items: center; gap: 0.6rem;
-  background: var(--accent); color: #FFF8EC;
-  font-weight: 600; font-size: var(--step-0);
-  padding: 0.85rem 1.6rem;
+/* The hero has no call to action — the app isn't out yet and there is no
+   waiting list to join. This is a status badge, not a control: nothing to
+   click, nothing to type into. */
+.coming-soon {
+  display: inline-flex; align-items: center; gap: 0.7rem;
+  margin: 0;
+  padding: 0.7rem 1.25rem;
+  border: 1px solid var(--rule);
   border-radius: 2px;
-  text-decoration: none;
-  border: 1px solid transparent;
-  transition: background 160ms ease, transform 160ms ease;
+  background: var(--surface);
+  color: var(--accent-text);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
-.btn:hover { background: var(--plum); color: #FFF8EC; transform: translateY(-1px); }
-@media (prefers-color-scheme: dark) { .btn:hover { background: #8C1F1F; } }
-
-.note { font-size: var(--step--1); color: var(--ink-soft); }
+/* A small gold lozenge, the same ornament-only gold used elsewhere. */
+.coming-soon .mark {
+  flex: none;
+  width: 0.5rem; height: 0.5rem;
+  background: var(--gold);
+  transform: rotate(45deg);
+}
 
 /* --- The app icon, shown the way a store listing shows it ----------------- */
 .app-icon {
@@ -167,10 +173,6 @@ a:hover { color: var(--accent); }
      shows it the same shape a home screen will. */
   border-radius: 22.5%;
   box-shadow: 0 18px 44px -18px var(--glass-shadow);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .btn { transition: none; }
 }
 
 /* --- Sections ------------------------------------------------------------ */

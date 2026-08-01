@@ -124,7 +124,7 @@ class FavoritesManager extends ChangeNotifier {
   bool get initialized => _initialized;
 
   /// Stable identity for a parish: its `parish_id` when present, otherwise
-  /// name + city + address (8 of 189 records ship without an id).
+  /// name + city + address (a handful of records ship without an id).
   static String keyFor(Parish parish) {
     final id = parish.parishId?.trim();
     if (id != null && id.isNotEmpty) return 'id:$id';

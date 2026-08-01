@@ -1,9 +1,13 @@
 # ParishFinder Privacy Policy
 
-**Last updated: 28 July 2026**
+**Last updated: 1 August 2026**
 
 ParishFinder helps you find Catholic parishes, Mass times, confession and
-adoration schedules in the Cleveland/Akron, Ohio area.
+adoration schedules across the Diocese of Cleveland.
+
+ParishFinder is a personal project of Fr. Michael Garvin, and is not an official
+function or arm of the Roman Catholic Diocese of Cleveland. "We" and "us" below
+mean him.
 
 The short version: **ParishFinder has no accounts, no advertising, and no
 analytics or tracking.** It does not build a profile of you, and it never sells
@@ -19,7 +23,7 @@ what you deliberately submit through the feedback form.
 If you use the **Map** tab and grant location permission, the app reads your
 device's approximate or precise location.
 
-Your location is used **only on your device**, to centre the map near you and to
+Your location is used **only on your device**, to center the map near you and to
 sort parishes by distance. It is **not transmitted to us**, not stored after the
 screen is closed, and not shared with anyone.
 
@@ -116,7 +120,7 @@ example the parish and roughly when you sent it).
 Mass, confession, and adoration times are compiled from publicly available parish
 bulletins and websites. They can change without notice, particularly around holy
 days and holidays. ParishFinder makes no guarantee of accuracy — please confirm
-with the parish directly before travelling.
+with the parish directly before traveling.
 
 ---
 

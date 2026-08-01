@@ -35,11 +35,11 @@ or add a redirect.
 - **`privacy.html` and the repo's `PRIVACY.md` are the same policy in two
   formats.** Edit both, or the hosted version will drift from the one under
   version control. The hosted one is what Play and users actually see.
-- **The "189 parishes" figure** on the landing page comes from the live
+- **The "184 parishes" figure** on the landing page comes from the live
   `export.json`. Re-check it when the dataset grows.
-- **The launch CTA** currently reads "Coming soon to Google Play" and points at
-  a mailto. Swap it for a real Play badge and store link once the listing is
-  live.
+- **The launch badge** is inert copy — "Coming soon to Google Play and the Apple
+  App Store", no button and no waiting list. Swap it for real store badges and
+  links once the listings are live.
 
 ## Design notes
 

@@ -80,7 +80,8 @@ static const _remoteUrl =
 
 The bundled `data/parishes.json` asset is no longer shipped — first launch requires a
 network connection (an "Internet Required" screen handles that case). Use the local
-`export.demo.json` (new shape, 189 parishes) for inspection.
+`export.demo.json` (new shape, 189 records — an older snapshot; the live data is
+now 184 parishes) for inspection.
 
 ### Data Model
 
@@ -92,7 +93,7 @@ network connection (an "Internet Required" screen handles that case). Use the lo
 - `bulletinUrl`, `eventsSummary`, `imageUrl`, `contactInfo` — optional
 - `latitude`, `longitude` — nullable plain floats (now present in the data)
 - `lastUpdated` — parsed from the per-record `timestamp`
-- `inviteFeedback: bool` — from `invite_feedback`; true (13 of 189) means the schedule was never machine-verified from a bulletin, so `ParishDetailPage` shows an `InviteFeedbackCard` under the next-Mass banner asking the user to confirm or correct the times. Defaults to false if the key is missing (older cached JSON).
+- `inviteFeedback: bool` — from `invite_feedback`; true (13 parishes as of the 2026-07-22 data) means the schedule was never machine-verified from a bulletin, so `ParishDetailPage` shows an `InviteFeedbackCard` under the next-Mass banner asking the user to confirm or correct the times. Defaults to false if the key is missing (older cached JSON).
 
 JSON comes from the **structured** `export.json` shape:
 - `schedules.mass[]`: `{day, start "HH:MM", mass_date, language, notes}`
@@ -151,7 +152,7 @@ urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 ### Parish Data
 
-Data is fetched at runtime from the remote `export.json` (189 parishes, Cleveland/Akron
+Data is fetched at runtime from the remote `export.json` (184 parishes, Cleveland/Akron
 area) — see Data Flow above. The **structured** shape (sample, abbreviated):
 ```json
 {

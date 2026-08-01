@@ -47,16 +47,13 @@ ships. Nothing reads this file at build time — there is no build step.
 > Discover the *Life* of the Church
 
 ### Lede [hero.lede]
-> Mass, confession, and adoration across 189 Catholic parishes — the feasts, the hours, and what's happening today, gathered from the bulletins so you don't have to hunt through them.
+> Masses, confession, and adoration across 184 Catholic parishes — the feasts, the hours, and what's happening today, gathered from the bulletins so you don't have to hunt through them.
 
-### Button [hero.cta]
-> Tell me when it launches
+### Coming-soon badge [hero.note]
+> Coming soon to Google~Play and the Apple~App~Store
 
-### Button email subject line [hero.cta.subject]
-> ParishFinder — tell me when it launches
-
-### Note beside the button [hero.note]
-> Coming soon to Google~Play and the Apple App Store 
+> There is no button and no waiting list — this is a status badge, not a
+> control. Replace it with real store links once the listings are live.
 
 ### App icon alt text [hero.icon.alt]
 > The ParishFinder app icon: a gold church in a stained-glass roundel.
@@ -67,10 +64,10 @@ ships. Nothing reads this file at build time — there is no build step.
 ## Section: What it does
 
 ### Heading [features.h2]
-> What it does
+> What is it?
 
 ### Intro [features.intro]
-> Everything works from one screen, and everything keeps working without a signal.
+> Parishes around you, all in the palm of your hand. Find what you need quickly for the parishes nearby!
 
 ### Feature 1 title [feature.next-mass.title]
 > The next Mass
@@ -82,45 +79,45 @@ ships. Nothing reads this file at build time — there is no build step.
 > Parishes near you
 
 ### Feature 2 body [feature.map.body]
-> A map of what's around you. Swipe the carousel for schedules, or tap a marker for the full parish page.
+> New to the area? Look at a map of what's around you. Swipe the carousel for schedules, or tap a marker for the full parish page.
 
 ### Feature 3 title [feature.search.title]
 > Search that understands you
 
 ### Feature 3 body [feature.search.body]
-> By name, city, or ZIP. “St”, “St.”, “Saint”, and “Sts” all find what you meant.
+> Easily find the church you're looking for.
 
 ### Feature 4 title [feature.confession.title]
 > Confession & adoration
 
 ### Feature 4 body [feature.confession.body]
-> Filter for parishes offering either, sorted by distance or by what's happening soonest. Perpetual chapels are marked.
+> Whether you're planning ahead or the Spirit is moving you now, find where Confession and Adoration are being offered.
 
 ### Feature 5 title [feature.favorites.title]
 > Your home parishes
 
 ### Feature 5 body [feature.favorites.body]
-> Keep the parishes you actually attend at the top, one tap away.
+> Keep the parishes you call home easily accessible, one tap away.
 
 ### Feature 6 title [feature.liturgy.title]
 > The liturgical day
 
 ### Feature 6 body [feature.liturgy.body]
-> Today's feast, saint, and season at a glance — computed on your phone, so it's right even offline.
+> Wondering what orations will be used? See today's feast, saint, or season at a glance.
 
 ## Section: Built from the bulletins
 
 ### Heading [coverage.h2]
-> Built from the bulletins
+> Compiled from bulletins
 
 ### Big number [coverage.figure]
-> 189
+> 184
 
 ### Text beside the number [coverage.caption]
-> parishes across Cuyahoga, Summit, and the surrounding counties — each schedule read out of a real parish bulletin or website rather than guessed at.
+> parishes across the 8 counties of the Diocese of Cleveland — each schedule is pulled from the parish bulletin, *the* most up-to-date resource at a parish.
 
 ### Paragraph below [coverage.body]
-> Times change, especially around holy days. Every parish page has a one-tap way to confirm what's right or report what isn't, and those corrections come straight to the person maintaining the data. Where a schedule couldn't be verified, the app says so rather than pretending otherwise.
+> Times change, especially around the holidays or holy days. In case something is missed, feedback can be given on a parish's data, crowdsourcing any changes that might need to be made. If we can't verify a parish's schedule, we'll let you know!
 
 ## Section: Privacy
 
@@ -128,16 +125,16 @@ ships. Nothing reads this file at build time — there is no build step.
 > No ads. No accounts. No tracking.
 
 ### Point 1 [privacy.point.location]
-> **Your location never leaves your phone.** It's used on the device to centre the map and sort by distance — it is never transmitted or stored.
+> **Your location never leaves your phone.** It's used on the device to center the map and sort by distance — it is never transmitted or stored.
 
 ### Point 2 [privacy.point.accounts]
-> **There's nothing to sign up for.** No account, no email required, no profile.
+> **There's nothing to sign up for.** No account, no email required, no profile. And it's totally free.
 
 ### Point 3 [privacy.point.tracking]
-> **No analytics, no advertising, no third-party SDKs.** Even the typefaces on this page are served from here rather than from Google.
+> **No analytics, no advertising, no third-party SDKs.** We're not here to sell you ads. We're here to get you to church.
 
 ### Point 4 [privacy.point.offline]
-> **It works offline.** Schedules are cached on your phone — including in a church basement with no signal.
+> **It works offline.** Schedules are cached on your phone — after setting it up once, it'll work anywhere, even in the parish hall that has absolutely no reception.
 
 ### Link below the panel [privacy.link]
 > [Read the full privacy policy](privacy.html)
@@ -145,10 +142,10 @@ ships. Nothing reads this file at build time — there is no build step.
 ## Footer
 
 ### Line 1 [footer.line1]
-> **ParishFinder** — Mass times for Greater Cleveland and Akron.
+> **ParishFinder** — Mass times for the Diocese of Cleveland
 
 ### Line 2 [footer.line2]
-> Not affiliated with or endorsed by the Roman Catholic Diocese of Cleveland.
+> A personal project of Fr. Michael Garvin. Not an official function or arm of the Roman Catholic Diocese of Cleveland.
 
 ### Line 3 — attributions [footer.line3]
 > Map data © OpenStreetMap contributors. Monstrance icon by Ahmad Roaayala, Noun Project (CC BY 3.0). Inter and Cormorant Garamond under the SIL Open Font License 1.1.
@@ -177,10 +174,13 @@ ships. Nothing reads this file at build time — there is no build step.
 > Privacy Policy
 
 ### Last-updated date [pp.updated]
-> Last updated 28 July 2026
+> Last updated 1 August 2026
 
 ### Lead paragraph [pp.lead]
 > ParishFinder has no accounts, no advertising, and no analytics or tracking. It does not build a profile of you, and it never sells or shares personal information. The only information that leaves your device is what you deliberately submit through the feedback form.
+
+### Who runs it [pp.operator]
+> ParishFinder is a personal project of Fr. Michael Garvin, and is not an official function or arm of the Roman Catholic Diocese of Cleveland. “We” and “us” below mean him. It covers parishes across the Diocese of Cleveland.
 
 ## Information the app handles
 
@@ -191,7 +191,7 @@ ships. Nothing reads this file at build time — there is no build step.
 > Location
 
 ### Location paragraph 1 [pp.location.p1]
-> If you use the Map tab and grant location permission, the app reads your device's approximate or precise location. Your location is used **only on your device**, to centre the map near you and to sort parishes by distance. It is **not transmitted to us**, not stored after the screen is closed, and not shared with anyone.
+> If you use the Map tab and grant location permission, the app reads your device's approximate or precise location. Your location is used **only on your device**, to center the map near you and to sort parishes by distance. It is **not transmitted to us**, not stored after the screen is closed, and not shared with anyone.
 
 ### Location paragraph 2 [pp.location.p2]
 > Location permission is optional. If you decline it, every other part of the app — search, parish details, schedules, home parishes — continues to work; the map simply opens at a default view of the region. You can revoke location access at any time in Android Settings → Apps → ParishFinder → Permissions.
@@ -310,7 +310,7 @@ ships. Nothing reads this file at build time — there is no build step.
 > Accuracy disclaimer
 
 ### Body [pp.accuracy.body]
-> Mass, confession, and adoration times are compiled from publicly available parish bulletins and websites. They can change without notice, particularly around holy days and holidays. ParishFinder makes no guarantee of accuracy — please confirm with the parish directly before travelling.
+> Mass, confession, and adoration times are compiled from publicly available parish bulletins and websites. They can change without notice, particularly around holy days and holidays. ParishFinder makes no guarantee of accuracy — please confirm with the parish directly before traveling.
 
 ## Changes to this policy
 
@@ -340,15 +340,15 @@ ships. Nothing reads this file at build time — there is no build step.
   the privacy text here, that file needs the same edit or the two will drift.
   The hosted page is what Play and users actually see.
 
-- **The "189 parishes" figure appears three times** — the meta description, the
-  hero lede, and the big number. It comes from the live `export.json`, so all
-  three move together when the dataset grows.
+- **The "184 parishes" figure appears twice** — the hero lede and the big
+  number. It comes from the live `export.json`, so both move together when the
+  dataset changes.
 
 - **The privacy claims are load-bearing.** Statements like "your location never
   leaves your phone" and "no analytics" are what the app was built to be able to
   say, and Play's Data Safety form is filled out to match. If you soften or
   strengthen any of them, `docs/play-data-safety.md` needs to agree.
 
-- **The launch CTA is a placeholder.** "Tell me when it launches" and "Coming
-  soon to Google Play" both need replacing with a real Play badge and store link
-  once the listing is live.
+- **The launch badge is a placeholder.** "Coming soon to Google Play and the
+  Apple App Store" needs replacing with real store badges and links once the
+  listings are live. There is deliberately no waiting list and no CTA button.

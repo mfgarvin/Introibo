@@ -25,7 +25,8 @@ class Parish {
 
   /// True when this parish's schedule was never machine-verified from a
   /// bulletin — either it's hand-maintained (no bulletin to scrape) or the
-  /// scraper can't read the parish's website. True for 13 of 189 records.
+  /// scraper can't read the parish's website. True for a small minority of
+  /// records (13 as of the 2026-07-22 data).
   ///
   /// A churchgoer looking at the screen knows more than the data does here, so
   /// the detail page invites feedback up front. `false` is *not* a correctness

@@ -134,9 +134,9 @@ and that chooses the colour:
   friar — the palettes suited to it are preferred.
 
 28 palettes in total, **12 of them pale**, so the range runs from Chartres blue to
-a grisaille barely tinted at all. In a diocese of 189 parishes, 188 names resolve
-to a patron; the one that doesn't is spread across the families by hash so it
-never looks like a fallback.
+a grisaille barely tinted at all. Across the diocese, nearly every parish name
+resolves to a patron; the handful that don't are spread across the families by
+hash so they never look like a fallback.
 
 Two consequences for any asset work:
 
