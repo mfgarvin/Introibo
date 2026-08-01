@@ -30,6 +30,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+# Gradle emits this one outside the Flutter /build/ tree.
+/android/build/
 
 # Symbolication related
 app.*.symbols
@@ -41,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Design handoff bundles. The extracted directory IS committed — tool/gen_icons.py
+# reads the vector icon source out of it — but the zip alongside it is redundant.
+ParishFinder app icon design*.zip

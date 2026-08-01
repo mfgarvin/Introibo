@@ -48,8 +48,22 @@ def resolvedVersionCode = gitBuildNumber == null
         ? pubspecBuildNumber
         : Math.max(gitBuildNumber, pubspecBuildNumber)
 
+// Release signing credentials live in android/key.properties, which is
+// gitignored — never commit the keystore or its passwords. See
+// docs/play-release.md for how to generate the keystore and populate this file.
+// When the file is absent (CI without secrets, a fresh clone, or anyone just
+// running debug builds) release signing is simply left unconfigured; the
+// `release` buildType below turns that into a loud failure rather than a
+// silently debug-signed AAB, which Play rejects on upload.
+def keystorePropertiesFile = rootProject.file("key.properties")
+def keystoreProperties = new Properties()
+def hasKeystore = keystorePropertiesFile.exists()
+if (hasKeystore) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
-    namespace = "com.example.parishfinder"
+    namespace = "app.parishfinder"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -63,25 +77,51 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.parishfinder"
+        // Reverse-DNS of parishfinder.app. This is permanent once the first
+        // build is uploaded to Play — it can never be changed for this listing.
+        applicationId = "app.parishfinder"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // minSdk = flutter.minSdkVersion
-        minSdkVersion = flutter.minSdkVersion
-        targetSdk = 35
-        // minSdkVersion 21
-        // targetSdkVersion 35
-        // targetSdk = flutter.targetSdkVersion
+        minSdk = flutter.minSdkVersion
+        // Play requires API 36 for new app submissions from 2026-08-31.
+        // Android 16 makes edge-to-edge non-optional — verify insets on device.
+        targetSdk = flutter.targetSdkVersion
         versionCode = resolvedVersionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasKeystore) {
+            release {
+                storeFile = file(keystoreProperties['storeFile'])
+                storePassword = keystoreProperties['storePassword']
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            if (hasKeystore) {
+                signingConfig = signingConfigs.release
+            } else if (isReleaseBuild) {
+                // Debug-signed artifacts are rejected by Play, and a debug key
+                // that reached production could never be rotated. Fail here
+                // instead of producing an upload that looks fine until it isn't.
+                throw new GradleException(
+                        "Release build requires android/key.properties with the " +
+                        "upload keystore details (storeFile, storePassword, " +
+                        "keyAlias, keyPassword). See docs/play-release.md.")
+            }
+
+            // R8 shrinking + resource stripping. Keeps the AAB small and strips
+            // unreachable code; Flutter ships the keep rules its engine needs.
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro")
         }
     }
 }

@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'models/parish.dart';
 import 'services/parish_service.dart';
 import 'pages/parish_detail_page.dart';
@@ -40,6 +41,23 @@ const String kDisclaimerSeenKey = 'disclaimer_seen_v1';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inter and Cormorant Garamond ship in assets/google_fonts/, so never reach
+  // out to fonts.gstatic.com. That keeps the user's IP away from Google, and
+  // means a first launch with no network renders in the real typefaces instead
+  // of falling back to a system font.
+  GoogleFonts.config.allowRuntimeFetching = false;
+
+  // The OFL requires the licence text to travel with the fonts. Registering it
+  // here surfaces it in the "Open source licenses" page on the About screen.
+  LicenseRegistry.addLicense(() async* {
+    for (final family in ['Inter', 'CormorantGaramond']) {
+      final license =
+          await rootBundle.loadString('assets/google_fonts/OFL-$family.txt');
+      yield LicenseEntryWithLineBreaks(['google_fonts'], license);
+    }
+  });
+
   await favoritesManager.init();
   await AppVersion.load();
   runApp(const ParishFinderApp());
@@ -650,8 +668,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         }
       }
 
+      // A fix can hang indefinitely indoors — a church basement is exactly
+      // where this app gets used — so cap the wait and fall through to the
+      // catch below rather than leaving the spinner up forever.
       final Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
       );
 
       setState(() {
@@ -914,7 +938,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Find Catholic masses near you',
+                    'Discover the Life of the Church',
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       color: _subtextColor,
@@ -1925,7 +1949,8 @@ class _HomeParishCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final next = ScheduleParser.findNextOccurrence(parish.massTimes);
+    final next = ScheduleParser.findNextOccurrence(
+        parish.massTimes, null, kCountMassInProgress);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -2670,7 +2695,38 @@ class AboutPage extends StatefulWidget {
   State<AboutPage> createState() => _AboutPageState();
 }
 
+const String _kContactEmail = 'contact@parishfinder.app';
+// Not live yet — the page is written (site/privacy.html) but the domain isn't
+// serving it, so this link will 404 until parishfinder.app goes up.
+const String _kPrivacyUrl = 'https://parishfinder.app/privacy';
+
 class _AboutPageState extends State<AboutPage> {
+  Future<void> _launchContactEmail() async {
+    final uri = Uri(scheme: 'mailto', path: _kContactEmail);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      // No mail client (common on desktop/emulator) — leave the user with the
+      // address on the clipboard rather than a dead tap.
+      await Clipboard.setData(const ClipboardData(text: _kContactEmail));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Copied $_kContactEmail to the clipboard'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _launchPrivacyPolicy() async {
+    final uri = Uri.parse(_kPrivacyUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open $_kPrivacyUrl')),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2721,36 +2777,20 @@ class _AboutPageState extends State<AboutPage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 20),
-              // App icon
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: kPrimaryColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.church,
-                  size: 64,
-                  color: kPrimaryColor,
-                ),
+              // App icon — the same roundel the launcher icons are rendered from
+              // (assets/icons/app_icon.png, generated by tool/gen_icons.py).
+              Image.asset(
+                'assets/icons/app_icon.png',
+                width: 112,
+                height: 112,
               ),
               const SizedBox(height: 24),
               // App name
-              Text(
-                'ParishFinder',
-                style: GoogleFonts.inter(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
+              Text('ParishFinder', style: AppText.titleHuge(color: textColor)),
               const SizedBox(height: 8),
               Text(
                 'Version ${AppVersion.display}',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: subtextColor,
-                ),
+                style: AppText.body(color: subtextColor),
               ),
               const SizedBox(height: 32),
               // Description card
@@ -2773,21 +2813,18 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Text(
                       'About This App',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
+                      style: AppText.titleLarge(color: textColor),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      // TODO: Fill in app description
-                      'ParishFinder helps you find Catholic parishes and Mass times in the Cleveland/Akron, Ohio area.',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: subtextColor,
-                        height: 1.5,
-                      ),
+                      'ParishFinder helps you to connect with Roman Catholic '
+                      'Churches in the Diocese of Cleveland.\n\n'
+                      'Schedules are compiled from the parish bulletin and can '
+                      'occasionally be mistaken or change without notice, '
+                      'especially on holy days and holidays. It’s always a '
+                      'good idea to double check with the parish before making '
+                      'plans.',
+                      style: AppText.body(color: subtextColor).copyWith(height: 1.5),
                     ),
                   ],
                 ),
@@ -2813,20 +2850,32 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Text(
                       'Credits',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
+                      style: AppText.titleLarge(color: textColor),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      // TODO: Fill in credits
-                      'Developed with love for the Catholic community.',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: subtextColor,
-                        height: 1.5,
+                      // The Noun Project icons are CC BY 3.0: attribution is a
+                      // license condition, so it has to be visible in the app
+                      // itself, not only in the repo's Attributions.txt.
+                      'With thanks to Tim Garvin and Tony Lofreso for their '
+                      'assistance and know-how.\n\n'
+                      'Map data © OpenStreetMap contributors, available under '
+                      'the Open Database License.\n\n'
+                      'Liturgical calendar data from '
+                      'calapi.inadiutorium.cz.\n\n'
+                      'Icons: “Monstrance” by Ahmad Roaayala and “Confession” '
+                      'by Luis Prado, from the Noun Project (CC BY 3.0).\n\n'
+                      'Typefaces: Inter and Cormorant Garamond (SIL Open Font '
+                      'License 1.1).',
+                      style: AppText.body(color: subtextColor).copyWith(height: 1.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Psalm 103:1',
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic,
+                        color: goldTextAccentFor(isDark: isDark),
                       ),
                     ),
                   ],
@@ -2853,23 +2902,88 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Text(
                       'Contact',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
+                      style: AppText.titleLarge(color: textColor),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      // TODO: Fill in contact info
-                      'feedback@massgpt.org',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: kPrimaryColor,
-                        height: 1.5,
+                      'Something wrong? Let us know.',
+                      style: AppText.body(color: subtextColor).copyWith(height: 1.5),
+                    ),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: _launchContactEmail,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.mail_outline,
+                              size: 18,
+                              color: primaryAccentFor(isDark: isDark),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _kContactEmail,
+                                style: AppText.body(
+                                  color: primaryAccentFor(isDark: isDark),
+                                ).copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor:
+                                      primaryAccentFor(isDark: isDark),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton.icon(
+                  onPressed: _launchPrivacyPolicy,
+                  icon: Icon(
+                    Icons.lock_outline,
+                    size: 18,
+                    color: goldTextAccentFor(isDark: isDark),
+                  ),
+                  label: Text(
+                    'Privacy policy',
+                    style: AppText.body(
+                      color: goldTextAccentFor(isDark: isDark),
+                    ),
+                  ),
+                ),
+              ),
+              // The full dependency licence tree (OFL for the typefaces, BSD
+              // for the Flutter packages, and so on). Flutter aggregates these
+              // automatically, which is the reliable way to stay compliant as
+              // dependencies change — the Credits card above only calls out
+              // the attributions a human reader is owed by name.
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => showLicensePage(
+                    context: context,
+                    applicationName: 'ParishFinder',
+                    applicationVersion: AppVersion.version,
+                    applicationLegalese: '© 2026 ParishFinder',
+                  ),
+                  icon: Icon(
+                    Icons.description_outlined,
+                    size: 18,
+                    color: goldTextAccentFor(isDark: isDark),
+                  ),
+                  label: Text(
+                    'Open source licenses',
+                    style: AppText.body(
+                      color: goldTextAccentFor(isDark: isDark),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 40),

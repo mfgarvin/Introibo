@@ -154,8 +154,13 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
         }
       }
 
+      // See the matching call in main.dart: bound the wait so an indoor fix
+      // that never arrives surfaces as an error state instead of a hang.
       final Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
       );
 
       setState(() {

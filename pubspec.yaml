@@ -1,5 +1,5 @@
 name: parishfinder
-description: "A new Flutter project."
+description: "Find Catholic parishes, Mass times, confession and adoration schedules in the Cleveland/Akron area."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,14 +34,14 @@ dependencies:
   # mapbox_gl: ^0.16.0
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
-  geolocator: ^10.0.1 #13.0.1
-  permission_handler: ^11.3.1
+  geolocator: ^14.0.3
+  permission_handler: ^12.0.3
   shared_preferences: ^2.2.2
   url_launcher: ^6.2.4
   cached_network_image: ^3.3.1
   http: ^1.2.0
   flutter_svg: ^2.0.10
-  package_info_plus: ^8.0.0
+  package_info_plus: ^10.2.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -49,6 +49,10 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  # Only used by lib/driver_main.dart, the dev-only entrypoint that enables the
+  # Flutter driver extension so tooling can drive the running app.
+  flutter_driver:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -71,6 +75,11 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/icons/
+    # Inter + Cormorant Garamond, bundled rather than fetched at runtime. The
+    # google_fonts package picks these up automatically by filename, so every
+    # GoogleFonts.inter()/cormorantGaramond() call site keeps working unchanged.
+    # See GoogleFonts.config.allowRuntimeFetching in lib/main.dart.
+    - assets/google_fonts/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -47,7 +47,7 @@ it. State which.
 
 ### 2.2 Header
 - [ ] Title reads **"ParishFinder"** in the display font, in the theme's primary accent (oxblood light / candlelight dark).
-- [ ] Subtitle "Find Catholic masses near you".
+- [ ] Subtitle "Discover the Life of the Church".
 - [ ] A **menu (⋮/hamburger) button** opens a popup with **Settings**, **Feedback**, **About** — each opens as a bottom-up slide dialog.
 
 ### 2.3 Today hero card (`TodayHeroCard`)

@@ -1,11 +1,11 @@
 {
-    "name": "massgpt_app_o1_preview",
-    "short_name": "massgpt_app_o1_preview",
+    "name": "ParishFinder",
+    "short_name": "ParishFinder",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FAF6EE",
+    "theme_color": "#8C1F1F",
+    "description": "Discover the Life of the Church — Mass, confession, and adoration times for Catholic parishes in Greater Cleveland and Akron.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

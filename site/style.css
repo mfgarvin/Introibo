@@ -1,0 +1,242 @@
+/* ---------------------------------------------------------------------------
+   Fonts are self-hosted, not pulled from Google. The app bundles them for the
+   same reason: no third party needs to learn who visited this page.
+   Both families are SIL Open Font License 1.1 — see fonts/OFL-*.txt.
+--------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Inter';
+  src: url('fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('fonts/Inter-Medium.ttf') format('truetype');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('fonts/Inter-SemiBold.ttf') format('truetype');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('fonts/CormorantGaramond-SemiBold.ttf') format('truetype');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('fonts/CormorantGaramond-Bold.ttf') format('truetype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* --- Tokens. Palette is the app's, from CLAUDE.md. ----------------------- */
+:root {
+  --parchment:   #FAF6EE;
+  --card:        #FFFCF4;
+  --ink:         #2A211C;   /* warm near-black, biased toward the oxblood */
+  --ink-soft:    #6B5A50;
+  --oxblood:     #8C1F1F;
+  --plum:        #4A2828;
+  --gold:        #C9A227;   /* ornament only — too pale to read as text */
+  --gold-text:   #8C5A14;   /* the text-safe gold */
+  --rule:        rgba(140, 90, 20, 0.22);
+  --glass-shadow: rgba(74, 40, 40, 0.13);
+
+  --bg:      var(--parchment);
+  --surface: var(--card);
+  --accent:  var(--oxblood);
+  --accent-text: var(--gold-text);
+
+  --measure: 62ch;
+  --step--1: clamp(0.82rem, 0.79rem + 0.14vw, 0.9rem);
+  --step-0:  clamp(1rem, 0.96rem + 0.2vw, 1.11rem);
+  --step-1:  clamp(1.2rem, 1.12rem + 0.4vw, 1.45rem);
+  --step-2:  clamp(1.6rem, 1.4rem + 0.9vw, 2.15rem);
+  --step-3:  clamp(2.4rem, 1.9rem + 2.3vw, 4rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:      #000000;      /* the app's OLED black */
+    --surface: #14100F;
+    --ink:     #F2EBE0;
+    --ink-soft: #A2938A;
+    --accent:  #B33232;
+    --accent-text: #D4A24A;  /* candlelight */
+    --rule:    rgba(212, 162, 74, 0.24);
+    --glass-shadow: rgba(0, 0, 0, 0.6);
+  }
+}
+/* The viewer's explicit choice must beat the OS preference in both directions. */
+:root[data-theme="dark"] {
+  --bg: #000000; --surface: #14100F; --ink: #F2EBE0; --ink-soft: #A2938A;
+  --accent: #B33232; --accent-text: #D4A24A;
+  --rule: rgba(212, 162, 74, 0.24); --glass-shadow: rgba(0, 0, 0, 0.6);
+}
+:root[data-theme="light"] {
+  --bg: #FAF6EE; --surface: #FFFCF4; --ink: #2A211C; --ink-soft: #6B5A50;
+  --accent: #8C1F1F; --accent-text: #8C5A14;
+  --rule: rgba(140, 90, 20, 0.22); --glass-shadow: rgba(74, 40, 40, 0.13);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: var(--step-0);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  line-height: 1.08;
+  text-wrap: balance;
+  margin: 0;
+}
+
+a { color: var(--accent-text); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; border-radius: 2px; }
+
+.wrap { width: min(100% - 2.5rem, 68rem); margin-inline: auto; }
+
+/* --- Hero ---------------------------------------------------------------- */
+.hero {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+  padding-block: clamp(3.5rem, 9vw, 7.5rem) clamp(3rem, 7vw, 5.5rem);
+}
+@media (max-width: 46rem) {
+  .hero { grid-template-columns: 1fr; gap: 3rem; }
+}
+
+.eyebrow {
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin: 0 0 1.25rem;
+}
+
+.hero h1 { font-size: var(--step-3); letter-spacing: -0.015em; }
+.hero h1 em { font-style: italic; color: var(--accent); }
+
+.lede {
+  font-size: var(--step-1);
+  color: var(--ink-soft);
+  max-width: 34ch;
+  margin: 1.5rem 0 2.25rem;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 0.9rem 1.5rem; align-items: center; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  background: var(--accent); color: #FFF8EC;
+  font-weight: 600; font-size: var(--step-0);
+  padding: 0.85rem 1.6rem;
+  border-radius: 2px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 160ms ease, transform 160ms ease;
+}
+.btn:hover { background: var(--plum); color: #FFF8EC; transform: translateY(-1px); }
+@media (prefers-color-scheme: dark) { .btn:hover { background: #8C1F1F; } }
+
+.note { font-size: var(--step--1); color: var(--ink-soft); }
+
+/* --- The app icon, shown the way a store listing shows it ----------------- */
+.app-icon {
+  max-width: 17rem;
+  width: 100%;
+  margin-inline: auto;
+}
+.app-icon img {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Matches the superellipse Android and iOS mask the icon with, so the site
+     shows it the same shape a home screen will. */
+  border-radius: 22.5%;
+  box-shadow: 0 18px 44px -18px var(--glass-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+}
+
+/* --- Sections ------------------------------------------------------------ */
+.section { padding-block: clamp(3rem, 7vw, 5rem); border-top: 1px solid var(--rule); }
+.section h2 { font-size: var(--step-2); margin-bottom: 0.6rem; }
+.section > .wrap > p { max-width: var(--measure); color: var(--ink-soft); margin-top: 0; }
+
+.features {
+  list-style: none; padding: 0; margin: 2.75rem 0 0;
+  display: grid; gap: 2.25rem 2.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+.features h3 { font-size: var(--step-1); margin-bottom: 0.35rem; }
+.features p { margin: 0; color: var(--ink-soft); font-size: var(--step--1); line-height: 1.6; }
+.features svg { width: 26px; height: 26px; fill: var(--accent-text); margin-bottom: 0.85rem; display: block; }
+
+/* --- Coverage figure ----------------------------------------------------- */
+.coverage {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem 1.5rem;
+  margin-top: 1.75rem;
+}
+.figure {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 700; font-size: clamp(3.5rem, 9vw, 5.5rem);
+  line-height: 1; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Privacy panel ------------------------------------------------------- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: clamp(1.75rem, 4vw, 2.75rem);
+  margin-top: 2rem;
+}
+.panel ul { margin: 1.25rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.6rem; }
+.panel li { color: var(--ink-soft); }
+.panel li strong { color: var(--ink); font-weight: 600; }
+
+/* --- Footer -------------------------------------------------------------- */
+footer { border-top: 1px solid var(--rule); padding-block: 3rem 4rem; }
+.foot-grid { display: flex; flex-wrap: wrap; gap: 1.5rem 3rem; justify-content: space-between; }
+.colophon { font-size: var(--step--1); color: var(--ink-soft); max-width: 46ch; }
+.colophon p { margin: 0 0 0.7rem; }
+.foot-links { display: flex; flex-direction: column; gap: 0.5rem; font-size: var(--step--1); }
+
+/* --- Prose pages (privacy policy) ---------------------------------------- */
+.prose { padding-block: clamp(2.5rem, 6vw, 4.5rem) 4rem; }
+.prose .back {
+  display: inline-block; font-size: var(--step--1); font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2.5rem;
+}
+.prose h1 { font-size: var(--step-3); margin-bottom: 0.5rem; }
+.prose .updated { color: var(--ink-soft); font-size: var(--step--1); margin: 0 0 2.5rem; }
+.prose h2 {
+  font-size: var(--step-2); margin: 3rem 0 0.75rem;
+  padding-top: 2rem; border-top: 1px solid var(--rule);
+}
+.prose h3 { font-size: var(--step-1); margin: 2rem 0 0.5rem; }
+.prose p, .prose li { max-width: var(--measure); }
+.prose p { margin: 0 0 1.1rem; }
+.prose ul { padding-left: 1.1rem; margin: 0 0 1.25rem; display: grid; gap: 0.5rem; }
+.prose .lead { font-size: var(--step-1); color: var(--ink); max-width: var(--measure); }
+.prose .table-scroll { overflow-x: auto; margin: 0 0 1.5rem; }
+.prose table { border-collapse: collapse; font-size: var(--step--1); min-width: 34rem; }
+.prose th, .prose td { text-align: left; padding: 0.6rem 1.25rem 0.6rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.prose th { font-weight: 600; }
+.prose td:last-child { color: var(--ink-soft); }

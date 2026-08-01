@@ -1,4 +1,4 @@
-package com.example.parishfinder
+package app.parishfinder
 
 import io.flutter.embedding.android.FlutterActivity
 
