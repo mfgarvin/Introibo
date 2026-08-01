@@ -31,8 +31,11 @@ Location permission is optional. If you decline it, every other part of the app 
 search, parish details, schedules, home parishes — continues to work; the map
 simply opens at a default view of the region.
 
-You can revoke location access at any time in Android **Settings → Apps →
-ParishFinder → Permissions**.
+You can revoke location access at any time:
+
+- **Android** — Settings → Apps → ParishFinder → Permissions → Location
+- **iPhone or iPad** — Settings → Privacy & Security → Location Services →
+  ParishFinder
 
 ### Feedback you submit
 

@@ -7,6 +7,7 @@ site/
   index.html      landing page
   privacy.html    privacy policy — Play requires this at a public URL
   style.css       shared tokens + styles for both pages
+  theme.js        light/dark switch — the only script on the site
   fonts/          Inter + Cormorant Garamond, self-hosted, with their OFL texts
 ```
 
@@ -44,10 +45,29 @@ or add a redirect.
 ## Design notes
 
 Palette and typefaces are the app's own, from `CLAUDE.md` — parchment `#FAF6EE`
-over oxblood `#8C1F1F` with gold `#C9A227` used strictly as ornament, and the
-OLED-black dark theme the app uses. Gold never carries text; `#8C5A14`
-(light) and `#D4A24A` (dark) do that job, because `#C9A227` is too pale to meet
-contrast on parchment.
+over oxblood `#8C1F1F` with gold `#C9A227` used strictly as ornament. Gold never
+carries text; `#8C5A14` (light) and `#D4A24A` (dark) do that job, because
+`#C9A227` is too pale to meet contrast on parchment.
+
+**Dark mode deliberately does not use the app's OLED `#000000`.** On a phone that
+black saves power and the content is a narrow column; across a wide page it
+turned the warm palette into a void and made the gold glare against it. The site
+uses a warm plum-black instead — `#17100F` ground, `#241A18` surfaces — so night
+reads as the same parchment world after dark rather than a different product.
+If you ever sync tokens back from the app, keep this one diverging on purpose.
+
+The page's one texture is the **quarry diaper** — the faint diagonal lattice the
+app's `_StainedGlassPainter` strokes across a parish header. It's on `<body
+class="diaper">` at ~5% alpha. It's the only ornament borrowed from the app's
+own drawing code rather than invented for the web, which is what makes the site
+feel like the same object as the app.
+
+`theme.js` is the only script. It's loaded synchronously in `<head>` so
+`[data-theme]` lands before first paint (otherwise a viewer whose saved choice
+differs from their OS setting gets a flash of the wrong theme), and it *builds*
+the toggle button rather than the markup shipping one — no JS, no dead control,
+just the OS preference. The choice is kept in `localStorage`; nothing leaves the
+browser.
 
 Fonts are served from `fonts/` rather than a CDN. That's deliberate and matches
 the app, which bundles them: nothing about a visitor reaches a third party.

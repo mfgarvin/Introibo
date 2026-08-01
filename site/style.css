@@ -40,12 +40,21 @@
   --gold:        #C9A227;   /* ornament only — too pale to read as text */
   --gold-text:   #8C5A14;   /* the text-safe gold */
   --rule:        rgba(140, 90, 20, 0.22);
+  --rule-strong: rgba(140, 90, 20, 0.4);
   --glass-shadow: rgba(74, 40, 40, 0.13);
 
   --bg:      var(--parchment);
+  /* A second, very slightly deeper ground so sections can alternate without
+     either one reading as a coloured band. */
+  --bg-sunk: #F4EEE2;
   --surface: var(--card);
   --accent:  var(--oxblood);
   --accent-text: var(--gold-text);
+  /* Wash behind icon roundels and the coverage figure — the light coming
+     through the glass, not a filled shape. */
+  --halo:    rgba(140, 31, 31, 0.07);
+  --diaper:  rgba(140, 90, 20, 0.055);  /* the quarry lattice, barely there */
+  --lift:    0 1px 2px rgba(74, 40, 40, 0.05), 0 12px 28px -20px var(--glass-shadow);
 
   --measure: 62ch;
   --step--1: clamp(0.82rem, 0.79rem + 0.14vw, 0.9rem);
@@ -55,40 +64,73 @@
   --step-3:  clamp(2.4rem, 1.9rem + 2.3vw, 4rem);
 }
 
+/* Dark is a *night-time* version of the parchment world — deep warm plum-black
+   with candlelight on it, not the app's OLED #000. Pure black on a wide desktop
+   page turns the parchment palette into a void and makes the gold glare; these
+   grounds keep the same warmth the light theme has. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg:      #000000;      /* the app's OLED black */
-    --surface: #14100F;
-    --ink:     #F2EBE0;
-    --ink-soft: #A2938A;
-    --accent:  #B33232;
+    --bg:       #17100F;
+    --bg-sunk:  #1D1513;
+    --surface:  #241A18;
+    --ink:      #F2EBE0;
+    --ink-soft: #B6A69B;
+    --accent:   #C24343;
     --accent-text: #D4A24A;  /* candlelight */
-    --rule:    rgba(212, 162, 74, 0.24);
+    --rule:     rgba(212, 162, 74, 0.2);
+    --rule-strong: rgba(212, 162, 74, 0.42);
     --glass-shadow: rgba(0, 0, 0, 0.6);
+    --halo:     rgba(212, 162, 74, 0.09);
+    --diaper:   rgba(212, 162, 74, 0.05);
+    --lift:     0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 28px -20px rgba(0, 0, 0, 0.8);
   }
 }
 /* The viewer's explicit choice must beat the OS preference in both directions. */
 :root[data-theme="dark"] {
-  --bg: #000000; --surface: #14100F; --ink: #F2EBE0; --ink-soft: #A2938A;
-  --accent: #B33232; --accent-text: #D4A24A;
-  --rule: rgba(212, 162, 74, 0.24); --glass-shadow: rgba(0, 0, 0, 0.6);
+  --bg: #17100F; --bg-sunk: #1D1513; --surface: #241A18;
+  --ink: #F2EBE0; --ink-soft: #B6A69B;
+  --accent: #C24343; --accent-text: #D4A24A;
+  --rule: rgba(212, 162, 74, 0.2); --rule-strong: rgba(212, 162, 74, 0.42);
+  --glass-shadow: rgba(0, 0, 0, 0.6);
+  --halo: rgba(212, 162, 74, 0.09); --diaper: rgba(212, 162, 74, 0.05);
+  --lift: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 28px -20px rgba(0, 0, 0, 0.8);
 }
 :root[data-theme="light"] {
-  --bg: #FAF6EE; --surface: #FFFCF4; --ink: #2A211C; --ink-soft: #6B5A50;
+  --bg: #FAF6EE; --bg-sunk: #F4EEE2; --surface: #FFFCF4;
+  --ink: #2A211C; --ink-soft: #6B5A50;
   --accent: #8C1F1F; --accent-text: #8C5A14;
-  --rule: rgba(140, 90, 20, 0.22); --glass-shadow: rgba(74, 40, 40, 0.13);
+  --rule: rgba(140, 90, 20, 0.22); --rule-strong: rgba(140, 90, 20, 0.4);
+  --glass-shadow: rgba(74, 40, 40, 0.13);
+  --halo: rgba(140, 31, 31, 0.07); --diaper: rgba(140, 90, 20, 0.055);
+  --lift: 0 1px 2px rgba(74, 40, 40, 0.05), 0 12px 28px -20px rgba(74, 40, 40, 0.13);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
 body {
   margin: 0;
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--ink);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: var(--step-0);
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+}
+
+/* The quarry lattice from the app's stained-glass headers, at a whisper. It is
+   the one texture in the app's own painter (`_StainedGlassPainter`, "fine
+   diaper"), so the page shares a surface with the product rather than
+   inventing one. */
+.diaper {
+  background-image:
+    repeating-linear-gradient(45deg,  var(--diaper) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(-45deg, var(--diaper) 0 1px, transparent 1px 26px);
 }
 
 h1, h2, h3 {
@@ -105,19 +147,67 @@ a:hover { color: var(--accent); }
 
 .wrap { width: min(100% - 2.5rem, 68rem); margin-inline: auto; }
 
+/* A shared ornament: the small gold lozenge, on its side, that the app uses as
+   a schedule bullet. Ornament only, never carrying meaning on its own. */
+.lozenge {
+  flex: none;
+  width: 0.5rem; height: 0.5rem;
+  background: var(--gold);
+  transform: rotate(45deg);
+}
+
+/* --- Masthead ------------------------------------------------------------ */
+/* A hairline banner in the app's oxblood-to-gold, so the page opens on the
+   palette before any content loads. */
+.banner { height: 3px; background: linear-gradient(90deg, var(--plum), var(--oxblood) 35%, var(--gold) 50%, var(--oxblood) 65%, var(--plum)); }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+  padding-block: 1.1rem;
+}
+.wordmark {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 700; font-size: var(--step-1);
+  color: var(--ink); text-decoration: none;
+  letter-spacing: -0.01em;
+  display: inline-flex; align-items: center; gap: 0.6rem;
+}
+.wordmark:hover { color: var(--accent); }
+.wordmark img { width: 1.6em; height: 1.6em; border-radius: 22.5%; display: block; }
+
+/* Theme switch. The stylesheet already honours [data-theme]; this is what
+   sets it. Progressive enhancement — the button is created by script, so a
+   viewer without JS simply gets their OS preference and no dead control. */
+.theme-toggle {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  color: var(--accent-text);
+  font: inherit; font-size: var(--step--1); font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.theme-toggle:hover { border-color: var(--rule-strong); color: var(--accent); }
+.theme-toggle svg { width: 1em; height: 1em; fill: currentColor; }
+
 /* --- Hero ---------------------------------------------------------------- */
 .hero {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
   gap: clamp(2rem, 5vw, 5rem);
   align-items: center;
-  padding-block: clamp(3.5rem, 9vw, 7.5rem) clamp(3rem, 7vw, 5.5rem);
+  padding-block: clamp(2.5rem, 7vw, 6rem) clamp(3rem, 7vw, 5.5rem);
 }
 @media (max-width: 46rem) {
   .hero { grid-template-columns: 1fr; gap: 3rem; }
 }
 
 .eyebrow {
+  display: inline-flex; align-items: center; gap: 0.65rem;
   font-size: var(--step--1);
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -150,20 +240,25 @@ a:hover { color: var(--accent); }
   font-size: var(--step--1);
   font-weight: 600;
   letter-spacing: 0.04em;
-}
-/* A small gold lozenge, the same ornament-only gold used elsewhere. */
-.coming-soon .mark {
-  flex: none;
-  width: 0.5rem; height: 0.5rem;
-  background: var(--gold);
-  transform: rotate(45deg);
+  box-shadow: var(--lift);
 }
 
 /* --- The app icon, shown the way a store listing shows it ----------------- */
 .app-icon {
+  position: relative;
   max-width: 17rem;
   width: 100%;
   margin-inline: auto;
+  /* Backlight, as if the icon were a lit window. Sits behind the tile and
+     bleeds past it, which is what keeps this from looking like a drop shadow. */
+  isolation: isolate;
+}
+.app-icon::before {
+  content: '';
+  position: absolute;
+  inset: -22%;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 45%, var(--halo), transparent 68%);
 }
 .app-icon img {
   display: block;
@@ -172,34 +267,86 @@ a:hover { color: var(--accent); }
   /* Matches the superellipse Android and iOS mask the icon with, so the site
      shows it the same shape a home screen will. */
   border-radius: 22.5%;
-  box-shadow: 0 18px 44px -18px var(--glass-shadow);
+  box-shadow:
+    0 0 0 1px var(--rule),
+    0 24px 56px -22px var(--glass-shadow),
+    0 8px 18px -12px var(--glass-shadow);
 }
 
 /* --- Sections ------------------------------------------------------------ */
 .section { padding-block: clamp(3rem, 7vw, 5rem); border-top: 1px solid var(--rule); }
+.section--sunk { background: var(--bg-sunk); }
 .section h2 { font-size: var(--step-2); margin-bottom: 0.6rem; }
+/* Small gold rule above each section heading — the seam between sections, in
+   ornament rather than another full-width hairline. */
+.section h2::before {
+  content: '';
+  display: block;
+  width: 2.5rem; height: 2px;
+  background: var(--gold);
+  margin-bottom: 1.1rem;
+}
 .section > .wrap > p { max-width: var(--measure); color: var(--ink-soft); margin-top: 0; }
 
+/* Three across, explicitly: there are six features, so auto-fit's four columns
+   left a ragged 4 + 2. Three gives two full rows. */
 .features {
   list-style: none; padding: 0; margin: 2.75rem 0 0;
-  display: grid; gap: 2.25rem 2.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  display: grid; gap: 1.25rem;
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 60rem) { .features { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 36rem) { .features { grid-template-columns: 1fr; } }
+.features li {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 1.6rem 1.5rem 1.75rem;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.features li:hover {
+  border-color: var(--rule-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--lift);
 }
 .features h3 { font-size: var(--step-1); margin-bottom: 0.35rem; }
 .features p { margin: 0; color: var(--ink-soft); font-size: var(--step--1); line-height: 1.6; }
-.features svg { width: 26px; height: 26px; fill: var(--accent-text); margin-bottom: 0.85rem; display: block; }
+/* Each glyph sits in a roundel, the way the church sits in one on the icon. */
+.features svg {
+  width: 2.9rem; height: 2.9rem;
+  padding: 0.7rem;
+  margin-bottom: 1rem;
+  display: block;
+  fill: var(--accent-text);
+  background: var(--halo);
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+}
 
 /* --- Coverage figure ----------------------------------------------------- */
 .coverage {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem 1.5rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 2rem;
   margin-top: 1.75rem;
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
 }
 .figure {
   font-family: 'Cormorant Garamond', Georgia, serif;
   font-weight: 700; font-size: clamp(3.5rem, 9vw, 5.5rem);
   line-height: 1; color: var(--accent);
   font-variant-numeric: tabular-nums;
+  /* Optical: the numeral is set solid, so its own leading is what separates it
+     from the rule beneath. */
+  padding-right: 2rem;
+  border-right: 1px solid var(--rule);
 }
+@media (max-width: 34rem) {
+  .figure { padding-right: 0; border-right: 0; }
+}
+.coverage p { max-width: 38ch; margin: 0; color: var(--ink-soft); }
+.note { margin-top: 2rem; }
 
 /* --- Privacy panel ------------------------------------------------------- */
 .panel {
@@ -209,36 +356,58 @@ a:hover { color: var(--accent); }
   padding: clamp(1.75rem, 4vw, 2.75rem);
   margin-top: 2rem;
 }
-.panel ul { margin: 1.25rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.6rem; }
-.panel li { color: var(--ink-soft); }
-.panel li strong { color: var(--ink); font-weight: 600; }
+/* Marker is the gold lozenge again, drawn rather than a list bullet. */
+.panel ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 1.1rem; }
+.panel li { position: relative; padding-left: 1.6rem; color: var(--ink-soft); }
+.panel li::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0.62em;
+  width: 0.45rem; height: 0.45rem;
+  background: var(--gold);
+  transform: rotate(45deg);
+}
+.panel li strong { color: var(--ink); font-weight: 600; display: block; }
+.read-more { margin-top: 1.5rem; }
 
 /* --- Footer -------------------------------------------------------------- */
-footer { border-top: 1px solid var(--rule); padding-block: 3rem 4rem; }
+footer { border-top: 1px solid var(--rule); padding-block: 3rem 4rem; background: var(--bg-sunk); }
 .foot-grid { display: flex; flex-wrap: wrap; gap: 1.5rem 3rem; justify-content: space-between; }
 .colophon { font-size: var(--step--1); color: var(--ink-soft); max-width: 46ch; }
 .colophon p { margin: 0 0 0.7rem; }
+.colophon strong { color: var(--ink); }
+/* Set off from the attributions above it — those credit other people's work,
+   this one is the notice for his. */
+.copyright {
+  margin-top: 1.1rem; padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+}
 .foot-links { display: flex; flex-direction: column; gap: 0.5rem; font-size: var(--step--1); }
 
 /* --- Prose pages (privacy policy) ---------------------------------------- */
-.prose { padding-block: clamp(2.5rem, 6vw, 4.5rem) 4rem; }
-.prose .back {
-  display: inline-block; font-size: var(--step--1); font-weight: 600;
-  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2.5rem;
-}
+.prose { padding-block: clamp(2rem, 5vw, 3.5rem) 4rem; }
 .prose h1 { font-size: var(--step-3); margin-bottom: 0.5rem; }
 .prose .updated { color: var(--ink-soft); font-size: var(--step--1); margin: 0 0 2.5rem; }
 .prose h2 {
   font-size: var(--step-2); margin: 3rem 0 0.75rem;
   padding-top: 2rem; border-top: 1px solid var(--rule);
 }
-.prose h3 { font-size: var(--step-1); margin: 2rem 0 0.5rem; }
+.prose h3 { font-size: var(--step-1); margin: 2rem 0 0.5rem; color: var(--accent); }
 .prose p, .prose li { max-width: var(--measure); }
 .prose p { margin: 0 0 1.1rem; }
 .prose ul { padding-left: 1.1rem; margin: 0 0 1.25rem; display: grid; gap: 0.5rem; }
-.prose .lead { font-size: var(--step-1); color: var(--ink); max-width: var(--measure); }
+.prose li::marker { color: var(--gold-text); }
+.prose .lead {
+  font-size: var(--step-1); color: var(--ink); max-width: var(--measure);
+  border-left: 2px solid var(--gold);
+  padding-left: clamp(1rem, 3vw, 1.5rem);
+}
 .prose .table-scroll { overflow-x: auto; margin: 0 0 1.5rem; }
 .prose table { border-collapse: collapse; font-size: var(--step--1); min-width: 34rem; }
 .prose th, .prose td { text-align: left; padding: 0.6rem 1.25rem 0.6rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
-.prose th { font-weight: 600; }
+.prose th {
+  font-weight: 600; color: var(--accent-text);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  border-bottom-color: var(--rule-strong);
+}
 .prose td:last-child { color: var(--ink-soft); }

@@ -11,18 +11,31 @@
 <meta property="og:description" content="Find Mass schedules and more for parishes around the Diocese of Cleveland.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://parishfinder.app">
+<meta property="og:image" content="https://parishfinder.app/app-icon-544.png">
+<meta name="twitter:card" content="summary">
 
+<link rel="canonical" href="https://parishfinder.app/">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
 <link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
 </head>
-<body>
+<body class="diaper">
+
+<div class="banner"></div>
+
+<header class="wrap topbar">
+  <a class="wordmark" href="/">
+    <img src="app-icon-544.png" alt="" width="544" height="544" decoding="async">
+    ParishFinder
+  </a>
+</header>
 
 <main>
-  <header class="wrap hero">
+  <div class="wrap hero">
     <div>
-      <p class="eyebrow">Diocese of Cleveland / Northeast Ohio</p>
+      <p class="eyebrow"><span class="lozenge" aria-hidden="true"></span>Diocese of Cleveland / Northeast Ohio</p>
       <h1>Discover the <em>Life</em> of the Church</h1>
       <p class="lede">
         Masses, confession, and adoration across 184 Catholic parishes — the feasts,
@@ -32,7 +45,7 @@
       <!-- No waiting list — nothing here collects an address. Swap this badge
            for real store links once the listings are live. -->
       <p class="coming-soon">
-        <span class="mark" aria-hidden="true"></span>
+        <span class="lozenge" aria-hidden="true"></span>
         Coming soon to Google&nbsp;Play and the Apple&nbsp;App&nbsp;Store
       </p>
     </div>
@@ -43,7 +56,7 @@
       <img src="app-icon-544.png" width="544" height="544" decoding="async"
            alt="The ParishFinder app icon: a gold church in a stained-glass roundel.">
     </div>
-  </header>
+  </div>
 
   <section class="section">
     <div class="wrap">
@@ -86,17 +99,17 @@
     </div>
   </section>
 
-  <section class="section">
+  <section class="section section--sunk">
     <div class="wrap">
       <h2>Compiled from bulletins</h2>
       <div class="coverage">
         <span class="figure">184</span>
-        <p style="max-width:38ch;margin:0;color:var(--ink-soft)">
+        <p>
           parishes across the 8 counties of the Diocese of Cleveland — each schedule is pulled from the
           parish bulletin, <em>the</em> most up-to-date resource at a parish.
         </p>
       </div>
-      <p style="margin-top:2rem">
+      <p class="note">
         Times change, especially around the holidays or holy days. In case something is missed, feedback
         can be given on a parish's data, crowdsourcing any changes that might need to be made. If we can't
         verify a parish's schedule, we'll let you know!
@@ -115,17 +128,18 @@
           <li><strong>It works offline.</strong> Schedules are cached on your phone — after setting it up once, it'll work anywhere, even in the parish hall that has absolutely no reception.</li>
         </ul>
       </div>
-      <p style="margin-top:1.5rem"><a href="privacy.html">Read the full privacy policy</a></p>
+      <p class="read-more"><a href="privacy.html">Read the full privacy policy</a></p>
     </div>
   </section>
 </main>
 
-<footer class="wrap">
-  <div class="foot-grid">
+<footer>
+  <div class="wrap foot-grid">
     <div class="colophon">
       <p><strong>ParishFinder</strong> — Mass times for the Diocese of Cleveland</p>
       <p>A personal project of Fr. Michael Garvin. Not an official function or arm of the Roman Catholic Diocese of Cleveland.</p>
       <p>Map data © OpenStreetMap contributors. Monstrance icon by Ahmad Roaayala, Noun Project (CC BY 3.0). Inter and Cormorant Garamond under the SIL Open Font License 1.1.</p>
+      <p class="copyright">© 2026 Fr. Michael Garvin. All rights reserved.</p>
     </div>
     <nav class="foot-links" aria-label="Footer">
       <a href="mailto:contact@parishfinder.app">contact@parishfinder.app</a>
