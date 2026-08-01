@@ -50,11 +50,14 @@ class _NextMassBannerState extends State<NextMassBanner> {
   Widget build(BuildContext context) {
     if (widget.schedule.isEmpty) return const SizedBox.shrink();
 
-    final next = ScheduleParser.findNextOccurrence(widget.schedule);
+    // Mass-only banner: a Mass already under way is not something to send
+    // someone to, so in-progress entries don't count (kCountMassInProgress).
+    final next =
+        ScheduleParser.findNextOccurrence(widget.schedule, null, kCountMassInProgress);
     if (next == null) return const SizedBox.shrink();
 
     final now = DateTime.now();
-    final occurrence = next.nextOccurrence(now);
+    final occurrence = next.nextOccurrence(now, kCountMassInProgress);
     final minutes = occurrence.difference(now).inMinutes;
     final countdown = _formatCountdown(minutes);
     final whenLabel = _whenLabel(occurrence, now);

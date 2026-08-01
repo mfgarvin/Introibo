@@ -47,10 +47,13 @@ class MassScheduleCard extends StatelessWidget {
 
     // Upcoming dated/holiday Masses (next ~21 days), soonest first.
     final special = items
-        .where((e) => e.isDated && !e.isPast(now))
-        .where((e) => e.minutesUntilNext(now) <= 21 * 24 * 60)
+        .where((e) => e.isDated && !e.isPast(now, kCountMassInProgress))
+        .where((e) =>
+            e.minutesUntilNext(now, kCountMassInProgress) <= 21 * 24 * 60)
         .toList()
-      ..sort((a, b) => a.nextOccurrence(now).compareTo(b.nextOccurrence(now)));
+      ..sort((a, b) => a
+          .nextOccurrence(now, kCountMassInProgress)
+          .compareTo(b.nextOccurrence(now, kCountMassInProgress)));
 
     final hasAny =
         weekend.isNotEmpty || weekday.isNotEmpty || special.isNotEmpty;
@@ -193,7 +196,7 @@ class MassScheduleCard extends StatelessWidget {
           _sectionLabel('Upcoming / Special'),
           const SizedBox(height: 10),
           ...entries.map((e) {
-            final d = e.nextOccurrence(now);
+            final d = e.nextOccurrence(now, kCountMassInProgress);
             final dateLabel = '${e.dayLabel} ${d.month}/${d.day}';
             return _row(dateLabel, e.timeLabel, e.note, e.languageBadge);
           }),

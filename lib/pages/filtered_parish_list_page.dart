@@ -149,6 +149,22 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   double _toRadians(double degrees) => degrees * math.pi / 180;
 
+  /// Whether a window already open counts as "soonest" for this list. True for
+  /// confession/adoration (come and go); false for Mass — see
+  /// [kCountMassInProgress]. The "all" list falls back to confession only when
+  /// a parish has no Mass times, so it follows the schedule actually used.
+  bool _countInProgressFor(Parish parish) {
+    switch (widget.filter) {
+      case ParishFilter.massTimes:
+        return kCountMassInProgress;
+      case ParishFilter.confession:
+      case ParishFilter.adoration:
+        return true;
+      case ParishFilter.all:
+        return parish.massTimes.isEmpty;
+    }
+  }
+
   void _calculateNextOccurrences() {
     for (final parish in _parishes) {
       List<ScheduleEntry> scheduleToCheck = [];
@@ -172,7 +188,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
       }
 
       // Calculate minutes until next occurrence
-      final minutes = ScheduleParser.minutesUntilNext(scheduleToCheck);
+      final minutes = ScheduleParser.minutesUntilNext(
+          scheduleToCheck, null, _countInProgressFor(parish));
       if (minutes != null) {
         _minutesUntilNext[parish.name] = minutes;
       }
@@ -321,7 +338,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
       // Check day filter
       if (_dayFilter != DayFilter.any) {
-        final nextOccurrence = entry.nextOccurrence(now);
+        final nextOccurrence =
+            entry.nextOccurrence(now, _countInProgressFor(parish));
         final eventDay = DateTime(nextOccurrence.year, nextOccurrence.month, nextOccurrence.day);
         final daysUntil = eventDay.difference(today).inDays;
 
@@ -1173,7 +1191,10 @@ class _ParishCard extends StatelessWidget {
       timeOfDay = 'tonight';
     }
 
-    if (minutes <= 30) {
+    if (minutes <= 0) {
+      // Negative means a ranged entry (adoration/confession) is underway.
+      return 'Happening now';
+    } else if (minutes <= 30) {
       return 'Starting soon';
     } else if (minutes <= 60) {
       return 'Within the hour';

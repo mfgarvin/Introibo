@@ -46,9 +46,10 @@ class NextMassTile extends StatefulWidget {
     int best = 1 << 30;
     for (final p in parishes) {
       if (p.massTimes.isEmpty) continue;
-      final next = ScheduleParser.findNextOccurrence(p.massTimes, now);
+      final next = ScheduleParser.findNextOccurrence(
+          p.massTimes, now, kCountMassInProgress);
       if (next == null) continue;
-      final m = next.minutesUntilNext(now);
+      final m = next.minutesUntilNext(now, kCountMassInProgress);
       if (m < best) best = m;
     }
     return best == 1 << 30 ? null : best;
@@ -83,9 +84,10 @@ class _NextMassTileState extends State<NextMassTile> {
 
     for (final p in widget.parishes) {
       if (p.massTimes.isEmpty) continue;
-      final next = ScheduleParser.findNextOccurrence(p.massTimes, now);
+      final next = ScheduleParser.findNextOccurrence(
+          p.massTimes, now, kCountMassInProgress);
       if (next == null) continue;
-      final m = next.minutesUntilNext(now);
+      final m = next.minutesUntilNext(now, kCountMassInProgress);
       if (m < bestMinutes) {
         bestMinutes = m;
         bestParish = p;
@@ -103,7 +105,7 @@ class _NextMassTileState extends State<NextMassTile> {
     if (hit == null) return const SizedBox.shrink();
 
     final now = DateTime.now();
-    final occurrence = hit.entry.nextOccurrence(now);
+    final occurrence = hit.entry.nextOccurrence(now, kCountMassInProgress);
     final today = DateTime(now.year, now.month, now.day);
     final daysAway =
         DateTime(occurrence.year, occurrence.month, occurrence.day)

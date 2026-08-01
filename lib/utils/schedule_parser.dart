@@ -1,5 +1,14 @@
 import 'package:flutter/foundation.dart';
 
+/// Pass as `countInProgress` wherever the schedule is Mass times.
+///
+/// Confession and adoration are come-and-go, so a window already open is the
+/// soonest thing available. A Mass is not: you're meant to be there for the
+/// start, so an in-progress one is skipped in favour of the next Mass. Mass
+/// entries carry no end time in today's `export.json` (so nothing can be "in
+/// progress" anyway), but the intent is stated rather than assumed.
+const bool kCountMassInProgress = false;
+
 /// A single structured schedule entry (one Mass, confession slot, or adoration
 /// period). Built directly from the pre-parsed `schedules` objects in
 /// `export.json` — see EXPORT_SHAPE_CHANGES.md. No string parsing happens
@@ -106,11 +115,59 @@ class ScheduleEntry {
     return DateTime.tryParse(value);
   }
 
+  /// End datetime of the occurrence beginning at [start], or null when the
+  /// entry has no range. A window whose end is not after its start (e.g.
+  /// 22:00–00:30) is treated as running into the next day.
+  DateTime? endOf(DateTime start) {
+    if (!hasRange) return null;
+    final end =
+        DateTime(start.year, start.month, start.day, endHour!, endMinute!);
+    return end.isAfter(start) ? end : end.add(const Duration(days: 1));
+  }
+
+  /// Start of the window currently underway (adoration open now, confession
+  /// line already going), or null when nothing is in progress. Only ranged
+  /// entries can be in progress. Checks today and yesterday, since a window
+  /// that crosses midnight began the day before.
+  DateTime? currentWindowStart([DateTime? fromTime]) {
+    if (!hasRange) return null;
+    final now = fromTime ?? DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    for (final offset in const [0, -1]) {
+      final day = today.add(Duration(days: offset));
+      if (date != null) {
+        if (day.year != date!.year ||
+            day.month != date!.month ||
+            day.day != date!.day) {
+          continue;
+        }
+      } else if (day.weekday != dayOfWeek) {
+        continue;
+      }
+      final start = DateTime(day.year, day.month, day.day, hour, minute);
+      if (!now.isBefore(start) && now.isBefore(endOf(start)!)) return start;
+    }
+    return null;
+  }
+
+  /// True when a ranged entry's window contains [fromTime].
+  bool isInProgress([DateTime? fromTime]) => currentWindowStart(fromTime) != null;
+
   /// Calculate the next occurrence of this entry from now.
+  ///
+  /// A ranged entry that is currently underway returns the start of the window
+  /// in progress (in the past), so "soonest" ranks it ahead of anything still
+  /// upcoming — you can walk into adoration or a confession line at any point.
+  /// Mass paths pass [countInProgress] `false`: you're expected to be there for
+  /// the start, so a Mass already under way should point at the next one.
   /// Dated entries return their fixed date/time (which may be in the past —
   /// callers filter those out). Weekly entries roll forward to the next match.
-  DateTime nextOccurrence([DateTime? fromTime]) {
+  DateTime nextOccurrence([DateTime? fromTime, bool countInProgress = true]) {
     final now = fromTime ?? DateTime.now();
+
+    final inProgress = countInProgress ? currentWindowStart(now) : null;
+    if (inProgress != null) return inProgress;
 
     if (date != null) {
       return DateTime(date!.year, date!.month, date!.day, hour, minute);
@@ -132,17 +189,21 @@ class ScheduleEntry {
     return DateTime(nextDate.year, nextDate.month, nextDate.day, hour, minute);
   }
 
-  /// Get minutes until the next occurrence (negative for past dated entries).
-  int minutesUntilNext([DateTime? fromTime]) {
+  /// Get minutes until the next occurrence (negative for past dated entries
+  /// and for a ranged entry whose window is already underway).
+  int minutesUntilNext([DateTime? fromTime, bool countInProgress = true]) {
     final now = fromTime ?? DateTime.now();
-    return nextOccurrence(now).difference(now).inMinutes;
+    return nextOccurrence(now, countInProgress).difference(now).inMinutes;
   }
 
   /// True if this is a dated entry whose occurrence is already in the past.
-  bool isPast([DateTime? fromTime]) {
+  /// A dated window still running counts as upcoming, not past — unless the
+  /// caller isn't counting in-progress entries (see [nextOccurrence]).
+  bool isPast([DateTime? fromTime, bool countInProgress = true]) {
     if (date == null) return false;
     final now = fromTime ?? DateTime.now();
-    return nextOccurrence(now).isBefore(now);
+    if (countInProgress && isInProgress(now)) return false;
+    return nextOccurrence(now, countInProgress).isBefore(now);
   }
 
   /// Abbreviated weekday, e.g. "Sun".
@@ -243,20 +304,25 @@ class ScheduleParser {
   static List<ScheduleEntry> _upcomingOnly(
     List<ScheduleEntry> entries,
     DateTime now,
+    bool countInProgress,
   ) {
-    return entries.where((e) => !e.isPast(now)).toList();
+    return entries.where((e) => !e.isPast(now, countInProgress)).toList();
   }
 
-  /// Find the soonest upcoming entry, or null.
+  /// Find the soonest upcoming entry, or null. Pass [countInProgress] `false`
+  /// for Mass schedules — see [ScheduleEntry.nextOccurrence].
   static ScheduleEntry? findNextOccurrence(
     List<ScheduleEntry> entries, [
     DateTime? fromTime,
+    bool countInProgress = true,
   ]) {
     final now = fromTime ?? DateTime.now();
-    final upcoming = _upcomingOnly(entries, now);
+    final upcoming = _upcomingOnly(entries, now, countInProgress);
     if (upcoming.isEmpty) return null;
     upcoming.sort(
-      (a, b) => a.minutesUntilNext(now).compareTo(b.minutesUntilNext(now)),
+      (a, b) => a
+          .minutesUntilNext(now, countInProgress)
+          .compareTo(b.minutesUntilNext(now, countInProgress)),
     );
     return upcoming.first;
   }
@@ -265,9 +331,11 @@ class ScheduleParser {
   static int? minutesUntilNext(
     List<ScheduleEntry> entries, [
     DateTime? fromTime,
+    bool countInProgress = true,
   ]) {
     final now = fromTime ?? DateTime.now();
-    return findNextOccurrence(entries, now)?.minutesUntilNext(now);
+    return findNextOccurrence(entries, now, countInProgress)
+        ?.minutesUntilNext(now, countInProgress);
   }
 
   /// Group entries by relative day buckets, sorted by occurrence.
@@ -275,12 +343,13 @@ class ScheduleParser {
   static Map<String, List<UpcomingEntry>> groupByBucket(
     List<ScheduleEntry> entries, [
     DateTime? fromTime,
+    bool countInProgress = true,
   ]) {
     final now = fromTime ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    final upcoming = _upcomingOnly(entries, now).map((e) {
-      final next = e.nextOccurrence(now);
+    final upcoming = _upcomingOnly(entries, now, countInProgress).map((e) {
+      final next = e.nextOccurrence(now, countInProgress);
       final eventDay = DateTime(next.year, next.month, next.day);
       return UpcomingEntry(
         entry: e,

@@ -21,6 +21,9 @@ Map<String, dynamic> windowJson(String day, String start, String end,
         {String? notes}) =>
     {'day': day, 'start': start, 'end': end, 'notes': notes};
 
+ScheduleEntry windowEntry(String day, String start, String end) =>
+    ScheduleEntry.fromJson(windowJson(day, start, end))!;
+
 void main() {
   group('ScheduleEntry.fromJson', () {
     test('parses a weekly Mass entry', () {
@@ -161,6 +164,69 @@ void main() {
       final weekly = ScheduleEntry.fromJson(massJson('Monday', '17:00'))!;
       final next = ScheduleParser.findNextOccurrence([past, weekly], now);
       expect(next, weekly); // past dated one is skipped
+    });
+
+    test('a window underway counts as in progress, not next week', () {
+      final now = DateTime(2026, 1, 5, 10, 0); // Monday 10am
+      final e = windowEntry('Monday', '08:00', '17:00');
+      expect(e.isInProgress(now), true);
+      expect(e.nextOccurrence(now), DateTime(2026, 1, 5, 8, 0));
+      expect(e.minutesUntilNext(now), -120);
+    });
+
+    test('a finished window still rolls to next week', () {
+      final now = DateTime(2026, 1, 5, 18, 0); // Monday, after it closed
+      final e = windowEntry('Monday', '08:00', '17:00');
+      expect(e.isInProgress(now), false);
+      expect(e.nextOccurrence(now), DateTime(2026, 1, 12, 8, 0));
+    });
+
+    test('a window crossing midnight stays in progress after 00:00', () {
+      final e = windowEntry('Monday', '22:00', '01:00');
+      expect(e.isInProgress(DateTime(2026, 1, 6, 0, 30)), true); // Tuesday 12:30am
+      expect(e.isInProgress(DateTime(2026, 1, 6, 1, 30)), false);
+    });
+
+    test('a dated window underway is not flagged past', () {
+      final now = DateTime(2026, 1, 9, 14, 0);
+      final e = ScheduleEntry.fromJson({
+        ...windowJson('Friday', '13:00', '16:00'),
+        'mass_date': '2026-01-09',
+      })!;
+      expect(e.isPast(now), false);
+      expect(e.isInProgress(now), true);
+    });
+
+    test('an in-progress window outranks a sooner-starting entry', () {
+      final now = DateTime(2026, 1, 5, 10, 0);
+      final adoration = windowEntry('Monday', '08:00', '17:00');
+      final mass = ScheduleEntry.fromJson(massJson('Monday', '12:00'))!;
+      expect(ScheduleParser.findNextOccurrence([mass, adoration], now), adoration);
+    });
+
+    test('Mass paths skip an in-progress entry and point at the next one', () {
+      final now = DateTime(2026, 1, 5, 10, 0); // Monday, 10 min into a 9:30 Mass
+      final underway = windowEntry('Monday', '09:30', '10:30');
+      expect(underway.nextOccurrence(now, kCountMassInProgress),
+          DateTime(2026, 1, 12, 9, 30));
+      expect(underway.minutesUntilNext(now, kCountMassInProgress), greaterThan(0));
+
+      final later = ScheduleEntry.fromJson(massJson('Monday', '12:00'))!;
+      expect(
+        ScheduleParser.findNextOccurrence(
+            [underway, later], now, kCountMassInProgress),
+        later,
+      );
+    });
+
+    test('a dated Mass under way is past for Mass paths, not for windows', () {
+      final now = DateTime(2026, 1, 9, 13, 30);
+      final e = ScheduleEntry.fromJson({
+        ...windowJson('Friday', '13:00', '14:00'),
+        'mass_date': '2026-01-09',
+      })!;
+      expect(e.isPast(now), false);
+      expect(e.isPast(now, kCountMassInProgress), true);
     });
   });
 
