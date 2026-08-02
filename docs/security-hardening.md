@@ -3,8 +3,8 @@
 Scoped 2026-08-01, worked 2026-08-02. Items **1, 3, 4, and 6 are done.**
 Remaining: item 2 (edge rate-limit on `/feedback`, now judged marginal) and item
 5 (`pages.dev` redirect, SEO), both dashboard work — wrangler's OAuth token
-carries `zone (read)` but no WAF scope. Item 7 is a rule already added that
-**needs its scope reviewed** before Play submission.
+carries `zone (read)` but no WAF scope. Item 7 records a geo challenge rule that
+was added and then removed.
 
 ## The short version
 
@@ -214,14 +214,14 @@ Note `wrangler deploy` now warns that preview URLs are disabled too (they were
 tied to the `workers.dev` subdomain). Set `preview_urls = true` if that's ever
 wanted back.
 
-## 7. Geo managed-challenge rule · NEEDS REVIEW
+## 7. Geo managed-challenge rule · **REMOVED 2026-08-02**
 
 A WAF custom rule issuing a **Managed Challenge to non-US traffic** was added
-2026-08-02 (dashboard). The exact scope is unconfirmed — possibly `www` only,
-possibly the whole zone. **Check the expression** under Security → WAF → Custom
-rules before assuming.
+and then dropped the same day, on the reasoning below. Recorded so it doesn't
+get re-added without the caveats.
 
-Two ways it can bite:
+Its scope was never confirmed — possibly `www` only, possibly the whole zone —
+and that ambiguity was itself the problem, because two ways it can bite:
 
 1. **If it matches `api.parishfinder.app`, non-US feedback submissions break.**
    A managed challenge returns an HTML interstitial; the app's `POST /feedback`
@@ -233,17 +233,18 @@ Two ways it can bite:
    listing. A reviewer or automated policy scanner hitting a challenge there is
    a rejection risk.
 
-Safer expression — scoped to the marketing site, exempting verified crawlers:
+The cost/benefit was thin either way: the site is static, has no forms or auth,
+and Pages bandwidth is unmetered, so there was little for a challenge to
+protect — against a real chance of blocking a Play reviewer.
+
+If a geo rule is ever wanted again, scope it to the marketing site and exempt
+verified crawlers, and revisit only after Play approval:
 
 ```
 ip.src.country ne "US"
   and http.host in {"parishfinder.app" "www.parishfinder.app"}
   and not cf.client.bot
 ```
-
-Worth noting the cost/benefit is thin: the site is static, has no forms or auth,
-and Pages bandwidth is unmetered, so there is little for a challenge to protect.
-Scope it as above at minimum, or drop it until after Play approval.
 
 ---
 
