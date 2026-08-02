@@ -2,6 +2,21 @@ name = "introibo-feedback"
 main = "src/index.ts"
 compatibility_date = "2026-05-01"
 
+# The workers.dev hostname stays enabled **on purpose**: the shipped beta APK
+# points at https://introibo-feedback.mfgarvin.workers.dev/feedback
+# (lib/config/feedback_endpoint.dart). Retire it only once no beta installs
+# remain in the wild.
+workers_dev = true
+
+# Custom domain on our own zone. WAF and rate-limiting rules are zone-scoped,
+# so nothing can be applied to a workers.dev hostname — routing through
+# api.parishfinder.app is the prerequisite for the /admin and /feedback edge
+# rules in docs/security-hardening.md. Cloudflare provisions the DNS record and
+# certificate for a custom_domain route automatically.
+[[routes]]
+pattern = "api.parishfinder.app"
+custom_domain = true
+
 # Daily feedback digest → Discord. 12:00 UTC ≈ 8am US Eastern (summer/EDT;
 # 7am in winter/EST). The scheduled() handler in src/index.ts posts a 24h
 # summary to the DISCORD_WEBHOOK_URL secret.

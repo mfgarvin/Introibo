@@ -21,7 +21,7 @@
 | Dev location override | `kDevLocation = LatLng(41.48, -81.78)` (Lakewood, OH) in **debug builds** | In `flutter run`/debug, GPS is bypassed and this fixed location is used. "Nearby"/distance results are relative to Lakewood, not the machine. Real GPS only runs in release builds. |
 | Data source | Remote `export.json` (184 parishes, Cleveland/Akron) fetched at runtime, cached in SharedPreferences | First launch **requires internet**. No bundled asset. |
 | Local data copy | `export.demo.json` (189 records — an older snapshot) | Use this to know what data *should* render; do not assume fields exist without checking, and don't quote its record count as the parish count. |
-| Feedback backend | Cloudflare Worker `https://introibo-feedback.mfgarvin.workers.dev` | Submitting real feedback in QA writes to the live D1 store — use obvious test strings if you submit. |
+| Feedback backend | Cloudflare Worker `https://api.parishfinder.app` (legacy `https://introibo-feedback.mfgarvin.workers.dev` still answers) | Submitting real feedback in QA writes to the live D1 store — use obvious test strings if you submit. |
 
 **Rule of thumb:** a claim like "shows nearest parish" is only PASS if you either
 (a) observed it in a running app, or (b) traced the exact code path that produces

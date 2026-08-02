@@ -7,11 +7,16 @@ stores them in a D1 database.
 > (the app's old name) — deliberately unchanged so the live endpoint the shipped
 > app points at keeps working. Only the app's public name changed to ParishFinder.
 
-**Status:** deployed and live at
-`https://introibo-feedback.mfgarvin.workers.dev` (D1 db `introibo-feedback`,
-account mfjgarvin@gmail.com). The app's `lib/config/feedback_endpoint.dart`
-already points at it. The one-time setup below is only needed to recreate the
-deployment from scratch; for day-to-day use you only need **Deploy** (to push
+**Status:** deployed and live on **two hostnames, both serving the same Worker**
+(D1 db `introibo-feedback`, account mfjgarvin@gmail.com):
+
+| Hostname | Use |
+|---|---|
+| `https://api.parishfinder.app` | **Preferred.** On our own zone, so Cloudflare WAF / rate-limiting rules can reach it. What new app builds point at. |
+| `https://introibo-feedback.mfgarvin.workers.dev` | Legacy. Kept enabled because shipped beta APKs point at it; retire only once no beta installs remain. |
+
+The app's `lib/config/feedback_endpoint.dart` points at the custom domain. The
+one-time setup below is only needed to recreate the deployment from scratch; for day-to-day use you only need **Deploy** (to push
 code changes) and **View feedback**.
 
 ## Endpoints
@@ -33,7 +38,7 @@ A single self-contained page that lists every submission with kind/parish/status
 filters, free-text search, and expandable full detail. Open it in a browser:
 
 ```
-https://introibo-feedback.mfgarvin.workers.dev/admin
+https://api.parishfinder.app/admin
 ```
 
 It's protected by **HTTP Basic Auth** — any username, password = the
@@ -62,7 +67,7 @@ npx wrangler deploy                           # cron trigger is registered on de
 Test it immediately without waiting for the cron (uses the same Basic-Auth password):
 
 ```bash
-curl -u admin:$ADMIN_PASSWORD -X POST https://introibo-feedback.mfgarvin.workers.dev/admin/digest
+curl -u admin:$ADMIN_PASSWORD -X POST https://api.parishfinder.app/admin/digest
 ```
 
 To change the time, edit `crons` in `wrangler.toml` (UTC) and redeploy.
@@ -99,8 +104,9 @@ first `wrangler deploy`.
 npm run deploy
 ```
 
-Then take the printed URL and paste it into
-`lib/config/feedback_endpoint.dart` in the Flutter app.
+Both hostnames are declared in `wrangler.toml` (`workers_dev = true` plus the
+`api.parishfinder.app` custom-domain route), so a deploy keeps serving both. The
+app already points at the custom domain — no URL to paste unless you change it.
 
 ## Inspect submissions (CLI)
 

@@ -98,7 +98,7 @@ should short-circuit with **"Feedback endpoint not configured yet …"**.
 
 ## Part C — Verify it landed & monitoring works
 
-1. **Admin dashboard:** open `https://introibo-feedback.mfgarvin.workers.dev/admin`
+1. **Admin dashboard:** open `https://api.parishfinder.app/admin`
    (Basic Auth, password = `ADMIN_PASSWORD`). The `[[QA-SONNET]]` rows should
    appear; use the text filter to isolate them, expand one to check every field
    (kind, status, issue_categories, reply_email, platform).
@@ -106,7 +106,7 @@ should short-circuit with **"Feedback endpoint not configured yet …"**.
    arrives in the channel:
    ```bash
    curl -u admin:'<ADMIN_PASSWORD>' -X POST \
-     https://introibo-feedback.mfgarvin.workers.dev/admin/digest
+     https://api.parishfinder.app/admin/digest
    ```
    It should summarize the last 24h (your test rows) and post to the webhook.
 3. **CLI (optional):** `./worker/logs.sh recent 10` (needs `wrangler login`).
