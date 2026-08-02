@@ -400,6 +400,16 @@ const ADMIN_HTML = /* html */ `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ParishFinder — Feedback</title>
+<script>
+  // Runs before first paint so a saved dark choice never flashes light.
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('pf-admin-theme'); } catch (e) {}
+    var dark = saved ? saved === 'dark'
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  })();
+</script>
 <style>
   :root {
     --bg:#faf6ee; --card:#fffcf4; --ink:#1c1512; --muted:#6b5d54;
@@ -408,17 +418,20 @@ const ADMIN_HTML = /* html */ `<!doctype html>
     --pill-pd:#f3e7e7; --pill-pd-ink:#8c1f1f;
     --pill-done:#e4ece4; --pill-done-ink:#3d5c3d;
   }
-  @media (prefers-color-scheme: dark) {
-    /* Matches site/style.css — warm near-black, not OLED black, which the site
-       dropped for being hard to read. Cards sit *above* the page, so --card is
-       lighter than --bg here, the reverse of the light theme. */
-    :root {
-      --bg:#17100f; --card:#241a18; --ink:#f2ebe0; --muted:#b6a69b;
-      --line:#392c27; --accent:#d4a24a; --gold:#d4a24a;
-      --pill-gen:#1b2635; --pill-gen-ink:#9dc0ec;
-      --pill-pd:#2c1616; --pill-pd-ink:#e59a9a;
-      --pill-done:#17261a; --pill-done-ink:#8fc294;
-    }
+  /* Matches site/style.css — warm near-black, not OLED black, which the site
+     dropped for being hard to read. Cards sit *above* the page, so --card is
+     lighter than --bg here, the reverse of the light theme.
+
+     Keyed on the attribute rather than a media query: the head script below
+     always resolves data-theme (from localStorage, else the OS preference)
+     before first paint, so there is no second copy of these values to keep in
+     step. Safe here because the page can't render its list without JS anyway. */
+  :root[data-theme="dark"] {
+    --bg:#17100f; --card:#241a18; --ink:#f2ebe0; --muted:#b6a69b;
+    --line:#392c27; --accent:#d4a24a; --gold:#d4a24a;
+    --pill-gen:#1b2635; --pill-gen-ink:#9dc0ec;
+    --pill-pd:#2c1616; --pill-pd-ink:#e59a9a;
+    --pill-done:#17261a; --pill-done-ink:#8fc294;
   }
   * { box-sizing:border-box; }
   /* 16px base and a roomier line height — this page is read, not skimmed. */
@@ -500,6 +513,7 @@ const ADMIN_HTML = /* html */ `<!doctype html>
     <option value="parish_data">Parish data</option>
   </select>
   <button id="refresh">Refresh</button>
+  <button id="theme" title="Switch theme" aria-label="Switch theme">Theme</button>
 </header>
 <main id="list"><p class="empty">Loading…</p></main>
 <script>
@@ -609,6 +623,20 @@ const ADMIN_HTML = /* html */ `<!doctype html>
       statsEl.textContent = 'error';
     }
   }
+
+  const themeBtn = document.getElementById('theme');
+  function paintThemeBtn() {
+    // The label names what the button will do, not the state it's in.
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    themeBtn.textContent = dark ? '☀ Light' : '☾ Dark';
+  }
+  themeBtn.onclick = function () {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('pf-admin-theme', next); } catch (e) { /* private mode */ }
+    paintThemeBtn();
+  };
+  paintThemeBtn();
 
   document.getElementById('refresh').onclick = load;
   kindEl.onchange = load;
