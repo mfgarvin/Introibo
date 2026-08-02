@@ -14,11 +14,21 @@ CREATE TABLE IF NOT EXISTS feedback (
   app_version      TEXT,
   build_number     TEXT,
   platform         TEXT,
-  client_ip        TEXT
+  client_ip        TEXT,
+  resolved_at      TEXT                           -- NULL = still open; set when triaged
 );
+
+-- Existing databases predate resolved_at. D1 has no ADD COLUMN IF NOT EXISTS, so
+-- run this once by hand on an already-created database; it errors harmlessly
+-- ("duplicate column name") if the column is already there:
+--   wrangler d1 execute introibo-feedback --remote \
+--     --command "ALTER TABLE feedback ADD COLUMN resolved_at TEXT"
 
 CREATE INDEX IF NOT EXISTS idx_feedback_created
   ON feedback(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_resolved
+  ON feedback(resolved_at);
 
 CREATE INDEX IF NOT EXISTS idx_feedback_kind_created
   ON feedback(kind, created_at);

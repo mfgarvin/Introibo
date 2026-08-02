@@ -5,6 +5,8 @@
 // GET  /admin           — Basic-Auth-protected HTML dashboard (browse feedback)
 // GET  /admin/data      — Basic-Auth-protected JSON feed the dashboard fetches
 // POST /admin/digest    — Basic-Auth-protected manual digest trigger (testing)
+// PATCH  /admin/item/:id — Basic-Auth-protected; {resolved:bool} triage toggle
+// DELETE /admin/item/:id — Basic-Auth-protected; permanent delete
 //
 // scheduled()           — daily Cron Trigger: posts a 24h digest to Discord.
 //
@@ -199,22 +201,62 @@ async function handleAdminData(req: Request, env: Env): Promise<Response> {
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? 200), 1), 1000);
   const kind = url.searchParams.get('kind');
 
+  const state = url.searchParams.get('state'); // 'open' | 'resolved' | null (all)
+
   let sql = `SELECT id, created_at, kind, parish_name, parish_id, status,
                     issue_categories, reply_email, body, app_version,
-                    build_number, platform, client_ip
+                    build_number, platform, client_ip, resolved_at
              FROM feedback`;
   const binds: unknown[] = [];
+  const where: string[] = [];
   if (kind === 'general' || kind === 'parish_data') {
-    sql += ' WHERE kind = ?';
+    where.push('kind = ?');
     binds.push(kind);
   }
+  if (state === 'open') where.push('resolved_at IS NULL');
+  if (state === 'resolved') where.push('resolved_at IS NOT NULL');
+  if (where.length) sql += ' WHERE ' + where.join(' AND ');
   sql += ' ORDER BY id DESC LIMIT ?';
   binds.push(limit);
 
   const { results } = await env.DB.prepare(sql).bind(...binds).all();
-  return new Response(JSON.stringify({ ok: true, rows: results ?? [] }), {
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
+
+  // Open count is for the header, and has to ignore the current filters —
+  // otherwise "12 open" would change meaning depending on what you're viewing.
+  const openRow = await env.DB
+    .prepare('SELECT COUNT(*) AS n FROM feedback WHERE resolved_at IS NULL')
+    .first<{ n: number }>();
+
+  return new Response(
+    JSON.stringify({ ok: true, rows: results ?? [], open: openRow?.n ?? 0 }),
+    { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
+  );
+}
+
+// PATCH /admin/item/:id  { resolved: boolean }  — toggle triage state.
+async function handleAdminPatch(req: Request, env: Env, id: number): Promise<Response> {
+  let resolved: boolean;
+  try {
+    const payload = (await req.json()) as { resolved?: unknown };
+    resolved = payload.resolved === true;
+  } catch {
+    return json({ ok: false, error: 'invalid JSON' }, { status: 400 });
+  }
+
+  const res = await env.DB
+    .prepare("UPDATE feedback SET resolved_at = ? WHERE id = ?")
+    .bind(resolved ? new Date().toISOString().replace('T', ' ').slice(0, 19) : null, id)
+    .run();
+
+  if (!res.meta.changes) return json({ ok: false, error: 'not found' }, { status: 404 });
+  return json({ ok: true, id, resolved });
+}
+
+// DELETE /admin/item/:id — permanent. The dashboard confirms first.
+async function handleAdminDelete(env: Env, id: number): Promise<Response> {
+  const res = await env.DB.prepare('DELETE FROM feedback WHERE id = ?').bind(id).run();
+  if (!res.meta.changes) return json({ ok: false, error: 'not found' }, { status: 404 });
+  return json({ ok: true, id, deleted: true });
 }
 
 // ───────────────────────── digest ─────────────────────────
@@ -330,6 +372,15 @@ export default {
       return json({ ok: true, sent: true });
     }
 
+    const item = url.pathname.match(/^\/admin\/item\/(\d+)$/);
+    if (item) {
+      if (!checkAuth(req, env)) return unauthorized();
+      const id = Number(item[1]);
+      if (req.method === 'PATCH') return handleAdminPatch(req, env, id);
+      if (req.method === 'DELETE') return handleAdminDelete(env, id);
+      return json({ ok: false, error: 'method not allowed' }, { status: 405 });
+    }
+
     return json({ ok: false, error: 'not found' }, { status: 404 });
   },
 
@@ -355,47 +406,78 @@ const ADMIN_HTML = /* html */ `<!doctype html>
     --line:#e6ddcf; --accent:#8c1f1f; --gold:#8c5a14;
     --pill-gen:#e8eef6; --pill-gen-ink:#33506e;
     --pill-pd:#f3e7e7; --pill-pd-ink:#8c1f1f;
+    --pill-done:#e4ece4; --pill-done-ink:#3d5c3d;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg:#000; --card:#14100f; --ink:#f3ece2; --muted:#a9998c;
+      --bg:#000; --card:#14100f; --ink:#f3ece2; --muted:#b4a598;
       --line:#2a221e; --accent:#d4a24a; --gold:#d4a24a;
       --pill-gen:#1b2635; --pill-gen-ink:#9dc0ec;
       --pill-pd:#2c1616; --pill-pd-ink:#e59a9a;
+      --pill-done:#17261a; --pill-done-ink:#8fc294;
     }
   }
   * { box-sizing:border-box; }
+  /* 16px base and a roomier line height — this page is read, not skimmed. */
   body { margin:0; background:var(--bg); color:var(--ink);
-    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
-  header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line);
-    padding:14px 18px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
-  h1 { font:600 18px/1 Georgia,"Cormorant Garamond",serif; margin:0; color:var(--accent); }
-  .stats { color:var(--muted); font-size:13px; }
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-text-size-adjust:100%; }
+  header { position:sticky; top:0; z-index:2; background:var(--bg);
+    border-bottom:1px solid var(--line); padding:14px 20px;
+    display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  h1 { font:600 20px/1.2 Georgia,"Cormorant Garamond",serif; margin:0; color:var(--accent); }
+  .stats { color:var(--muted); font-size:14px; }
+  .stats b { color:var(--ink); font-variant-numeric:tabular-nums; }
   .grow { flex:1; }
-  select, input, button { font:inherit; padding:7px 10px; border:1px solid var(--line);
-    border-radius:8px; background:var(--card); color:var(--ink); }
+  select, input, button { font:inherit; font-size:15px; padding:8px 12px;
+    border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
   button { cursor:pointer; }
   button:hover { border-color:var(--accent); }
-  main { padding:14px 18px 60px; max-width:980px; margin:0 auto; }
+  button:focus-visible, select:focus-visible, input:focus-visible {
+    outline:2px solid var(--accent); outline-offset:2px; }
+  main { padding:18px 20px 80px; max-width:900px; margin:0 auto; }
+
   .row { background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:12px 14px; margin-bottom:10px; }
-  .row summary { list-style:none; cursor:pointer; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+    padding:14px 16px; margin-bottom:12px; }
+  .row summary { list-style:none; cursor:pointer;
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   .row summary::-webkit-details-marker { display:none; }
-  .id { color:var(--muted); font-variant-numeric:tabular-nums; font-size:13px; }
-  .pill { font-size:11px; font-weight:700; letter-spacing:.4px; padding:2px 8px; border-radius:20px; }
+  /* Resolved items stay visible but recede. Opacity alone would hurt contrast,
+     so the border and a pill carry the state too. */
+  .row.done { border-color:var(--line); background:transparent; }
+  .row.done .parish, .row.done .snippet { color:var(--muted); }
+
+  .id { color:var(--muted); font-variant-numeric:tabular-nums; font-size:14px; }
+  .pill { font-size:11px; font-weight:700; letter-spacing:.5px; padding:3px 9px;
+    border-radius:20px; white-space:nowrap; }
   .pill.general { background:var(--pill-gen); color:var(--pill-gen-ink); }
   .pill.parish_data { background:var(--pill-pd); color:var(--pill-pd-ink); }
-  .status { font-size:11px; color:var(--muted); }
-  .when { color:var(--muted); font-size:12px; }
-  .parish { font-weight:600; }
-  .snippet { color:var(--ink); width:100%; margin-top:4px; opacity:.92; }
-  .detail { margin-top:10px; border-top:1px dashed var(--line); padding-top:10px;
-    display:grid; grid-template-columns:120px 1fr; gap:4px 12px; font-size:13px; }
+  .pill.done { background:var(--pill-done); color:var(--pill-done-ink); }
+  .status { font-size:12px; color:var(--muted); }
+  .when { color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; }
+  .parish { font-weight:600; font-size:17px; }
+  /* The submitted text is the point of the page — give it real size and
+     measure, and let it wrap onto its own line under the metadata. */
+  .snippet { width:100%; margin-top:6px; font-size:16px; line-height:1.6;
+    max-width:70ch; white-space:pre-wrap; }
+
+  .actions { display:flex; gap:8px; margin-left:auto; }
+  .actions button { font-size:13px; padding:5px 11px; }
+  .actions .danger:hover { border-color:#b3261e; color:#b3261e; }
+
+  .detail { margin-top:12px; border-top:1px dashed var(--line); padding-top:12px;
+    display:grid; grid-template-columns:150px 1fr; gap:7px 16px; font-size:14px; }
   .detail dt { color:var(--muted); }
   .detail dd { margin:0; word-break:break-word; white-space:pre-wrap; }
-  .empty, .err { color:var(--muted); text-align:center; padding:40px; }
+  .detail dd.mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
+  .empty, .err { color:var(--muted); text-align:center; padding:48px; font-size:15px; }
   .err { color:var(--accent); }
   a { color:var(--gold); }
+  @media (max-width:560px) {
+    .detail { grid-template-columns:1fr; gap:2px 0; }
+    .detail dt { margin-top:8px; font-size:13px; }
+    .actions { width:100%; margin-left:0; }
+  }
 </style>
 </head>
 <body>
@@ -403,7 +485,12 @@ const ADMIN_HTML = /* html */ `<!doctype html>
   <h1>ParishFinder Feedback</h1>
   <span class="stats" id="stats">Loading…</span>
   <span class="grow"></span>
-  <input id="q" type="search" placeholder="Filter text…" style="width:150px">
+  <input id="q" type="search" placeholder="Filter text…" style="width:170px">
+  <select id="state">
+    <option value="open">Open</option>
+    <option value="">All</option>
+    <option value="resolved">Resolved</option>
+  </select>
   <select id="kind">
     <option value="">All kinds</option>
     <option value="general">General</option>
@@ -416,46 +503,103 @@ const ADMIN_HTML = /* html */ `<!doctype html>
   const listEl = document.getElementById('list');
   const statsEl = document.getElementById('stats');
   const kindEl = document.getElementById('kind');
+  const stateEl = document.getElementById('state');
   const qEl = document.getElementById('q');
   let rows = [];
+  let openCount = 0;
 
   const esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"]/g,
     c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  const DETAIL_FIELDS = ['created_at','kind','parish_name','parish_id','status',
-    'issue_categories','reply_email','app_version','build_number','platform','client_ip','body'];
+  // Labelled rather than raw column names, and ordered so the human-relevant
+  // fields come first and the diagnostic ones sink to the bottom.
+  const DETAIL_FIELDS = [
+    ['created_at','Submitted'], ['parish_name','Parish'], ['parish_id','Parish ID'],
+    ['status','Reported as'], ['issue_categories','Categories'], ['reply_email','Reply to'],
+    ['resolved_at','Resolved'], ['app_version','App version'], ['build_number','Build'],
+    ['platform','Platform'], ['client_ip','IP'],
+  ];
+  const MONO = { parish_id:1, app_version:1, build_number:1, client_ip:1 };
 
   function render() {
     const q = qEl.value.trim().toLowerCase();
     const shown = rows.filter(r => !q ||
       [r.body, r.parish_name, r.reply_email].some(v => (v||'').toLowerCase().includes(q)));
-    statsEl.textContent = shown.length + ' of ' + rows.length + ' shown';
-    if (!shown.length) { listEl.innerHTML = '<p class="empty">No matching feedback.</p>'; return; }
+    statsEl.innerHTML = '<b>' + openCount + '</b> open · showing <b>' + shown.length + '</b>'
+      + (shown.length !== rows.length ? ' of ' + rows.length : '');
+    if (!shown.length) { listEl.innerHTML = '<p class="empty">Nothing here.</p>'; return; }
     listEl.innerHTML = shown.map(r => {
+      const done = !!r.resolved_at;
       const title = r.kind === 'parish_data'
         ? '<span class="parish">' + esc(r.parish_name || 'Parish') + '</span>'
           + (r.status ? ' <span class="status">[' + esc(r.status) + ']</span>' : '')
         : '<span class="parish">General feedback</span>';
-      const detail = DETAIL_FIELDS.map(f =>
-        '<dt>' + f + '</dt><dd>' + (esc(r[f]) || '<span style=opacity:.5>—</span>') + '</dd>').join('');
-      return '<details class="row"><summary>'
+      const detail = DETAIL_FIELDS.map(function (f) {
+        const cls = MONO[f[0]] ? ' class="mono"' : '';
+        return '<dt>' + f[1] + '</dt><dd' + cls + '>'
+          + (esc(r[f[0]]) || '<span style=opacity:.5>—</span>') + '</dd>';
+      }).join('');
+      return '<details class="row' + (done ? ' done' : '') + '" data-id="' + r.id + '"><summary>'
         + '<span class="id">#' + r.id + '</span>'
         + '<span class="pill ' + esc(r.kind) + '">' + (r.kind === 'parish_data' ? 'PARISH' : 'GENERAL') + '</span>'
+        + (done ? '<span class="pill done">RESOLVED</span>' : '')
         + title
-        + '<span class="when">' + esc(r.created_at) + ' UTC</span>'
+        + '<span class="when">' + esc((r.created_at || '').slice(0, 16)) + ' UTC</span>'
+        + '<span class="actions">'
+        +   '<button data-act="toggle">' + (done ? 'Reopen' : 'Resolve') + '</button>'
+        +   '<button data-act="delete" class="danger">Delete</button>'
+        + '</span>'
         + '<span class="snippet">' + esc(r.body || '') + '</span>'
         + '</summary><dl class="detail">' + detail + '</dl></details>';
     }).join('');
   }
 
+  // One delegated listener: the buttons live inside <summary>, so without
+  // stopping the event every click would also expand/collapse the row.
+  listEl.addEventListener('click', async function (ev) {
+    const btn = ev.target.closest('button[data-act]');
+    if (!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    const row = btn.closest('details[data-id]');
+    const id = Number(row.getAttribute('data-id'));
+    const rec = rows.find(r => r.id === id);
+    if (!rec) return;
+
+    const del = btn.getAttribute('data-act') === 'delete';
+    if (del && !confirm('Delete feedback #' + id + ' permanently?')) return;
+
+    btn.disabled = true;
+    try {
+      const res = del
+        ? await fetch('/admin/item/' + id, { method: 'DELETE' })
+        : await fetch('/admin/item/' + id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resolved: !rec.resolved_at }),
+          });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      // Reload rather than patching in place: the open count and the current
+      // state filter both change, and a stale list is worse than a flicker.
+      await load();
+    } catch (e) {
+      btn.disabled = false;
+      alert('Failed: ' + e.message);
+    }
+  });
+
   async function load() {
     listEl.innerHTML = '<p class="empty">Loading…</p>';
     try {
-      const res = await fetch('/admin/data?limit=500' + (kindEl.value ? '&kind=' + kindEl.value : ''),
+      const res = await fetch('/admin/data?limit=500'
+          + (kindEl.value ? '&kind=' + kindEl.value : '')
+          + (stateEl.value ? '&state=' + stateEl.value : ''),
         { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       rows = data.rows || [];
+      openCount = data.open || 0;
       render();
     } catch (e) {
       listEl.innerHTML = '<p class="err">Failed to load: ' + esc(e.message) + '</p>';
@@ -465,6 +609,7 @@ const ADMIN_HTML = /* html */ `<!doctype html>
 
   document.getElementById('refresh').onclick = load;
   kindEl.onchange = load;
+  stateEl.onchange = load;
   qEl.oninput = render;
   load();
 </script>

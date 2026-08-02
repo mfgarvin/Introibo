@@ -26,8 +26,23 @@ code changes) and **View feedback**.
   Returns `{ ok: true, id: N }` on success, `{ ok: false, error: "..." }` otherwise.
 - `GET /healthz` — returns `{ ok: true }`.
 - `GET /admin` — HTML dashboard to browse/filter feedback (Basic Auth).
-- `GET /admin/data` — JSON feed the dashboard fetches (Basic Auth).
+- `GET /admin/data` — JSON feed the dashboard fetches (Basic Auth). Accepts
+  `?kind=`, `?state=open|resolved`, `?limit=`; also returns a global `open` count.
+- `PATCH /admin/item/:id` — `{"resolved": true|false}`, triage toggle (Basic Auth).
+- `DELETE /admin/item/:id` — permanent delete (Basic Auth).
 - `POST /admin/digest` — fire the Discord digest on demand, for testing (Basic Auth).
+
+**Schema note:** triage needs a `resolved_at` column. `schema.sql` has it, but D1
+has no `ADD COLUMN IF NOT EXISTS`, so an existing database needs it applied once
+by hand (already done on the remote DB, 2026-08-02):
+
+```bash
+npx wrangler d1 execute introibo-feedback --remote \
+  --command "ALTER TABLE feedback ADD COLUMN resolved_at TEXT"
+```
+
+Run the same with `--local` before `npm run db:init-local` on an older local DB,
+or the new index fails with "no such column: resolved_at".
 
 ## Monitoring the feedback
 
