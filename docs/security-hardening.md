@@ -1,9 +1,10 @@
 # Security hardening — status
 
-Scoped 2026-08-01, worked 2026-08-02. Items **1, 3, and 4 are done.** Remaining:
-item 2 (edge rate-limit on `/feedback`) and item 5 (`pages.dev` redirect), both
-dashboard work — wrangler's OAuth token carries `zone (read)` but no WAF scope —
-plus item 6, retiring the legacy `workers.dev` route, which is a repo change.
+Scoped 2026-08-01, worked 2026-08-02. Items **1, 3, 4, and 6 are done.**
+Remaining: item 2 (edge rate-limit on `/feedback`, now judged marginal) and item
+5 (`pages.dev` redirect, SEO), both dashboard work — wrangler's OAuth token
+carries `zone (read)` but no WAF scope. Item 7 is a rule already added that
+**needs its scope reviewed** before Play submission.
 
 ## The short version
 
@@ -212,6 +213,37 @@ Anyone still on one needs a rebuilt APK.
 Note `wrangler deploy` now warns that preview URLs are disabled too (they were
 tied to the `workers.dev` subdomain). Set `preview_urls = true` if that's ever
 wanted back.
+
+## 7. Geo managed-challenge rule · NEEDS REVIEW
+
+A WAF custom rule issuing a **Managed Challenge to non-US traffic** was added
+2026-08-02 (dashboard). The exact scope is unconfirmed — possibly `www` only,
+possibly the whole zone. **Check the expression** under Security → WAF → Custom
+rules before assuming.
+
+Two ways it can bite:
+
+1. **If it matches `api.parishfinder.app`, non-US feedback submissions break.**
+   A managed challenge returns an HTML interstitial; the app's `POST /feedback`
+   would receive that instead of JSON and fail. Rare for a Cleveland-area
+   audience, but not for travellers — or for **Google Play's review team, which
+   is often outside the US.**
+2. **The Play listing's privacy URL must stay publicly reachable.**
+   `https://parishfinder.app/privacy` is the canonical link in the store
+   listing. A reviewer or automated policy scanner hitting a challenge there is
+   a rejection risk.
+
+Safer expression — scoped to the marketing site, exempting verified crawlers:
+
+```
+ip.src.country ne "US"
+  and http.host in {"parishfinder.app" "www.parishfinder.app"}
+  and not cf.client.bot
+```
+
+Worth noting the cost/benefit is thin: the site is static, has no forms or auth,
+and Pages bandwidth is unmetered, so there is little for a challenge to protect.
+Scope it as above at minimum, or drop it until after Play approval.
 
 ---
 
