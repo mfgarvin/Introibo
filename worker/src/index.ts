@@ -409,9 +409,12 @@ const ADMIN_HTML = /* html */ `<!doctype html>
     --pill-done:#e4ece4; --pill-done-ink:#3d5c3d;
   }
   @media (prefers-color-scheme: dark) {
+    /* Matches site/style.css — warm near-black, not OLED black, which the site
+       dropped for being hard to read. Cards sit *above* the page, so --card is
+       lighter than --bg here, the reverse of the light theme. */
     :root {
-      --bg:#000; --card:#14100f; --ink:#f3ece2; --muted:#b4a598;
-      --line:#2a221e; --accent:#d4a24a; --gold:#d4a24a;
+      --bg:#17100f; --card:#241a18; --ink:#f2ebe0; --muted:#b6a69b;
+      --line:#392c27; --accent:#d4a24a; --gold:#d4a24a;
       --pill-gen:#1b2635; --pill-gen-ink:#9dc0ec;
       --pill-pd:#2c1616; --pill-pd-ink:#e59a9a;
       --pill-done:#17261a; --pill-done-ink:#8fc294;
