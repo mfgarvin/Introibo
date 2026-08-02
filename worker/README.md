@@ -8,7 +8,7 @@ stores them in a D1 database.
 > app points at keeps working. Only the app's public name changed to ParishFinder.
 
 **Status:** deployed and live at **`https://api.parishfinder.app`** (D1 db
-`introibo-feedback`, account mfjgarvin@gmail.com).
+`introibo-feedback`; account per `wrangler whoami`).
 
 The `introibo-feedback.mfgarvin.workers.dev` hostname was **retired 2026-08-02**
 (`workers_dev = false`). Being on our own zone is what lets Cloudflare WAF and

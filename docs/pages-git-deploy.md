@@ -40,10 +40,9 @@ and need cache-invalidation logic to maintain. Pages does this natively.
 
 ## Don't forget
 
-- `site/_headers` (see `docs/security-hardening.md` item 4) is **still not
-  written.** When it lands, it must sit at `site/_headers` — `_headers` is read
-  from the build output directory, not the repo root — and it now ships via a
-  push rather than an upload.
+- `site/_headers` is written and committed. It must sit at `site/_headers` —
+  `_headers` is read from the build output directory, not the repo root — and
+  it ships via a push rather than an upload.
 - Pages 308-redirects `/privacy.html` → `/privacy`. The canonical URL for the
   Play listing is `https://parishfinder.app/privacy`.
 - Optional tidying not applied: a build watch path of `site/*` so commits that

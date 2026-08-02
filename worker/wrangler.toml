@@ -13,8 +13,9 @@ workers_dev = false
 # Custom domain on our own zone. WAF and rate-limiting rules are zone-scoped,
 # so nothing can be applied to a workers.dev hostname — routing through
 # api.parishfinder.app is the prerequisite for the /admin and /feedback edge
-# rules in docs/security-hardening.md. Cloudflare provisions the DNS record and
-# certificate for a custom_domain route automatically.
+# rules (tracked in local security notes, kept out of the public repo).
+# Cloudflare provisions the DNS record and certificate for a custom_domain
+# route automatically.
 [[routes]]
 pattern = "api.parishfinder.app"
 custom_domain = true

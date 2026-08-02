@@ -47,3 +47,7 @@ app.*.map.json
 # Design handoff bundles. The extracted directory IS committed — tool/gen_icons.py
 # reads the vector icon source out of it — but the zip alongside it is redundant.
 ParishFinder app icon design*.zip
+
+# Internal ops/security notes — kept local, not published (repo is public).
+docs/security-hardening.md
+privacy_note.md
