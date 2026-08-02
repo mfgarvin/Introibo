@@ -5,14 +5,19 @@
 # `referrer-policy: strict-origin-when-cross-origin` by default; the additions
 # here are CSP and HSTS.
 #
-# The CSP is unusually strict because the site makes zero external requests:
-# fonts are self-hosted, images are local, and `theme.js` is the only script.
+# The CSP is strict because the site is nearly self-contained: fonts are
+# self-hosted, images are local, and `theme.js` is the only script we author.
 # If the site ever gains an inline `<script>`, an inline `style="…"` attribute,
-# or a third-party embed, this breaks loudly — fix it with a nonce, not with
-# 'unsafe-inline'.
+# or another third-party embed, this breaks loudly — fix it with a nonce, not
+# with 'unsafe-inline'.
 #
 #   script-src 'self'   — theme.js is a same-origin <script src>, no inline code.
 #                         'none' would silently kill the light/dark toggle.
+#   …cloudflareinsights — Cloudflare Web Analytics, injected at the edge and so
+#                         absent from this repo. Deliberately kept on; without
+#                         these two allowances the CSP blocks the beacon and the
+#                         page-view counts silently stay empty. Drop both if
+#                         analytics is ever switched off in the Pages settings.
 #   img-src data:       — allows inline SVG/data URIs; no remote images are used.
 #   frame-ancestors     — clickjacking; X-Frame-Options repeats it for old agents.
 #   form-action 'none'  — the site has no forms, and should not grow one silently.
@@ -21,6 +26,6 @@
 # and should be a deliberate, separate decision.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src https://cloudflareinsights.com; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Frame-Options: DENY
