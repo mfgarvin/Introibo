@@ -77,6 +77,21 @@ async function recordRate(env: Env, ip: string): Promise<void> {
   await env.DB.prepare('INSERT INTO feedback_rate (client_ip) VALUES (?)').bind(ip).run();
 }
 
+// The ledger is only ever read over a one-hour window, so anything older is
+// dead weight. Pruned from the daily cron rather than inline, to keep the
+// submission path at one read + two writes. A day's grace, not an hour, so a
+// missed cron can't cause a row to be dropped while it still counts.
+async function pruneRateLedger(env: Env): Promise<void> {
+  try {
+    await env.DB.prepare(
+      "DELETE FROM feedback_rate WHERE created_at < datetime('now', '-1 day')",
+    ).run();
+  } catch (err) {
+    // Never let housekeeping take down the digest.
+    console.error('feedback_rate prune failed', err);
+  }
+}
+
 async function handleFeedback(req: Request, env: Env): Promise<Response> {
   const contentLength = Number(req.headers.get('content-length') ?? 0);
   if (contentLength > MAX_BODY_BYTES) {
@@ -321,6 +336,7 @@ export default {
   // Daily Cron Trigger (see wrangler.toml [triggers]). Posts a 24h digest.
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(sendDigest(env));
+    ctx.waitUntil(pruneRateLedger(env));
   },
 };
 
