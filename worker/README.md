@@ -7,13 +7,14 @@ stores them in a D1 database.
 > (the app's old name) — deliberately unchanged so the live endpoint the shipped
 > app points at keeps working. Only the app's public name changed to ParishFinder.
 
-**Status:** deployed and live on **two hostnames, both serving the same Worker**
-(D1 db `introibo-feedback`, account mfjgarvin@gmail.com):
+**Status:** deployed and live at **`https://api.parishfinder.app`** (D1 db
+`introibo-feedback`, account mfjgarvin@gmail.com).
 
-| Hostname | Use |
-|---|---|
-| `https://api.parishfinder.app` | **Preferred.** On our own zone, so Cloudflare WAF / rate-limiting rules can reach it. What new app builds point at. |
-| `https://introibo-feedback.mfgarvin.workers.dev` | Legacy. Kept enabled because shipped beta APKs point at it; retire only once no beta installs remain. |
+The `introibo-feedback.mfgarvin.workers.dev` hostname was **retired 2026-08-02**
+(`workers_dev = false`). Being on our own zone is what lets Cloudflare WAF and
+rate-limiting rules cover the Worker at all — they're zone-scoped and can't touch
+a `workers.dev` subdomain. Beta APKs built before that date point at the old URL
+and can no longer submit feedback.
 
 The app's `lib/config/feedback_endpoint.dart` points at the custom domain. The
 one-time setup below is only needed to recreate the deployment from scratch; for day-to-day use you only need **Deploy** (to push
@@ -94,9 +95,9 @@ npm run db:init-local       # creates tables in the local dev D1
 npm run dev                 # wrangler dev — local D1, hot reload
 ```
 
-The worker URL on workers.dev will be of the form
-`https://introibo-feedback.<your-account-subdomain>.workers.dev` after the
-first `wrangler deploy`.
+`npm run dev` serves on localhost. There is no `workers.dev` URL any more —
+`workers_dev = false` in `wrangler.toml`, and the only public hostname is the
+`api.parishfinder.app` custom-domain route declared alongside it.
 
 ## Deploy
 
@@ -104,9 +105,14 @@ first `wrangler deploy`.
 npm run deploy
 ```
 
-Both hostnames are declared in `wrangler.toml` (`workers_dev = true` plus the
-`api.parishfinder.app` custom-domain route), so a deploy keeps serving both. The
-app already points at the custom domain — no URL to paste unless you change it.
+The hostname is declared in `wrangler.toml` (`workers_dev = false` plus the
+`api.parishfinder.app` custom-domain route), so a deploy keeps it in place. The
+app already points there — no URL to paste unless you change it.
+
+`/admin*` sits behind **Cloudflare Access** (one-time PIN, single-address
+policy), so `curl -u admin:… POST /admin/digest` no longer works without an
+Access service token. The daily cron is unaffected — `scheduled()` runs inside
+the Worker and never crosses Access.
 
 ## Inspect submissions (CLI)
 

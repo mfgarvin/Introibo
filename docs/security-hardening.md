@@ -92,11 +92,10 @@ Two consequences to expect:
   Access **service token** (`CF-Access-Client-Id` / `CF-Access-Client-Secret`
   headers) or just wait for the cron. The daily digest itself is unaffected —
   `scheduled()` runs inside the Worker and never crosses Access.
-- Access is bound to a hostname, so `/admin` on the legacy
-  `introibo-feedback.mfgarvin.workers.dev` remains Basic-Auth-only. A Worker-side
-  host check was considered and **declined** (2026-08-02): the legacy route is
-  being retired shortly, with few beta APKs in the wild, so the guard would be
-  obsolete before it paid for itself. Revisit only if that retirement slips.
+- Access is bound to a hostname. That briefly left `/admin` reachable
+  Basic-Auth-only via the legacy `workers.dev` URL; a Worker-side host check was
+  considered and **declined** in favour of just retiring that route, which
+  happened the same day — see item 6. No bypass remains.
 
 ## 2. Edge rate-limit on `/feedback` · TODO (dashboard)
 
@@ -113,27 +112,30 @@ Security → WAF → Rate limiting rules, on the `parishfinder.app` zone:
   the in-Worker limit of 5/hour stays as the tighter, correctness-level check)
 - Action: Block, 1 hour
 
-Note this only covers traffic arriving via the custom domain. Requests to the
-legacy `workers.dev` hostname — i.e. every already-installed beta — still bypass
-the edge rule and are caught only by the in-Worker D1 limit. That's the residual
-gap until the legacy route is retired.
+The `http.host` clause is belt-and-braces: since item 6 retired the
+`workers.dev` route, `api.parishfinder.app` is the only hostname that reaches
+the Worker, so this rule now covers **all** traffic with no bypass.
+
+Where to find it in the dashboard: select the **`parishfinder.app` zone** (not
+the account-level view — rate limiting is a zone feature), then **Security →
+WAF → Rate limiting rules → Create rule**. Use the expression editor rather than
+the field dropdowns to paste the match above. On the free plan you get one rate
+limiting rule, which is exactly enough for this.
 
 ## 3. Route the Worker through `api.parishfinder.app` · **DONE 2026-08-02**
 
-`worker/wrangler.toml` now declares `workers_dev = true` alongside a
-`custom_domain` route for `api.parishfinder.app`, and the Worker is deployed.
-Cloudflare provisioned the DNS
-record and certificate automatically — no dashboard step was needed after all.
+`worker/wrangler.toml` declares a `custom_domain` route for
+`api.parishfinder.app` and the Worker is deployed. Cloudflare provisioned the
+DNS record and certificate automatically — no dashboard step was needed after
+all.
 
-Verified: `https://api.parishfinder.app/admin` returns 401 (Basic Auth
-challenge, so the Worker is executing), and the legacy
-`https://introibo-feedback.mfgarvin.workers.dev/admin` returns 401 as well —
-**both hostnames serve the same Worker.** The legacy route must stay enabled;
-shipped beta APKs point at it.
+The `workers.dev` hostname was kept alongside it at first, for compatibility
+with shipped betas; item 6 retired it the same day.
 
-`lib/config/feedback_endpoint.dart` now defaults to
-`https://api.parishfinder.app/feedback`, so new builds use the custom domain.
-Installed betas are unaffected.
+`lib/config/feedback_endpoint.dart` defaults to
+`https://api.parishfinder.app/feedback` — a single `String.fromEnvironment`
+constant consumed by `lib/services/feedback_client.dart:64`, so there is no
+second copy of the URL anywhere in the app.
 
 ## 4. Security headers on the static site · **DONE 2026-08-02**
 
@@ -179,17 +181,25 @@ as duplicate content. Rules → Redirect Rules, one rule:
 The Pages project kept its name through the Git-integration switch, so the
 hostname above is still correct.
 
-## 6. Retire the legacy `workers.dev` route · TODO (soon)
+## 6. Retire the legacy `workers.dev` route · **DONE 2026-08-02**
 
-Flagged 2026-08-02 as imminent — few beta APKs are out, and closing this route
-resolves the residual gaps in items 1 and 2 at a stroke (edge rules and Access
-both stop being bypassable). When the time comes:
+`workers_dev = false` in `worker/wrangler.toml`, deployed. This closed the
+residual bypass in items 1 and 2 — `api.parishfinder.app` is now the only way to
+reach the Worker, so zone-scoped rules cover *all* traffic.
 
-1. Set `workers_dev = false` in `worker/wrangler.toml`, `wrangler deploy`.
-2. Confirm `https://api.parishfinder.app/feedback` still answers and the
-   `workers.dev` hostname no longer resolves to the Worker.
-3. Any beta install that hasn't updated will silently fail to submit feedback —
-   that's the accepted cost. The app surfaces a clear error on failure.
+Verified after deploy: `introibo-feedback.mfgarvin.workers.dev/healthz` returns
+404 (no Worker there any more), while on the custom domain `/healthz` returns
+`{"ok":true}`, `POST /feedback` returns the Worker's own validation error, and
+`/admin` returns 302 to Access.
+
+**Accepted cost:** APKs built before commit `ca6f108` — including the
+`v1.0.0-beta.1` sideload — have `https://introibo-feedback.mfgarvin.workers.dev/feedback`
+compiled in and can no longer submit. The app surfaces a clear error on failure.
+Anyone still on one needs a rebuilt APK.
+
+Note `wrangler deploy` now warns that preview URLs are disabled too (they were
+tied to the `workers.dev` subdomain). Set `preview_urls = true` if that's ever
+wanted back.
 
 ---
 

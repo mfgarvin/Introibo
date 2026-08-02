@@ -2,10 +2,9 @@
 ///
 /// Served from our own zone so that Cloudflare's zone-scoped WAF and
 /// rate-limiting rules can reach it — they cannot be applied to a `workers.dev`
-/// hostname. The same Worker still answers on
-/// `https://introibo-feedback.mfgarvin.workers.dev/feedback`, which is what
-/// already-installed beta APKs point at; that route stays enabled until no beta
-/// installs remain in the wild (see `worker/wrangler.toml`).
+/// hostname. The Worker's old `introibo-feedback.mfgarvin.workers.dev` route was
+/// retired 2026-08-02, so this is now the only endpoint; beta APKs built before
+/// then cannot submit feedback (the app surfaces a clear error on failure).
 ///
 /// Override at build time with `--dart-define=FEEDBACK_ENDPOINT=https://...`.
 const String kFeedbackEndpoint = String.fromEnvironment(
