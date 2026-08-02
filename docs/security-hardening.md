@@ -1,10 +1,10 @@
 # Security hardening — status
 
-Scoped 2026-08-01, worked 2026-08-02. Items **1, 3, 4, and 6 are done.**
-Remaining: item 2 (edge rate-limit on `/feedback`, now judged marginal) and item
-5 (`pages.dev` redirect, SEO), both dashboard work — wrangler's OAuth token
-carries `zone (read)` but no WAF scope. Item 7 records a geo challenge rule that
-was added and then removed.
+Scoped 2026-08-01, worked 2026-08-02. Items **1, 3, 4, and 6 are done**, and
+item **5 is closed as unnecessary** (the canonical tags already handle it; the
+proposed rule could never have worked). The only thing left open is item 2 — an
+edge rate-limit on `/feedback`, now judged marginal at free-plan limits. Item 7
+records a geo challenge rule that was added and then removed.
 
 ## The short version
 
@@ -182,17 +182,39 @@ need `'unsafe-inline'` (avoid) or a nonce (fine) respectively.
 curl -sI https://parishfinder.app/ | grep -iE 'content-security-policy|strict-transport'
 ```
 
-## 5. Redirect `parishfinder.pages.dev` → `parishfinder.app` · TODO (dashboard)
+## 5. Redirect `parishfinder.pages.dev` → `parishfinder.app` · **CLOSED — not needed**
 
-Not security — SEO. The preview alias is publicly reachable and will get indexed
-as duplicate content. Rules → Redirect Rules, one rule:
+Not security — SEO. The concern was that the publicly reachable `*.pages.dev`
+alias gets indexed as duplicate content.
 
-- Match: `http.host eq "parishfinder.pages.dev"`
-- Action: Dynamic redirect, 301, to
-  `concat("https://parishfinder.app", http.request.uri.path)`
+**The originally proposed fix does not work.** A Redirect Rule was to be created
+under the `parishfinder.app` zone matching `http.host eq
+"parishfinder.pages.dev"` — but that hostname is on **Cloudflare's** zone, not
+ours, so our zone's rules never see the traffic. Exactly the same zone-scoping
+trap as the WAF rules in items 1–2.
 
-The Pages project kept its name through the Git-integration switch, so the
-hostname above is still correct.
+**It is already handled correctly anyway.** Both pages carry a canonical tag
+pointing at the apex, and it is served intact from the alias:
+
+```
+https://parishfinder.pages.dev/         → <link rel="canonical" href="https://parishfinder.app/">
+https://parishfinder.pages.dev/privacy  → <link rel="canonical" href="https://parishfinder.app/privacy.html">
+```
+
+`rel="canonical"` is the mechanism search engines use to collapse duplicates, so
+a redirect would add nothing.
+
+The only thing that *could* hard-redirect is a Pages Function
+(`functions/_middleware.js` at the repo root) branching on the `Host` header.
+**Not recommended:** it puts a Worker invocation in front of every request to an
+otherwise-static site to solve a problem the canonical tags already solve.
+
+Unrelated but noticed while checking: `https://parishfinder.app/robots.txt`
+returns the index page with a `200` rather than a real robots file. Crawlers
+treat that as "no restrictions", so nothing is broken, but a two-line
+`robots.txt` would be tidier. Note it can't help here — `robots.txt` can't be
+scoped per-hostname, so disallowing on `pages.dev` would disallow on the apex
+too.
 
 ## 6. Retire the legacy `workers.dev` route · **DONE 2026-08-02**
 
