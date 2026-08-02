@@ -2986,6 +2986,11 @@ class _AboutPageState extends State<AboutPage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+              Text(
+                '© 2026 Fr. Michael Garvin',
+                style: AppText.caption(color: subtextColor),
+              ),
               const SizedBox(height: 40),
             ],
           ),
