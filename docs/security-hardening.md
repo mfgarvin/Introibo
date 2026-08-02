@@ -99,18 +99,30 @@ Two consequences to expect:
 
 ## 2. Edge rate-limit on `/feedback` · TODO (dashboard)
 
-The D1 limit is correct but *late*: every request writes a row to
-`feedback_rate` **before** being counted (`worker/src/index.ts:103`–`136`), so an
-IP-rotating flood turns into D1 write amplification we pay for. An edge rule
-sheds it before the Worker ever runs.
+**Correction (2026-08-02).** The original version of this note claimed every
+request writes a row to `feedback_rate` before being counted, making a flood into
+D1 write amplification. **That is not what the code does.** `isRateLimited`
+(`src/index.ts:103` → `:66`) is a `SELECT`, and `recordRate` (`:136` → `:76`)
+only runs *after* a successful insert. A single IP hammering the endpoint costs
+one D1 **read** per request once it's over the 5/hour limit — no writes. The
+justification for this item was overstated.
+
+What genuinely remains: an **IP-rotating** flood, where every request looks like
+a fresh IP and so costs a read plus two writes. Per-IP rate limiting can't stop
+that at any window length, so this rule is a partial mitigation by nature.
 
 Security → WAF → Rate limiting rules, on the `parishfinder.app` zone:
 
 - Match: `http.host eq "api.parishfinder.app" and http.request.uri.path eq
   "/feedback" and http.request.method eq "POST"`
-- Rate: 20 requests per hour, per IP (generous next to the app's real usage —
-  the in-Worker limit of 5/hour stays as the tighter, correctness-level check)
-- Action: Block, 1 hour
+- Rate: **10 requests per 10 seconds**, per IP
+- Action: Block, longest duration offered
+
+**The free plan only allows a 10-second counting period** — longer periods are a
+paid feature. That's fine here: the rule's job is shedding single-source
+hammering before the Worker is invoked, and 10 requests in 10 seconds is far
+beyond anything the app does legitimately. The in-Worker 5/hour check remains the
+real correctness limit.
 
 The `http.host` clause is belt-and-braces: since item 6 retired the
 `workers.dev` route, `api.parishfinder.app` is the only hostname that reaches
