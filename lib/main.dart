@@ -862,7 +862,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 12),
                   // Header Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -989,11 +989,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   _buildQuickAccessButtons(),
                   const SizedBox(height: 30),
 
-                  // Your Home Parishes — quick launcher for saved parishes, so
-                  // returning users can jump straight into the parishes they
-                  // care about. Hidden entirely when there are no favorites.
-                  ..._buildHomeParishesSection(),
-
                   // Search Section
                   Text(
                     'Search Parishes',
@@ -1004,6 +999,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   // Search Bar with Autocomplete
                   _buildSearchBar(),
                   const SizedBox(height: 30),
+
+                  // Your Home Parishes — quick launcher for saved parishes, so
+                  // returning users can jump straight into the parishes they
+                  // care about. Hidden entirely when there are no favorites.
+                  ..._buildHomeParishesSection(),
 
                   // Nearby Parishes Section
                   Text(

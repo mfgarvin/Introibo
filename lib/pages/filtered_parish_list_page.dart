@@ -873,6 +873,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   minutesUntilNext: minutesUntil,
                   showDistance: _sortOrder == SortOrder.distance && distance != null,
                   showTimeUntil: _sortOrder == SortOrder.nearestAndSoonest && minutesUntil != null,
+                  preferToday: _sortOrder != SortOrder.alphabetical,
                   cardColor: cardColor,
                   textColor: textColor,
                   subtextColor: subtextColor,
@@ -903,6 +904,10 @@ class _ParishCard extends StatelessWidget {
   final int? minutesUntilNext;
   final bool showDistance;
   final bool showTimeUntil;
+
+  /// In Soonest/Nearest modes the times sample leads with today's schedule
+  /// (falling back to the full weekly sample when nothing is on today).
+  final bool preferToday;
   final Color cardColor;
   final Color textColor;
   final Color subtextColor;
@@ -920,6 +925,7 @@ class _ParishCard extends StatelessWidget {
     this.minutesUntilNext,
     this.showDistance = false,
     this.showTimeUntil = false,
+    this.preferToday = false,
   });
 
   @override
@@ -1054,8 +1060,31 @@ class _ParishCard extends StatelessWidget {
     }
   }
 
+  /// Entries that occur today: weekly entries on today's weekday plus dated
+  /// (holiday) entries falling on today's date, sorted by start time.
+  List<ScheduleEntry> _todaysEntries(List<ScheduleEntry> times) {
+    final now = DateTime.now();
+    return times.where((e) {
+      if (e.isDated) {
+        final d = e.date!;
+        return d.year == now.year && d.month == now.month && d.day == now.day;
+      }
+      return e.dayOfWeek == now.weekday;
+    }).toList()
+      ..sort((a, b) =>
+          (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
+  }
+
   Widget _buildTimesSection() {
-    final times = _getTimesToShow();
+    var times = _getTimesToShow();
+    var showingToday = false;
+    if (preferToday) {
+      final todays = _todaysEntries(times);
+      if (todays.isNotEmpty) {
+        times = todays;
+        showingToday = true;
+      }
+    }
     IconData icon;
     String label;
     switch (filter) {
@@ -1071,6 +1100,7 @@ class _ParishCard extends StatelessWidget {
         icon = Icons.access_time;
         label = 'Mass Times';
     }
+    if (showingToday) label = '$label · Today';
 
     // Perpetual adoration: show a single descriptive chip instead of times.
     final isPerpetual =
@@ -1132,7 +1162,7 @@ class _ParishCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      time.display,
+                      showingToday ? time.timeLabel : time.display,
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: textColor,
