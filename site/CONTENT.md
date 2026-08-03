@@ -27,27 +27,27 @@ ships. Nothing reads this file at build time — there is no build step.
 ## Metadata
 
 ### Page title [meta.title]
-> ParishFinder — Discover Liturgies and Events around the Diocese
+> ParishFinder — An app for the Diocese of Cleveland
 
 ### Meta description [meta.description]
-> Find Mass schedules and more for parishes across the Diocese of Cleveland.
+> A free mobile app for finding Mass schedules and more across the Diocese of Cleveland.
 
 ### Social share title [meta.og.title]
 > ParishFinder — Discover the Life of the Church
 
 ### Social share description [meta.og.description]
-> Find Mass schedules and more for parishes around the Diocese of Cleveland.
+> A free mobile app for finding Mass schedules and more around the Diocese of Cleveland.
 
 ## Hero
 
 ### Eyebrow [hero.eyebrow]
-> Diocese of Cleveland / Northeast Ohio
+> An app for the Diocese of Cleveland / Northeast Ohio
 
 ### Headline [hero.h1]
 > Discover the *Life* of the Church
 
 ### Lede [hero.lede]
-> Masses, confession, and adoration across 184 Catholic parishes — the feasts, the hours, and what's happening today, gathered from the bulletins so you don't have to hunt through them.
+> A free app for your phone: Masses, confession, and adoration across 184 Catholic parishes — the feasts, the hours, and what's happening today, gathered from the bulletins so you don't have to hunt through them.
 
 ### Coming-soon badge [hero.note]
 > Coming soon to Google~Play and the Apple~App~Store
@@ -67,7 +67,7 @@ ships. Nothing reads this file at build time — there is no build step.
 > What is it?
 
 ### Intro [features.intro]
-> Parishes around you, all in the palm of your hand. Find what you need quickly for the parishes nearby!
+> A mobile app that puts the parishes around you in the palm of your hand. Find what you need quickly for the parishes nearby!
 
 ### Feature 1 title [feature.next-mass.title]
 > The next Mass
