@@ -123,6 +123,42 @@ void main() {
       expect(ScheduleEntry.fromJson(massJson('Sunday', '12:00'))!.timeLabel, '12:00 PM');
       expect(ScheduleEntry.fromJson(massJson('Monday', '00:00'))!.timeLabel, '12:00 AM');
     });
+
+    test('a window crossing midnight keeps both meridiems', () {
+      // Saint Bartholomew's confession: the bulletin gave no end time, so the
+      // exporter wrote 00:00. Both endpoints are nominally "AM", but they are
+      // ~15 hours apart — collapsing to "9:15 – 12:00 AM" read as a short
+      // morning slot.
+      final e =
+          ScheduleEntry.fromJson(windowJson('Saturday', '09:15', '00:00'))!;
+      expect(e.crossesMidnight, isTrue);
+      expect(e.timeLabel, '9:15 AM – 12:00 AM');
+    });
+
+    test('an evening window into the small hours reads correctly', () {
+      // Our Lady of Mount Carmel: First Friday 10pm until 8:15am Benediction.
+      final e =
+          ScheduleEntry.fromJson(windowJson('Friday', '22:00', '08:15'))!;
+      expect(e.crossesMidnight, isTrue);
+      expect(e.timeLabel, '10:00 PM – 8:15 AM');
+    });
+
+    test('identical endpoints render as a full day, not zero minutes', () {
+      // Saint Albert the Great's adoration runs continuously; each covered day
+      // is exported as 00:00–00:00, which rendered as "12:00 – 12:00 AM".
+      final e =
+          ScheduleEntry.fromJson(windowJson('Tuesday', '00:00', '00:00'))!;
+      expect(e.isAllDay, isTrue);
+      expect(e.timeLabel, 'All day');
+    });
+
+    test('a same-day window is unaffected', () {
+      final e =
+          ScheduleEntry.fromJson(windowJson('Tuesday', '08:30', '19:40'))!;
+      expect(e.crossesMidnight, isFalse);
+      expect(e.isAllDay, isFalse);
+      expect(e.timeLabel, '8:30 AM – 7:40 PM');
+    });
   });
 
   group('occurrence math', () {

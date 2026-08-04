@@ -45,6 +45,20 @@ class ScheduleEntry {
 
   bool get hasRange => endHour != null && endMinute != null;
 
+  /// True when the window runs past midnight into the next day — i.e. its end
+  /// is not strictly after its start. Mirrors the roll-forward in [endOf], and
+  /// matches the exporter's `end_next_day` flag on every record that carries
+  /// it, so the flag is not read separately.
+  bool get crossesMidnight {
+    if (!hasRange) return false;
+    return (endHour! * 60 + endMinute!) <= (hour * 60 + minute);
+  }
+
+  /// True for a window whose endpoints are identical, which the exporter uses
+  /// for a slot running a full day (e.g. adoration continuing around the clock).
+  bool get isAllDay =>
+      hasRange && endHour! == hour && endMinute! == minute;
+
   /// True for dated (holiday / one-off) entries.
   bool get isDated => date != null;
 
@@ -226,8 +240,14 @@ class ScheduleEntry {
   String get timeLabel {
     final start = _format12(hour, minute);
     if (!hasRange) return start;
+    // A round-the-clock window would otherwise render as "12:00 – 12:00 AM",
+    // which reads as zero minutes rather than twenty-four hours.
+    if (isAllDay) return 'All day';
     final end = _format12(endHour!, endMinute!);
-    final sameMeridiem = (hour >= 12) == (endHour! >= 12);
+    // Only collapse the meridiem within a single day. Across midnight the two
+    // endpoints can share one ("9:15 AM – 12:00 AM") while being ~15 hours
+    // apart, and dropping it would read as a short morning slot.
+    final sameMeridiem = (hour >= 12) == (endHour! >= 12) && !crossesMidnight;
     if (sameMeridiem) {
       final startNoMer = start.replaceFirst(RegExp(r'\s?(AM|PM)$'), '');
       return '$startNoMer – $end';
