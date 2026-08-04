@@ -271,101 +271,113 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         (_languageFilterApplies && _languageFilter != LanguageFilter.any);
   }
 
+  /// The schedule entries the time filters scan, based on filter type.
+  List<ScheduleEntry> _filterableEntries(Parish parish) {
+    switch (widget.filter) {
+      case ParishFilter.massTimes:
+        return parish.massTimes;
+      case ParishFilter.confession:
+        return parish.confTimes;
+      case ParishFilter.adoration:
+        return parish.adoration;
+      case ParishFilter.all:
+        return [...parish.massTimes, ...parish.confTimes];
+    }
+  }
+
+  /// Whether a single entry satisfies every active filter.
+  bool _entryMatchesFilters(
+      Parish parish, ScheduleEntry entry, DateTime now, DateTime today) {
+    // Check language filter (Mass-only; confession/adoration carry no language
+    // so they never satisfy a Spanish/Other request).
+    if (_languageFilterApplies && _languageFilter != LanguageFilter.any) {
+      final matchesLanguage = _languageFilter == LanguageFilter.spanish
+          ? entry.isSpanish
+          : entry.isOtherLanguage;
+      if (!matchesLanguage) return false;
+    }
+
+    // Check weekday filter
+    if (_selectedWeekdays.isNotEmpty && !_selectedWeekdays.contains(entry.dayOfWeek)) {
+      return false;
+    }
+
+    // Check time of day filter
+    if (_timeOfDayFilter != TimeOfDayFilter.any) {
+      final hour = entry.hour;
+      bool matchesTime = false;
+      switch (_timeOfDayFilter) {
+        case TimeOfDayFilter.morning:
+          matchesTime = hour >= 5 && hour < 12;
+          break;
+        case TimeOfDayFilter.afternoon:
+          matchesTime = hour >= 12 && hour < 17;
+          break;
+        case TimeOfDayFilter.evening:
+          matchesTime = hour >= 17 && hour < 21;
+          break;
+        case TimeOfDayFilter.night:
+          matchesTime = hour >= 21 || hour < 5;
+          break;
+        case TimeOfDayFilter.any:
+          matchesTime = true;
+          break;
+      }
+      if (!matchesTime) return false;
+    }
+
+    // Check day filter
+    if (_dayFilter != DayFilter.any) {
+      final nextOccurrence =
+          entry.nextOccurrence(now, _countInProgressFor(parish));
+      final eventDay = DateTime(nextOccurrence.year, nextOccurrence.month, nextOccurrence.day);
+      final daysUntil = eventDay.difference(today).inDays;
+
+      bool matchesDay = false;
+      switch (_dayFilter) {
+        case DayFilter.today:
+          matchesDay = daysUntil == 0;
+          break;
+        case DayFilter.tomorrow:
+          matchesDay = daysUntil == 1;
+          break;
+        case DayFilter.thisWeek:
+          matchesDay = daysUntil <= 7;
+          break;
+        case DayFilter.any:
+          matchesDay = true;
+          break;
+      }
+      if (!matchesDay) return false;
+    }
+
+    return true;
+  }
+
   /// Check if a parish has any schedule entries matching the current filters
   bool _matchesTimeFilters(Parish parish) {
     if (!_hasActiveFilters()) return true;
 
-    // Get the schedule based on filter type
-    List<ScheduleEntry> entries;
-    switch (widget.filter) {
-      case ParishFilter.massTimes:
-        entries = parish.massTimes;
-        break;
-      case ParishFilter.confession:
-        entries = parish.confTimes;
-        break;
-      case ParishFilter.adoration:
-        entries = parish.adoration;
-        break;
-      case ParishFilter.all:
-        entries = [...parish.massTimes, ...parish.confTimes];
-        break;
-    }
-
+    final entries = _filterableEntries(parish);
     if (entries.isEmpty) return false;
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    return entries.any((e) => _entryMatchesFilters(parish, e, now, today));
+  }
 
-    for (final entry in entries) {
-      // Check language filter (Mass-only; confession/adoration carry no language
-      // so they never satisfy a Spanish/Other request).
-      if (_languageFilterApplies && _languageFilter != LanguageFilter.any) {
-        final matchesLanguage = _languageFilter == LanguageFilter.spanish
-            ? entry.isSpanish
-            : entry.isOtherLanguage;
-        if (!matchesLanguage) continue;
-      }
-
-      // Check weekday filter
-      if (_selectedWeekdays.isNotEmpty && !_selectedWeekdays.contains(entry.dayOfWeek)) {
-        continue;
-      }
-
-      // Check time of day filter
-      if (_timeOfDayFilter != TimeOfDayFilter.any) {
-        final hour = entry.hour;
-        bool matchesTime = false;
-        switch (_timeOfDayFilter) {
-          case TimeOfDayFilter.morning:
-            matchesTime = hour >= 5 && hour < 12;
-            break;
-          case TimeOfDayFilter.afternoon:
-            matchesTime = hour >= 12 && hour < 17;
-            break;
-          case TimeOfDayFilter.evening:
-            matchesTime = hour >= 17 && hour < 21;
-            break;
-          case TimeOfDayFilter.night:
-            matchesTime = hour >= 21 || hour < 5;
-            break;
-          case TimeOfDayFilter.any:
-            matchesTime = true;
-            break;
-        }
-        if (!matchesTime) continue;
-      }
-
-      // Check day filter
-      if (_dayFilter != DayFilter.any) {
-        final nextOccurrence =
-            entry.nextOccurrence(now, _countInProgressFor(parish));
-        final eventDay = DateTime(nextOccurrence.year, nextOccurrence.month, nextOccurrence.day);
-        final daysUntil = eventDay.difference(today).inDays;
-
-        bool matchesDay = false;
-        switch (_dayFilter) {
-          case DayFilter.today:
-            matchesDay = daysUntil == 0;
-            break;
-          case DayFilter.tomorrow:
-            matchesDay = daysUntil == 1;
-            break;
-          case DayFilter.thisWeek:
-            matchesDay = daysUntil <= 7;
-            break;
-          case DayFilter.any:
-            matchesDay = true;
-            break;
-        }
-        if (!matchesDay) continue;
-      }
-
-      // If we get here, this entry matches all filters
-      return true;
-    }
-
-    return false;
+  /// The entries matching the active filters, soonest occurrence first — what
+  /// the card's times sample shows so it agrees with the filter.
+  List<ScheduleEntry> _entriesMatchingFilters(Parish parish) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final countInProgress = _countInProgressFor(parish);
+    return _filterableEntries(parish)
+        .where((e) => _entryMatchesFilters(parish, e, now, today))
+        .toList()
+      ..sort((a, b) => a
+          .nextOccurrence(now, countInProgress)
+          .compareTo(b.nextOccurrence(now, countInProgress)));
   }
 
   void _showFilterSheet() {
@@ -873,7 +885,11 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   minutesUntilNext: minutesUntil,
                   showDistance: _sortOrder == SortOrder.distance && distance != null,
                   showTimeUntil: _sortOrder == SortOrder.nearestAndSoonest && minutesUntil != null,
-                  preferToday: _sortOrder != SortOrder.alphabetical,
+                  preferToday:
+                      _sortOrder != SortOrder.alphabetical && !_hasActiveFilters(),
+                  filteredTimes: _hasActiveFilters()
+                      ? _entriesMatchingFilters(parish)
+                      : null,
                   cardColor: cardColor,
                   textColor: textColor,
                   subtextColor: subtextColor,
@@ -907,7 +923,14 @@ class _ParishCard extends StatelessWidget {
 
   /// In Soonest/Nearest modes the times sample leads with today's schedule
   /// (falling back to the full weekly sample when nothing is on today).
+  /// Off whenever day/time filters are active — the today override would
+  /// contradict what the user filtered for.
   final bool preferToday;
+
+  /// When day/time filters are active, the entries that match them (soonest
+  /// first) — shown instead of the weekly sample so the card reflects what
+  /// was asked for. Null when no filters are active.
+  final List<ScheduleEntry>? filteredTimes;
   final Color cardColor;
   final Color textColor;
   final Color subtextColor;
@@ -926,6 +949,7 @@ class _ParishCard extends StatelessWidget {
     this.showDistance = false,
     this.showTimeUntil = false,
     this.preferToday = false,
+    this.filteredTimes,
   });
 
   @override
@@ -1078,7 +1102,11 @@ class _ParishCard extends StatelessWidget {
   Widget _buildTimesSection() {
     var times = _getTimesToShow();
     var showingToday = false;
-    if (preferToday) {
+    var showingFiltered = false;
+    if (filteredTimes != null && filteredTimes!.isNotEmpty) {
+      times = filteredTimes!;
+      showingFiltered = true;
+    } else if (preferToday) {
       final todays = _todaysEntries(times);
       if (todays.isNotEmpty) {
         times = todays;
@@ -1101,6 +1129,7 @@ class _ParishCard extends StatelessWidget {
         label = 'Mass Times';
     }
     if (showingToday) label = '$label · Today';
+    if (showingFiltered) label = '$label · Filtered';
 
     // Perpetual adoration: show a single descriptive chip instead of times.
     final isPerpetual =
