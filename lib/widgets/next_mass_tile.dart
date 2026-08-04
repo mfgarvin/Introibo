@@ -19,9 +19,9 @@ class NextMassTile extends StatefulWidget {
   /// Reserved for "next Mass is far enough away that this isn't the hero".
   final bool compact;
 
-  /// When the soonest Mass isn't today, show a "No more today" chip instead of
-  /// an "in Xh" countdown. Used for the nearby tile, where "no more Masses
-  /// today" is the useful signal.
+  /// When the soonest Mass isn't today, show a "Tomorrow, 7:30 AM" chip
+  /// instead of an "in Xh" countdown. Used for the nearby tile, where the
+  /// concrete next time is more useful than a dead-end "No more today".
   final bool announceNoMoreToday;
   final void Function(Parish parish) onTap;
 
@@ -118,8 +118,9 @@ class _NextMassTileState extends State<NextMassTile> {
 
     // When the next Mass is today we show the exact time + a live countdown.
     // When it's another day, the countdown ("in 18h") is noise — generalize to
-    // a part-of-day phrase and, for the nearby tile, flag that there are no
-    // more Masses today.
+    // a part-of-day phrase and, for the nearby tile, put the concrete next
+    // time in the chip ("Tomorrow, 7:30 AM") rather than a subtext-echoing
+    // "No more today".
     final String whenLine;
     final String? chipText;
     if (isToday) {
@@ -127,7 +128,9 @@ class _NextMassTileState extends State<NextMassTile> {
       chipText = _formatCountdown(hit.minutes);
     } else {
       whenLine = '$whenLabel ${_partOfDay(hit.entry.hour)}';
-      chipText = widget.announceNoMoreToday ? 'No more today' : null;
+      chipText = widget.announceNoMoreToday
+          ? '$whenLabel, ${_formatTime(hit.entry.hour, hit.entry.minute)}'
+          : null;
     }
 
     return widget.compact

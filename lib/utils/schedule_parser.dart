@@ -379,6 +379,78 @@ class ScheduleParser {
     }
     return buckets;
   }
+
+  /// Group entries into day-runs for at-a-glance display: bucket by weekday,
+  /// merge consecutive days whose schedules are identical ("Mon–Fri"), order
+  /// Sunday first. Dated (holiday) entries trail as their own date groups.
+  static List<ScheduleDayGroup> groupByDay(List<ScheduleEntry> entries) {
+    final weekly = <int, List<ScheduleEntry>>{};
+    final dated = <DateTime, List<ScheduleEntry>>{};
+    for (final e in entries) {
+      if (e.isDated) {
+        final d = e.date!;
+        (dated[DateTime(d.year, d.month, d.day)] ??= []).add(e);
+      } else {
+        (weekly[e.dayOfWeek] ??= []).add(e);
+      }
+    }
+
+    int startMinutes(ScheduleEntry e) => e.hour * 60 + e.minute;
+    for (final list in [...weekly.values, ...dated.values]) {
+      list.sort((a, b) => startMinutes(a).compareTo(startMinutes(b)));
+    }
+
+    // Two days merge only when their schedules are indistinguishable on a
+    // card: same times, ranges, and language marks.
+    String signature(List<ScheduleEntry> list) => list
+        .map((e) =>
+            '${e.hour}:${e.minute}-${e.endHour}:${e.endMinute}-${e.languageBadge}')
+        .join('|');
+
+    final runs = <({int firstDay, int lastDay, List<ScheduleEntry> entries})>[];
+    for (var day = 1; day <= 7; day++) {
+      final todays = weekly[day];
+      if (todays == null) continue;
+      final prev = runs.isEmpty ? null : runs.last;
+      if (prev != null &&
+          prev.lastDay == day - 1 &&
+          signature(prev.entries) == signature(todays)) {
+        runs[runs.length - 1] =
+            (firstDay: prev.firstDay, lastDay: day, entries: prev.entries);
+      } else {
+        runs.add((firstDay: day, lastDay: day, entries: todays));
+      }
+    }
+    // Sunday-first: the run containing Sunday leads, then Mon..Sat order.
+    runs.sort((a, b) => (a.lastDay == 7 ? 0 : a.firstDay)
+        .compareTo(b.lastDay == 7 ? 0 : b.firstDay));
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return [
+      for (final r in runs)
+        ScheduleDayGroup(
+          r.firstDay == r.lastDay
+              ? days[r.firstDay - 1]
+              : '${days[r.firstDay - 1]}–${days[r.lastDay - 1]}',
+          r.entries,
+        ),
+      for (final d in dated.keys.toList()..sort())
+        ScheduleDayGroup('${months[d.month - 1]} ${d.day}', dated[d]!),
+    ];
+  }
+}
+
+/// A run of days sharing an identical schedule, for compact card display
+/// ("Mon–Fri" → 8:00 AM). Entries are sorted by start time.
+class ScheduleDayGroup {
+  final String label;
+  final List<ScheduleEntry> entries;
+
+  ScheduleDayGroup(this.label, this.entries);
 }
 
 /// A schedule entry paired with its next occurrence datetime.

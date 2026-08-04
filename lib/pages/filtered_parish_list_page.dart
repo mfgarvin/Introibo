@@ -885,7 +885,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   minutesUntilNext: minutesUntil,
                   showDistance: _sortOrder == SortOrder.distance && distance != null,
                   showTimeUntil: _sortOrder == SortOrder.nearestAndSoonest && minutesUntil != null,
-                  preferToday:
+                  preferUpcoming:
                       _sortOrder != SortOrder.alphabetical && !_hasActiveFilters(),
                   filteredTimes: _hasActiveFilters()
                       ? _entriesMatchingFilters(parish)
@@ -921,11 +921,11 @@ class _ParishCard extends StatelessWidget {
   final bool showDistance;
   final bool showTimeUntil;
 
-  /// In Soonest/Nearest modes the times sample leads with today's schedule
-  /// (falling back to the full weekly sample when nothing is on today).
-  /// Off whenever day/time filters are active — the today override would
-  /// contradict what the user filtered for.
-  final bool preferToday;
+  /// In Soonest/Nearest modes the times sample shows the next upcoming day's
+  /// schedule — what's left today, else tomorrow's, etc. — so it always
+  /// agrees with the "Tomorrow morning" badge. Off in A-Z (which shows the
+  /// full day-grouped schedule) and whenever day/time filters are active.
+  final bool preferUpcoming;
 
   /// When day/time filters are active, the entries that match them (soonest
   /// first) — shown instead of the weekly sample so the card reflects what
@@ -948,7 +948,7 @@ class _ParishCard extends StatelessWidget {
     this.minutesUntilNext,
     this.showDistance = false,
     this.showTimeUntil = false,
-    this.preferToday = false,
+    this.preferUpcoming = false,
     this.filteredTimes,
   });
 
@@ -1084,79 +1084,183 @@ class _ParishCard extends StatelessWidget {
     }
   }
 
-  /// Entries that occur today: weekly entries on today's weekday plus dated
-  /// (holiday) entries falling on today's date, sorted by start time.
-  List<ScheduleEntry> _todaysEntries(List<ScheduleEntry> times) {
+  /// Whether an in-progress window counts as upcoming — mirrors the page's
+  /// `_countInProgressFor` so the sample agrees with the "in Xh" chip.
+  bool get _countInProgress {
+    switch (filter) {
+      case ParishFilter.massTimes:
+        return kCountMassInProgress;
+      case ParishFilter.confession:
+      case ParishFilter.adoration:
+        return true;
+      case ParishFilter.all:
+        return parish.massTimes.isEmpty;
+    }
+  }
+
+  /// The next day with something upcoming: the soonest occurrence plus every
+  /// other entry falling on that same date, sorted by occurrence, with a label
+  /// ("Today" / "Tomorrow" / weekday). Null when nothing is upcoming.
+  ({List<ScheduleEntry> entries, String label})? _nextUpcomingDay(
+      List<ScheduleEntry> times) {
     final now = DateTime.now();
-    return times.where((e) {
-      if (e.isDated) {
-        final d = e.date!;
-        return d.year == now.year && d.month == now.month && d.day == now.day;
-      }
-      return e.dayOfWeek == now.weekday;
+    final soonest =
+        ScheduleParser.findNextOccurrence(times, now, _countInProgress);
+    if (soonest == null) return null;
+    final target = soonest.nextOccurrence(now, _countInProgress);
+    final entries = times.where((e) {
+      if (e.isPast(now, _countInProgress)) return false;
+      final o = e.nextOccurrence(now, _countInProgress);
+      return o.year == target.year &&
+          o.month == target.month &&
+          o.day == target.day;
     }).toList()
-      ..sort((a, b) =>
-          (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
+      ..sort((a, b) => a
+          .nextOccurrence(now, _countInProgress)
+          .compareTo(b.nextOccurrence(now, _countInProgress)));
+    final today = DateTime(now.year, now.month, now.day);
+    final daysUntil =
+        DateTime(target.year, target.month, target.day).difference(today).inDays;
+    final label = daysUntil == 0
+        ? 'Today'
+        : daysUntil == 1
+            ? 'Tomorrow'
+            : soonest.dayName;
+    return (entries: entries, label: label);
+  }
+
+  /// Time text for entry [i] of a day group, dropping its meridiem when the
+  /// following time shares it ("7:30 · 9:00 · 11:00 AM").
+  String _groupedTime(List<ScheduleEntry> entries, int i) {
+    final e = entries[i];
+    final label = e.timeLabel;
+    if (e.hasRange) return label;
+    if (i + 1 < entries.length) {
+      final n = entries[i + 1];
+      if (!n.hasRange && (e.hour >= 12) == (n.hour >= 12)) {
+        return label.replaceFirst(RegExp(r'\s?(AM|PM)$'), '');
+      }
+    }
+    return label;
+  }
+
+  /// One chip per day-run: "Sun 7:30 · 9:00 · 11:00 AM".
+  Widget _groupChip(ScheduleDayGroup group) {
+    final base = GoogleFonts.inter(fontSize: 12, color: textColor);
+    final spans = <TextSpan>[
+      TextSpan(
+        text: '${group.label} ',
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: subtextColor,
+        ),
+      ),
+    ];
+    for (var i = 0; i < group.entries.length; i++) {
+      final e = group.entries[i];
+      if (i > 0) spans.add(TextSpan(text: ' · ', style: base));
+      spans.add(TextSpan(text: _groupedTime(group.entries, i), style: base));
+      final badge =
+          filter == ParishFilter.adoration ? null : e.languageBadge;
+      if (badge != null) {
+        spans.add(TextSpan(
+          text: ' $badge',
+          style: GoogleFonts.inter(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: accentColor,
+            letterSpacing: 0.5,
+          ),
+        ));
+      }
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: subtextColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text.rich(TextSpan(children: spans)),
+    );
   }
 
   Widget _buildTimesSection() {
     var times = _getTimesToShow();
-    var showingToday = false;
+    String? dayLabel;
     var showingFiltered = false;
     if (filteredTimes != null && filteredTimes!.isNotEmpty) {
       times = filteredTimes!;
       showingFiltered = true;
-    } else if (preferToday) {
-      final todays = _todaysEntries(times);
-      if (todays.isNotEmpty) {
-        times = todays;
-        showingToday = true;
+    } else if (preferUpcoming) {
+      final upcoming = _nextUpcomingDay(times);
+      if (upcoming != null && upcoming.entries.isNotEmpty) {
+        times = upcoming.entries;
+        dayLabel = upcoming.label;
       }
     }
+
     IconData icon;
-    String label;
     switch (filter) {
       case ParishFilter.confession:
         icon = Icons.favorite_outline;
-        label = 'Confession';
         break;
       case ParishFilter.adoration:
         icon = Icons.brightness_5;
-        label = 'Adoration';
         break;
       default:
         icon = Icons.access_time;
-        label = 'Mass Times';
     }
-    if (showingToday) label = '$label · Today';
-    if (showingFiltered) label = '$label · Filtered';
+
+    // The page header already names the schedule, so the per-card row carries
+    // only qualifiers. Null hides the row entirely (A-Z, where the grouped
+    // chips carry their own days).
+    String? label;
+    if (showingFiltered) {
+      label = 'Filtered';
+    } else if (dayLabel != null) {
+      // Soonest sort: the "Tomorrow morning" badge already names the day.
+      // Without that badge (Nearest shows distance), the row carries it.
+      label = showTimeUntil
+          ? switch (filter) {
+              ParishFilter.confession => 'Next Confession',
+              ParishFilter.adoration => 'Next Adoration',
+              _ => 'Next Masses',
+            }
+          : dayLabel;
+    }
 
     // Perpetual adoration: show a single descriptive chip instead of times.
     final isPerpetual =
         filter == ParishFilter.adoration && parish.adorationIsPerpetual;
 
-    // Show up to 3 times
-    final displayTimes = times.take(3).toList();
-    final hasMore = times.length > 3;
+    // Day-focused and filtered samples: up to 3 per-entry chips. The A-Z
+    // weekly view instead shows the whole schedule as day-grouped chips.
+    final grouped = !showingFiltered && dayLabel == null;
+    final displayTimes =
+        grouped ? const <ScheduleEntry>[] : times.take(3).toList();
+    final hasMore = !grouped && times.length > 3;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(icon, size: 14, color: accentColor),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: accentColor,
+        if (label != null) ...[
+          Row(
+            children: [
+              Icon(icon, size: 14, color: accentColor),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: accentColor,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
         Wrap(
           spacing: 8,
           runSpacing: 6,
@@ -1177,50 +1281,56 @@ class _ParishCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ...displayTimes.map((time) {
-              final badge = filter == ParishFilter.adoration
-                  ? null
-                  : time.languageBadge;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: subtextColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      showingToday ? time.timeLabel : time.display,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: textColor,
+            if (grouped)
+              ...ScheduleParser.groupByDay(times).map(_groupChip)
+            else ...[
+              ...displayTimes.map((time) {
+                final badge = filter == ParishFilter.adoration
+                    ? null
+                    : time.languageBadge;
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: subtextColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        dayLabel != null ? time.timeLabel : time.display,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: textColor,
+                        ),
                       ),
-                    ),
-                    if (badge != null) ...[
-                      const SizedBox(width: 6),
-                      LanguageBadge(label: badge, color: accentColor),
+                      if (badge != null) ...[
+                        const SizedBox(width: 6),
+                        LanguageBadge(label: badge, color: accentColor),
+                      ],
                     ],
-                  ],
-                ),
-              );
-            }),
-            if (hasMore)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '+${times.length - 3} more',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: accentColor,
+                  ),
+                );
+              }),
+              if (hasMore)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '+${times.length - 3} more',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: accentColor,
+                    ),
                   ),
                 ),
-              ),
+            ],
           ],
         ),
       ],

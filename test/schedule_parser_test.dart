@@ -261,4 +261,70 @@ void main() {
       expect(buckets['beyond']!.isEmpty, true);
     });
   });
+
+  group('groupByDay', () {
+    test('merges consecutive identical days into a range, Sunday first', () {
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Monday', '08:00'),
+        massJson('Tuesday', '08:00'),
+        massJson('Wednesday', '08:00'),
+        massJson('Thursday', '08:00'),
+        massJson('Friday', '08:00'),
+        massJson('Saturday', '16:30'),
+        massJson('Sunday', '09:00'),
+        massJson('Sunday', '11:00'),
+      ]);
+      final groups = ScheduleParser.groupByDay(entries);
+      expect(groups.map((g) => g.label).toList(), ['Sun', 'Mon–Fri', 'Sat']);
+      expect(groups.first.entries.map((e) => e.hour).toList(), [9, 11]);
+      expect(groups[1].entries.single.hour, 8);
+    });
+
+    test('different times on adjacent days do not merge', () {
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Monday', '08:00'),
+        massJson('Tuesday', '12:10'),
+      ]);
+      final groups = ScheduleParser.groupByDay(entries);
+      expect(groups.map((g) => g.label).toList(), ['Mon', 'Tue']);
+    });
+
+    test('a language mark blocks merging', () {
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Monday', '08:00'),
+        massJson('Tuesday', '08:00', language: 'Spanish'),
+      ]);
+      final groups = ScheduleParser.groupByDay(entries);
+      expect(groups.length, 2);
+    });
+
+    test('entries within a day are sorted by start time', () {
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Sunday', '11:00'),
+        massJson('Sunday', '07:30'),
+        massJson('Sunday', '09:00'),
+      ]);
+      final groups = ScheduleParser.groupByDay(entries);
+      expect(groups.single.entries.map((e) => e.hour).toList(), [7, 9, 11]);
+    });
+
+    test('dated entries trail as their own date-labeled group', () {
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Sunday', '09:00'),
+        massJson('Thursday', '10:00', massDate: '2026-12-25'),
+      ]);
+      final groups = ScheduleParser.groupByDay(entries);
+      expect(groups.map((g) => g.label).toList(), ['Sun', 'Dec 25']);
+    });
+
+    test('confession windows group like plain times', () {
+      final entries = ScheduleEntry.listFromJson([
+        windowJson('Saturday', '15:00', '15:45'),
+        windowJson('Wednesday', '18:00', '18:30'),
+      ]);
+      final groups = ScheduleParser.groupByDay(entries);
+      expect(groups.map((g) => g.label).toList(), ['Wed', 'Sat']);
+      expect(groups.last.entries.single.hasRange, true);
+    });
+  });
 }
