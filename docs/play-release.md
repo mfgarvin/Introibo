@@ -120,17 +120,19 @@ Play Console into readable stack traces.
 
 Work top to bottom. The items above the line block the upload itself.
 
-- [ ] **Launcher icon is still the stock Flutter logo.** Replace
-      `android/app/src/main/res/mipmap-*/ic_launcher.png` (48/72/96/144/192 px)
-      before shipping. Also produce the 512×512 Play Store icon.
-- [ ] Upload keystore generated and backed up (steps 1–2 above).
+- [x] **Launcher icons and both store graphics are generated and shipped** —
+      `tool/gen_icons.py` renders them from the design handoff's vector source.
+      The 512×512 Play icon and the 1024×500 feature graphic are at
+      `docs/store/`. Never hand-edit the PNGs; `gen_icons.py --check` catches drift.
+- [ ] **Phone screenshots — 2 to 8 images, still missing.** The one remaining
+      listing asset. See the screenshot plan in [`play-listing.md`](play-listing.md).
+- [ ] Upload keystore generated and backed up (steps 1–2 above). `keytool` is not
+      on `PATH`; it lives at `/usr/lib/Stirling-PDF/runtime/jre/bin/keytool`.
 - [ ] `applicationId` is `app.parishfinder`. **This is permanent after the first
       upload** — change it now or never.
-- [ ] Privacy policy hosted at a public, stable HTTPS URL. The page is written —
-      deploy `site/` to parishfinder.app (see `site/README.md`) and put the
-      resulting URL in the Play Console. **Load it in a browser first**: the
-      link resolves as `/privacy.html` everywhere, but bare `/privacy` only
-      works on hosts that strip extensions.
+- [x] Privacy policy hosted — `https://parishfinder.app/privacy.html` is live
+      (Git-deployed via Cloudflare Pages). Use the `.html` URL in the Play
+      Console: bare `/privacy` only works on hosts that strip extensions.
 - [ ] Data Safety form completed — see [`play-data-safety.md`](play-data-safety.md).
 - [ ] Store listing copy and graphics — see [`play-listing.md`](play-listing.md).
 - [ ] Content rating questionnaire completed (expect "Everyone").
@@ -152,8 +154,6 @@ Work top to bottom. The items above the line block the upload itself.
 
 ### Known gaps to decide on before shipping
 
-- **The `Attributions.txt` at the repo root is now redundant** with the Credits
-  card in the app's About page. Keep them in sync or delete the file.
 - **`flutter_map` is a major version behind** (7.0.2 vs 8.x). Deferred
   deliberately: v8 is a breaking API change and the map works today. Revisit
   after launch, not before.

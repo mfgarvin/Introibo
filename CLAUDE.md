@@ -78,10 +78,12 @@ static const _remoteUrl =
     'https://raw.githubusercontent.com/mfgarvin/bulletin/refs/heads/main/export.json';
 ```
 
-The bundled `data/parishes.json` asset is no longer shipped — first launch requires a
+There is no bundled parish data asset — first launch requires a
 network connection (an "Internet Required" screen handles that case). Use the local
-`export.demo.json` (new shape, 189 records — an older snapshot; the live data is
-now 184 parishes) for inspection.
+`export.demo.json` (new shape, 189 records across 184 parishes — refreshed from
+live 2026-08-04) for inspection. Records outnumber parishes because a parish with
+multiple worship sites gets one record each; `parish_id` is the identity, not
+`name` (six names repeat across cities).
 
 ### Data Model
 
@@ -93,7 +95,7 @@ now 184 parishes) for inspection.
 - `bulletinUrl`, `eventsSummary`, `imageUrl`, `contactInfo` — optional
 - `latitude`, `longitude` — nullable plain floats (now present in the data)
 - `lastUpdated` — parsed from the per-record `timestamp`
-- `inviteFeedback: bool` — from `invite_feedback`; true (13 parishes as of the 2026-07-22 data) means the schedule was never machine-verified from a bulletin, so `ParishDetailPage` shows an `InviteFeedbackCard` under the next-Mass banner asking the user to confirm or correct the times. Defaults to false if the key is missing (older cached JSON).
+- `inviteFeedback: bool` — from `invite_feedback`; true (14 parishes as of the 2026-08-04 data) means the schedule was never machine-verified from a bulletin, so `ParishDetailPage` shows an `InviteFeedbackCard` under the next-Mass banner asking the user to confirm or correct the times. Defaults to false if the key is missing (older cached JSON).
 
 JSON comes from the **structured** `export.json` shape:
 - `schedules.mass[]`: `{day, start "HH:MM", mass_date, language, notes}`
@@ -184,7 +186,8 @@ area) — see Data Flow above. The **structured** shape (sample, abbreviated):
 
 **Note:** Coordinates are now present in the data (`latitude`/`longitude` as plain floats),
 so the map and distance-based sorting work. The full structured shape and migration notes
-live in `EXPORT_SHAPE_CHANGES.md`; `export.demo.json` is a local copy for inspection.
+live in `EXPORT_SHAPE_CHANGES.md` **in the scraper repo** (`../bulletin-v2`) — that copy is
+authoritative; `export.demo.json` is a local copy of the data for inspection.
 
 ## Change History
 

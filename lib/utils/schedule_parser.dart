@@ -11,7 +11,8 @@ const bool kCountMassInProgress = false;
 
 /// A single structured schedule entry (one Mass, confession slot, or adoration
 /// period). Built directly from the pre-parsed `schedules` objects in
-/// `export.json` — see EXPORT_SHAPE_CHANGES.md. No string parsing happens
+/// `export.json` — see EXPORT_SHAPE_CHANGES.md in the scraper repo
+/// (`../bulletin-v2`), which is authoritative. No string parsing happens
 /// anymore; every field arrives structured.
 class ScheduleEntry {
   final int dayOfWeek; // 1 = Monday, 7 = Sunday (ISO standard)

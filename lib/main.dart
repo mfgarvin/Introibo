@@ -2855,8 +2855,8 @@ class _AboutPageState extends State<AboutPage> {
                     const SizedBox(height: 12),
                     Text(
                       // The Noun Project icons are CC BY 3.0: attribution is a
-                      // license condition, so it has to be visible in the app
-                      // itself, not only in the repo's Attributions.txt.
+                      // license condition, so this card is where the credit
+                      // actually discharges it — keep the names below intact.
                       'With thanks to Tim Garvin and Tony Lofreso for their '
                       'assistance and know-how.\n\n'
                       'Map data © OpenStreetMap contributors, available under '
