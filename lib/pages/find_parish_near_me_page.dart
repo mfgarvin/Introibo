@@ -1,21 +1,16 @@
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/parish.dart';
+import '../services/location_service.dart';
 import '../services/parish_service.dart';
 import '../main.dart' show kPrimaryColor, kSecondaryColor, kBackgroundColor, kCardColor;
 import '../widgets/stained_glass_header.dart';
+import '../widgets/zip_location_dialog.dart';
 import 'parish_detail_page.dart';
-
-// Dev override: set to a LatLng to skip GPS, or null to use real location
-const LatLng? kDevLocation = kDebugMode
-    ? LatLng(41.48, -81.78) // Lakewood, OH - near several parishes
-    : null;
 
 class FindParishNearMePage extends StatefulWidget {
   /// When the map is shown as a root tab (inside RootShell), there's nothing
@@ -31,12 +26,21 @@ class FindParishNearMePage extends StatefulWidget {
 class _FindParishNearMePageState extends State<FindParishNearMePage>
     with WidgetsBindingObserver {
   LatLng? userLocation;
+  LocationFix? _fix;
+  LocationFailure? _locationFailure;
   List<Parish> _parishes = [];
   List<Parish> _nearbyParishes = [];
   bool _isLoading = true;
   int _selectedIndex = 0;
   final MapController _mapController = MapController();
   final PageController _pageController = PageController(viewportFraction: 0.85);
+
+  /// True once the map has been built, so [MapController] is safe to drive.
+  bool _mapReady = false;
+
+  /// Set when the user pans or zooms by hand. Their framing then wins over a
+  /// background refresh — we only auto-recenter until they take the wheel.
+  bool _userMovedCamera = false;
 
   // Parchment/sepia tone — a soft warm wash that desaturates the map without
   // going full Stamen-Watercolor. Built from a standard sepia matrix scaled
@@ -52,13 +56,23 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    locationService.addListener(_onSharedLocation);
     _loadParishData();
     _getUserLocation();
+  }
+
+  /// Adopt a fix the Home tab obtained — both tabs stay alive side by side.
+  void _onSharedLocation() {
+    final fix = locationService.lastFix;
+    if (fix == null || !mounted) return;
+    if (userLocation == fix.position && _fix?.source == fix.source) return;
+    _applyFix(fix);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    locationService.removeListener(_onSharedLocation);
     _mapController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -121,59 +135,76 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
         _parishes = parishes;
         _rebuildNearby();
       });
+
+      // Same race as on Home: a stored ZIP can't resolve until the parish
+      // data it resolves against has arrived.
+      if (userLocation == null) {
+        final fallback = await locationService.manualFallback(_parishes);
+        if (fallback != null && mounted && userLocation == null) {
+          _applyFix(fallback, recenter: true);
+        }
+      }
     } catch (e) {
       debugPrint('Error loading parish data: $e');
     }
   }
 
-  Future<void> _getUserLocation() async {
-    // Use dev override if set
-    if (kDevLocation != null) {
-      debugPrint('Using dev location: ${kDevLocation!.latitude}, ${kDevLocation!.longitude}');
-      setState(() {
-        userLocation = kDevLocation;
-        _isLoading = false;
-        _rebuildNearby();
-      });
+  /// Fetch a position and apply it. [recenter] moves the camera even if the
+  /// user has panned — used by the my-location button, where recentring is
+  /// the whole point.
+  Future<void> _getUserLocation({bool recenter = false}) async {
+    // Something on screen fast: a cached fix costs nothing and spares the
+    // spinner on every resume.
+    if (userLocation == null) {
+      final cached = await locationService.lastKnown();
+      if (cached != null && mounted && userLocation == null) {
+        _applyFix(cached, recenter: true);
+      }
+    }
+
+    final outcome = await locationService.current();
+    if (!mounted) return;
+
+    if (outcome.ok) {
+      _applyFix(outcome.fix!, recenter: recenter);
       return;
     }
 
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        permission = await Geolocator.requestPermission();
-        if (permission != LocationPermission.whileInUse &&
-            permission != LocationPermission.always) {
-          debugPrint('Location permissions are denied');
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-
-      // See the matching call in main.dart: bound the wait so an indoor fix
-      // that never arrives surfaces as an error state instead of a hang.
-      final Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 15),
-        ),
-      );
-
-      setState(() {
-        userLocation = LatLng(position.latitude, position.longitude);
-        _isLoading = false;
-        _rebuildNearby();
-      });
-    } catch (e) {
-      debugPrint('Error getting location: $e');
-      setState(() {
-        _isLoading = false;
-      });
+    // No device fix — fall back to a ZIP the user entered earlier, if any.
+    final fallback = await locationService.manualFallback(_parishes);
+    if (!mounted) return;
+    if (fallback != null) {
+      _applyFix(fallback, recenter: recenter);
+      return;
     }
+
+    setState(() {
+      _locationFailure = outcome.failure;
+      _isLoading = false;
+    });
+  }
+
+  void _applyFix(LocationFix fix, {bool recenter = false}) {
+    setState(() {
+      userLocation = fix.position;
+      _fix = fix;
+      _locationFailure = null;
+      _isLoading = false;
+      _rebuildNearby();
+    });
+
+    // The camera used to be set once, through MapOptions.initialCenter, so a
+    // later fix moved the marker off screen with no way to follow it.
+    if (_mapReady && (recenter || !_userMovedCamera)) {
+      _mapController.move(fix.position, _mapController.camera.zoom);
+      if (recenter) _userMovedCamera = false;
+    }
+  }
+
+  Future<void> _promptForZip() async {
+    final fix = await showZipLocationDialog(context, _parishes);
+    if (fix == null || !mounted) return;
+    _applyFix(fix, recenter: true);
   }
 
   @override
@@ -236,6 +267,14 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                         initialZoom: 13.0,
                         minZoom: 8.0,
                         maxZoom: 18.0,
+                        onMapReady: () => _mapReady = true,
+                        onPositionChanged: (position, hasGesture) {
+                          // A hand-driven pan/zoom pins the view; refreshes
+                          // stop stealing it until the user asks to recenter.
+                          if (hasGesture && !_userMovedCamera) {
+                            _userMovedCamera = true;
+                          }
+                        },
                       ),
                       children: [
                         ColorFiltered(
@@ -290,6 +329,13 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                         ),
                       ),
                     ),
+                    // Recenter control. Also the only way back to yourself
+                    // after panning, so it sits above the carousel.
+                    Positioned(
+                      right: 16,
+                      bottom: 186,
+                      child: _buildRecenterButton(),
+                    ),
                     // Bottom: swipeable parish carousel
                     Positioned(
                       left: 0,
@@ -300,6 +346,33 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                     ),
                   ],
                 ),
+    );
+  }
+
+  Widget _buildRecenterButton() {
+    final usingZip = _fix?.source == LocationSource.manualZip;
+    return Semantics(
+      button: true,
+      label: usingZip
+          ? 'Centre on ZIP code ${_fix?.zip}'
+          : 'Centre on my location',
+      child: Material(
+        color: kCardColor,
+        shape: const CircleBorder(),
+        elevation: 4,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => _getUserLocation(recenter: true),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(
+              usingZip ? Icons.pin_drop_outlined : Icons.my_location,
+              color: kPrimaryColor,
+              size: 24,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -333,7 +406,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
             ),
             const SizedBox(height: 8),
             Text(
-              'Please enable location services and grant permission to use this feature.',
+              _locationFailureMessage(_locationFailure),
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: Colors.black54,
@@ -346,7 +419,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                 setState(() {
                   _isLoading = true;
                 });
-                _getUserLocation();
+                _getUserLocation(recenter: true);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: kPrimaryColor,
@@ -363,10 +436,41 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            // Some devices simply never produce a fix — a Wi-Fi-only tablet
+            // out of range of known networks, or a user who declined the
+            // permission outright. A ZIP keeps the map usable for them.
+            TextButton.icon(
+              onPressed: _parishes.isEmpty ? null : _promptForZip,
+              icon: const Icon(Icons.pin_drop_outlined, size: 18),
+              label: Text(
+                'Enter a ZIP code instead',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+              style: TextButton.styleFrom(foregroundColor: kPrimaryColor),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  static String _locationFailureMessage(LocationFailure? failure) {
+    switch (failure) {
+      case LocationFailure.permissionDeniedForever:
+        return 'Location permission is turned off for ParishFinder. '
+            'You can enable it in your device settings.';
+      case LocationFailure.serviceDisabled:
+        return 'Location services are turned off on this device.';
+      case LocationFailure.timeout:
+        return "We couldn't get a location fix — that's common indoors, "
+            'and on tablets without GPS.';
+      case LocationFailure.permissionDenied:
+      case LocationFailure.unavailable:
+      case null:
+        return 'Please enable location services and grant permission '
+            'to use this feature.';
+    }
   }
 
   Marker _buildUserLocationMarker() {

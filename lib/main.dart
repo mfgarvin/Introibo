@@ -3,12 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'models/parish.dart';
+import 'services/location_service.dart';
 import 'services/parish_service.dart';
 import 'pages/parish_detail_page.dart';
 import 'pages/find_parish_near_me_page.dart';
@@ -18,16 +18,15 @@ import 'widgets/today_hero_card.dart';
 import 'widgets/next_mass_tile.dart';
 import 'widgets/stained_glass_header.dart';
 import 'widgets/liturgical_day_tile.dart';
+import 'widgets/zip_location_dialog.dart';
 import 'theme/app_text.dart';
 import 'utils/schedule_parser.dart';
 import 'utils/search_normalize.dart';
 import 'utils/app_version.dart';
 import 'services/feedback_client.dart';
 
-// Dev override: set to a LatLng to skip GPS, or null to use real location
-const LatLng? kDevLocation = kDebugMode
-    ? LatLng(41.48, -81.78) // Lakewood, OH - near several parishes
-    : null;
+// kDevLocation now lives in services/location_service.dart, alongside the
+// logic that honours it.
 
 // If the user's nearest parish in our dataset is farther than this, we treat
 // them as outside the supported coverage area (currently the Cleveland/Akron
@@ -443,6 +442,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool _showResults = false;
   Timer? _debounce;
   LatLng? _userLocation;
+  LocationFix? _locationFix;
+  LocationFailure? _locationFailure;
   bool _locationLoading = true;
   // True when the user's nearest parish is beyond kSupportedRadiusMiles — i.e.
   // they're outside the supported diocese. Drives the coverage notice banner.
@@ -458,6 +459,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _searchFocusNode.addListener(_onFocusChange);
     themeNotifier.addListener(_onThemeChanged);
     favoritesManager.addListener(_onThemeChanged);
+    locationService.addListener(_onSharedLocation);
   }
 
   @override
@@ -469,6 +471,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _debounce?.cancel();
     themeNotifier.removeListener(_onThemeChanged);
     favoritesManager.removeListener(_onThemeChanged);
+    locationService.removeListener(_onSharedLocation);
     super.dispose();
   }
 
@@ -513,6 +516,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }
 
       _updateNearbyParishes();
+
+      // The location lookup starts in parallel with this load and usually
+      // finishes first — a denied permission returns instantly. If it fell
+      // back to a stored ZIP it had no parishes to resolve against yet, so
+      // give it the data now.
+      if (_userLocation == null) {
+        await _applyManualFallbackIfAny();
+      }
 
       // Show warning if using cached/offline data
       if (parishService.isUsingCachedData && mounted) {
@@ -641,54 +652,68 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _getUserLocation() async {
-    // Use dev override if set
-    if (kDevLocation != null) {
-      debugPrint('Using dev location: ${kDevLocation!.latitude}, ${kDevLocation!.longitude}');
-      setState(() {
-        _userLocation = kDevLocation;
-        _locationLoading = false;
-      });
-      _updateNearbyParishes();
+    // A cached fix paints the nearby list immediately; the fresh one below
+    // corrects it a moment later. Keeps the spinner off every resume.
+    if (_userLocation == null) {
+      final cached = await locationService.lastKnown();
+      if (cached != null && mounted && _userLocation == null) {
+        _applyFix(cached);
+      }
+    }
+
+    final outcome = await locationService.current();
+    if (!mounted) return;
+
+    if (outcome.ok) {
+      _applyFix(outcome.fix!);
       return;
     }
 
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        permission = await Geolocator.requestPermission();
-        if (permission != LocationPermission.whileInUse &&
-            permission != LocationPermission.always) {
-          debugPrint('Location permissions are denied');
-          setState(() {
-            _locationLoading = false;
-          });
-          return;
-        }
-      }
-
-      // A fix can hang indefinitely indoors — a church basement is exactly
-      // where this app gets used — so cap the wait and fall through to the
-      // catch below rather than leaving the spinner up forever.
-      final Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 15),
-        ),
-      );
-
-      setState(() {
-        _userLocation = LatLng(position.latitude, position.longitude);
-        _locationLoading = false;
-      });
-      _updateNearbyParishes();
-    } catch (e) {
-      debugPrint('Error getting location: $e');
-      setState(() {
-        _locationLoading = false;
-      });
+    // No device fix — fall back to a ZIP the user entered earlier, if any.
+    final fallback = await locationService.manualFallback(_parishes);
+    if (!mounted) return;
+    if (fallback != null) {
+      _applyFix(fallback);
+      return;
     }
+
+    setState(() {
+      _locationFailure = outcome.failure;
+      _locationLoading = false;
+    });
+  }
+
+  /// Resolve a previously stored ZIP, once parish data is available.
+  Future<void> _applyManualFallbackIfAny() async {
+    final fallback = await locationService.manualFallback(_parishes);
+    if (fallback == null || !mounted || _userLocation != null) return;
+    _applyFix(fallback);
+  }
+
+  /// Adopt a fix another tab obtained — chiefly a ZIP typed on the map.
+  void _onSharedLocation() {
+    final fix = locationService.lastFix;
+    if (fix == null || !mounted) return;
+    if (_userLocation == fix.position && _locationFix?.source == fix.source) {
+      return; // Our own fix coming back around.
+    }
+    _applyFix(fix);
+  }
+
+  void _applyFix(LocationFix fix) {
+    setState(() {
+      _userLocation = fix.position;
+      _locationFix = fix;
+      _locationFailure = null;
+      _locationLoading = false;
+    });
+    _updateNearbyParishes();
+  }
+
+  Future<void> _promptForZip() async {
+    final fix = await showZipLocationDialog(context, _parishes);
+    if (fix == null || !mounted) return;
+    _applyFix(fix);
   }
 
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
@@ -1010,6 +1035,50 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     'Nearby Parishes',
                     style: AppText.titleLarge(color: _textColor),
                   ),
+                  // Say so plainly when "nearby" means a typed ZIP rather
+                  // than the device — the distances are to its centre, not
+                  // to the user, and that difference is theirs to know.
+                  if (_locationFix?.source == LocationSource.manualZip)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.pin_drop_outlined,
+                              size: 14, color: _subtextColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Near ZIP ${_locationFix?.zip}',
+                            style: GoogleFonts.inter(
+                                fontSize: 12, color: _subtextColor),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              await locationService.clearManualZip();
+                              if (!mounted) return;
+                              setState(() {
+                                _locationFix = null;
+                                _userLocation = null;
+                                _locationLoading = true;
+                              });
+                              _getUserLocation();
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              'Use my location',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: kPrimaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 16),
 
                   // Live "Next Mass" tiles (nearby + favorite). Expanded
@@ -1632,27 +1701,46 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 12),
               Text(
-                'Location unavailable',
+                _locationFailure == LocationFailure.serviceDisabled
+                    ? 'Location services are off'
+                    : 'Location unavailable',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   color: _subtextColor,
                 ),
               ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _locationLoading = true;
-                  });
-                  _getUserLocation();
-                },
-                child: Text(
-                  'Try Again',
-                  style: GoogleFonts.inter(
-                    color: kPrimaryColor,
-                    fontWeight: FontWeight.w600,
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _locationLoading = true;
+                      });
+                      _getUserLocation();
+                    },
+                    child: Text(
+                      'Try Again',
+                      style: GoogleFonts.inter(
+                        color: kPrimaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
+                  // Works when nothing else will: no GPS, no permission, no
+                  // fix. Resolved from our own parish data, entirely offline.
+                  TextButton(
+                    onPressed: _parishes.isEmpty ? null : _promptForZip,
+                    child: Text(
+                      'Use a ZIP code',
+                      style: GoogleFonts.inter(
+                        color: kPrimaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
