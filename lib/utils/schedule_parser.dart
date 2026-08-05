@@ -21,6 +21,12 @@ class ScheduleEntry {
   final int? endHour; // 0-23 — optional end time for ranges (e.g. confession windows)
   final int? endMinute;
 
+  /// The exporter's `end_next_day`: this window's end falls on the following
+  /// day. Read from the data rather than inferred — the two cases that look
+  /// identical from the endpoints alone, a fully covered day (00:00–00:00 +1d)
+  /// and a start with no stated end (16:00–16:00), differ only in this flag.
+  final bool endNextDay;
+
   /// Non-null for one-off / holiday occurrences (Christmas, weddings, Holy
   /// Days). When set, the entry occurs on this specific date rather than
   /// recurring weekly. [dayOfWeek] still reflects the weekday the date falls on.
@@ -38,26 +44,38 @@ class ScheduleEntry {
     required this.minute,
     this.endHour,
     this.endMinute,
+    this.endNextDay = false,
     this.date,
     this.language,
     this.note,
   });
 
-  bool get hasRange => endHour != null && endMinute != null;
+  /// True when the entry carries a real window, not just a start time.
+  ///
+  /// A range needs two endpoints that actually differ — unless [endNextDay],
+  /// which is how a fully covered day arrives (00:00–00:00 +1d) and how any
+  /// 24-hour span is encoded. Identical endpoints without the flag mean the
+  /// bulletin gave a start and no end ("Confessions after the 8:15 Mass"):
+  /// the absence of a window, not a zero-length one. The scraper is moving to
+  /// a null `end` for that case, which lands on this same branch, so the two
+  /// repos can ship in either order and a cached export written under either
+  /// convention renders correctly.
+  bool get hasRange =>
+      endHour != null &&
+      endMinute != null &&
+      (endNextDay || endHour! != hour || endMinute! != minute);
 
-  /// True when the window runs past midnight into the next day — i.e. its end
-  /// is not strictly after its start. Mirrors the roll-forward in [endOf], and
-  /// matches the exporter's `end_next_day` flag on every record that carries
-  /// it, so the flag is not read separately.
-  bool get crossesMidnight {
-    if (!hasRange) return false;
-    return (endHour! * 60 + endMinute!) <= (hour * 60 + minute);
-  }
+  /// True when the window runs past midnight into the next day. This is the
+  /// exporter's own flag, not an inference from the endpoints — inferring it
+  /// from `end <= start` was what made an open-ended slot look like a 24-hour
+  /// window.
+  bool get crossesMidnight => hasRange && endNextDay;
 
-  /// True for a window whose endpoints are identical, which the exporter uses
-  /// for a slot running a full day (e.g. adoration continuing around the clock).
+  /// A span covering a full 24 hours: identical endpoints, ending the next
+  /// day. Independent of where it starts, so 22:00 → 22:00 +1d qualifies as
+  /// well as the 00:00–00:00 middle days of a multi-day adoration.
   bool get isAllDay =>
-      hasRange && endHour! == hour && endMinute! == minute;
+      hasRange && endNextDay && endHour! == hour && endMinute! == minute;
 
   /// True for dated (holiday / one-off) entries.
   bool get isDated => date != null;
@@ -83,12 +101,21 @@ class ScheduleEntry {
       return null;
     }
     final end = _parseHm(json['end']);
+    // The exporter has emitted this on every range entry since v2.5.0 and
+    // backfills it as `end < start` for older rows (utils/notion_to_app.py,
+    // _structured_ranges), so the fallback matches that rule for a pre-v2.5.0
+    // cached export. Strict `<`, so equal endpoints fall back to false — an
+    // unstated end, which is the safe reading.
+    final endNextDay = (json['end_next_day'] as bool?) ??
+        (end != null &&
+            (end.hour * 60 + end.minute) < (start.hour * 60 + start.minute));
     return ScheduleEntry(
       dayOfWeek: dayOfWeek,
       hour: start.hour,
       minute: start.minute,
       endHour: end?.hour,
       endMinute: end?.minute,
+      endNextDay: endNextDay,
       date: _parseDate(json['mass_date']),
       language: (json['language'] as String?)?.trim().isEmpty ?? true
           ? null
@@ -137,7 +164,12 @@ class ScheduleEntry {
     if (!hasRange) return null;
     final end =
         DateTime(start.year, start.month, start.day, endHour!, endMinute!);
-    return end.isAfter(start) ? end : end.add(const Duration(days: 1));
+    // Trust the flag. The `!isAfter` arm only catches data that contradicts
+    // itself (an end at or before the start without the flag), where rolling
+    // forward still beats returning a window of negative length.
+    return endNextDay || !end.isAfter(start)
+        ? end.add(const Duration(days: 1))
+        : end;
   }
 
   /// Start of the window currently underway (adoration open now, confession
@@ -240,7 +272,7 @@ class ScheduleEntry {
   String get timeLabel {
     final start = _format12(hour, minute);
     if (!hasRange) return start;
-    // A round-the-clock window would otherwise render as "12:00 – 12:00 AM",
+    // A round-the-clock day would otherwise render as "12:00 – 12:00 AM",
     // which reads as zero minutes rather than twenty-four hours.
     if (isAllDay) return 'All day';
     final end = _format12(endHour!, endMinute!);
@@ -423,9 +455,11 @@ class ScheduleParser {
 
     // Two days merge only when their schedules are indistinguishable on a
     // card: same times, ranges, and language marks.
+    // Read the end through hasRange so an open-ended slot signs the same
+    // whether the exporter wrote a null end or an end equal to the start.
     String signature(List<ScheduleEntry> list) => list
         .map((e) =>
-            '${e.hour}:${e.minute}-${e.endHour}:${e.endMinute}-${e.languageBadge}')
+            '${e.hour}:${e.minute}-${e.hasRange ? '${e.endHour}:${e.endMinute}' : ''}-${e.languageBadge}')
         .join('|');
 
     final runs = <({int firstDay, int lastDay, List<ScheduleEntry> entries})>[];

@@ -18,8 +18,14 @@ Map<String, dynamic> massJson(
     };
 
 Map<String, dynamic> windowJson(String day, String start, String end,
-        {String? notes}) =>
-    {'day': day, 'start': start, 'end': end, 'notes': notes};
+        {String? notes, bool? endNextDay}) =>
+    {
+      'day': day,
+      'start': start,
+      'end': end,
+      'notes': notes,
+      if (endNextDay != null) 'end_next_day': endNextDay,
+    };
 
 ScheduleEntry windowEntry(String day, String start, String end) =>
     ScheduleEntry.fromJson(windowJson(day, start, end))!;
@@ -143,13 +149,67 @@ void main() {
       expect(e.timeLabel, '10:00 PM – 8:15 AM');
     });
 
-    test('identical endpoints render as a full day, not zero minutes', () {
-      // Saint Albert the Great's adoration runs continuously; each covered day
-      // is exported as 00:00–00:00, which rendered as "12:00 – 12:00 AM".
-      final e =
-          ScheduleEntry.fromJson(windowJson('Tuesday', '00:00', '00:00'))!;
+    // Identical endpoints mean two opposite things, told apart only by
+    // `end_next_day`: a day covered end to end, or a start with no stated end.
+    test('a covered day (00:00-00:00 +1d) renders as a full day', () {
+      // Saint Albert the Great and Saint Edward: the middle days of a
+      // multi-day adoration. Not flagged is_perpetual, so this is their only
+      // signal, and it rendered as "12:00 – 12:00 AM" before the fix.
+      final e = ScheduleEntry.fromJson(
+          windowJson('Tuesday', '00:00', '00:00', endNextDay: true))!;
+      expect(e.hasRange, isTrue);
       expect(e.isAllDay, isTrue);
       expect(e.timeLabel, 'All day');
+      // A genuinely 24-hour window, so it is underway at any hour.
+      expect(e.currentWindowStart(DateTime(2026, 8, 4, 13, 0)), isNotNull);
+    });
+
+    test('a 24-hour span away from midnight is still a full day', () {
+      // The encoding v2.5.0 mandates for overnight adoration. Inferring
+      // all-day-ness from midnight rather than the flag missed this.
+      final e = ScheduleEntry.fromJson(
+          windowJson('Tuesday', '22:00', '22:00', endNextDay: true))!;
+      expect(e.isAllDay, isTrue);
+      expect(e.timeLabel, 'All day');
+    });
+
+    test('matching endpoints without the flag mean no end was stated', () {
+      // Saint Columbkille: "Confessions available after the 4:00 PM Vigil".
+      final e = ScheduleEntry.fromJson(
+          windowJson('Saturday', '16:00', '16:00', endNextDay: false))!;
+      expect(e.hasRange, isFalse);
+      expect(e.isAllDay, isFalse);
+      expect(e.timeLabel, '4:00 PM');
+    });
+
+    test('an open-ended slot is never reported as in progress', () {
+      // Before the fix this rolled to the next day and read as a window that
+      // stayed open for a full 24 hours — confession "underway" at 3 AM.
+      final e = ScheduleEntry.fromJson(
+          windowJson('Saturday', '16:00', '16:00', endNextDay: false))!;
+      expect(e.currentWindowStart(DateTime(2026, 8, 8, 18, 0)), isNull);
+      expect(e.currentWindowStart(DateTime(2026, 8, 9, 3, 0)), isNull);
+      expect(e.endOf(DateTime(2026, 8, 8, 16, 0)), isNull);
+    });
+
+    test('a missing flag falls back to end < start, and never to equal', () {
+      // Pre-v2.5.0 cached exports carry no flag. Strict `<` matches the
+      // exporter's own backfill, so equal endpoints read as an unstated end.
+      final overnight =
+          ScheduleEntry.fromJson(windowJson('Friday', '22:00', '08:15'))!;
+      expect(overnight.crossesMidnight, isTrue);
+      final open =
+          ScheduleEntry.fromJson(windowJson('Saturday', '16:00', '16:00'))!;
+      expect(open.hasRange, isFalse);
+      expect(open.crossesMidnight, isFalse);
+    });
+
+    test('a null end reads the same as matching endpoints', () {
+      // What the scraper will emit once end_time becomes nullable.
+      final e = ScheduleEntry.fromJson(
+          {'day': 'Saturday', 'start': '16:00', 'end': null})!;
+      expect(e.hasRange, isFalse);
+      expect(e.timeLabel, '4:00 PM');
     });
 
     test('a same-day window is unaffected', () {
