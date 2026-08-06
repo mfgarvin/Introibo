@@ -6,7 +6,14 @@ import 'package:latlong2/latlong.dart';
 import '../models/parish.dart';
 import '../services/parish_service.dart';
 import '../utils/schedule_parser.dart';
-import '../main.dart' show kBackgroundColor, kBackgroundColorDark, kCardColor, kCardColorDark, themeNotifier;
+import '../main.dart'
+    show
+        FavoritesManager,
+        kBackgroundColor,
+        kBackgroundColorDark,
+        kCardColor,
+        kCardColorDark,
+        themeNotifier;
 import 'parish_detail_page.dart';
 import '../widgets/stained_glass_header.dart';
 import '../widgets/language_badge.dart';
@@ -66,6 +73,8 @@ class FilteredParishListPage extends StatefulWidget {
 class _FilteredParishListPageState extends State<FilteredParishListPage> {
   List<Parish> _parishes = [];
   List<Parish> _filteredParishes = [];
+  /// Keyed by [FavoritesManager.keyFor], not by name — six parish names repeat
+  /// across cities, and name keys made those records overwrite each other.
   final Map<String, double> _distances = {};
   final Map<String, int> _minutesUntilNext = {};
   bool _isLoading = true;
@@ -124,7 +133,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
     for (final parish in _parishes) {
       if (parish.latitude != null && parish.longitude != null) {
-        _distances[parish.name] = _calculateDistance(
+        _distances[FavoritesManager.keyFor(parish)] = _calculateDistance(
           widget.userLocation!.latitude,
           widget.userLocation!.longitude,
           parish.latitude!,
@@ -191,7 +200,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
       final minutes = ScheduleParser.minutesUntilNext(
           scheduleToCheck, null, _countInProgressFor(parish));
       if (minutes != null) {
-        _minutesUntilNext[parish.name] = minutes;
+        _minutesUntilNext[FavoritesManager.keyFor(parish)] = minutes;
       }
     }
   }
@@ -223,8 +232,10 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   void _applySorting() {
     if (_sortOrder == SortOrder.distance && widget.userLocation != null) {
       _filteredParishes.sort((a, b) {
-        final distA = _distances[a.name] ?? double.infinity;
-        final distB = _distances[b.name] ?? double.infinity;
+        final distA =
+            _distances[FavoritesManager.keyFor(a)] ?? double.infinity;
+        final distB =
+            _distances[FavoritesManager.keyFor(b)] ?? double.infinity;
         return distA.compareTo(distB);
       });
     } else if (_sortOrder == SortOrder.nearestAndSoonest && widget.userLocation != null) {
@@ -246,8 +257,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   /// - Within cap: sort by time (soonest first)
   /// - Beyond cap: pushed to bottom, sorted by distance
   double _calculateCompositeScore(Parish parish) {
-    final distance = _distances[parish.name];
-    final minutes = _minutesUntilNext[parish.name];
+    final key = FavoritesManager.keyFor(parish);
+    final distance = _distances[key];
+    final minutes = _minutesUntilNext[key];
 
     // If either is missing, return infinity
     if (distance == null || minutes == null) {
@@ -705,7 +717,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     // Then filter by 2-day limit when in "Soonest" mode (unless showing all)
     final displayedParishes = (_sortOrder == SortOrder.nearestAndSoonest && !_showAllParishes && !_hasActiveFilters())
         ? timeFilteredParishes.where((p) {
-            final minutes = _minutesUntilNext[p.name];
+            final minutes = _minutesUntilNext[FavoritesManager.keyFor(p)];
             return minutes != null && minutes <= _twoDaysInMinutes;
           }).toList()
         : timeFilteredParishes;
@@ -873,8 +885,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
               }
 
               final parish = displayedParishes[index];
-              final distance = _distances[parish.name];
-              final minutesUntil = _minutesUntilNext[parish.name];
+              final parishKey = FavoritesManager.keyFor(parish);
+              final distance = _distances[parishKey];
+              final minutesUntil = _minutesUntilNext[parishKey];
               return Padding(
                 padding: EdgeInsets.only(bottom: index < displayedParishes.length - 1 ? 12 : 0),
                 child: _ParishCard(
