@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/parish.dart';
 import '../services/location_service.dart';
@@ -41,6 +42,11 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
   /// Set when the user pans or zooms by hand. Their framing then wins over a
   /// background refresh — we only auto-recenter until they take the wheel.
   bool _userMovedCamera = false;
+
+  /// Where the parish list is sorted from, when that isn't the user. Set by
+  /// "Search this area" so a later background refresh doesn't quietly drag the
+  /// list back to the user's own position. Cleared by recentering.
+  LatLng? _areaOrigin;
 
   // Parchment/sepia tone — a soft warm wash that desaturates the map without
   // going full Stamen-Watercolor. Built from a standard sepia matrix scaled
@@ -89,16 +95,33 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
   }
 
   void _rebuildNearby() {
-    if (userLocation == null) return;
+    final origin = _areaOrigin ?? userLocation;
+    if (origin == null) return;
     final withCoords = _parishes
         .where((p) => p.latitude != null && p.longitude != null)
         .toList();
     withCoords.sort((a, b) {
-      final da = _distance(userLocation!, a);
-      final db = _distance(userLocation!, b);
+      final da = _distance(origin, a);
+      final db = _distance(origin, b);
       return da.compareTo(db);
     });
     _nearbyParishes = withCoords.take(40).toList();
+  }
+
+  /// Re-sort the list around whatever the map is looking at. Every parish is
+  /// already in memory — the 40 on screen are just the 40 nearest the origin —
+  /// so this is a local re-sort, not a fetch, and needs no spinner.
+  void _searchThisArea() {
+    if (!_mapReady) return;
+    setState(() {
+      _areaOrigin = _mapController.camera.center;
+      _userMovedCamera = false;
+      _rebuildNearby();
+      _selectedIndex = 0;
+    });
+    // The carousel is showing a card from the old ordering; put it back to the
+    // top without animating across forty pages.
+    if (_pageController.hasClients) _pageController.jumpToPage(0);
   }
 
   double _distance(LatLng from, Parish p) {
@@ -190,6 +213,8 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
       _fix = fix;
       _locationFailure = null;
       _isLoading = false;
+      // Asking to be recentred is asking to be the origin again.
+      if (recenter) _areaOrigin = null;
       _rebuildNearby();
     });
 
@@ -272,7 +297,11 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                           // A hand-driven pan/zoom pins the view; refreshes
                           // stop stealing it until the user asks to recenter.
                           if (hasGesture && !_userMovedCamera) {
-                            _userMovedCamera = true;
+                            // setState, not a bare assignment: the top pill
+                            // reads this to swap to "Search this area". The
+                            // guard keeps it to one rebuild per pan, not one
+                            // per frame.
+                            setState(() => _userMovedCamera = true);
                           }
                         },
                       ),
@@ -282,7 +311,10 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                           child: TileLayer(
                             urlTemplate:
                                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                            userAgentPackageName: 'com.example.parishfinder',
+                            // OSM's tile usage policy requires a real
+                            // identifying User-Agent and blocks generic ones —
+                            // keep this the actual application id.
+                            userAgentPackageName: 'app.parishfinder',
                           ),
                         ),
                         MarkerLayer(
@@ -293,41 +325,15 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                         ),
                       ],
                     ),
-                    // Top pill: parish count
+                    // Top pill. Once the user pans, the count describes where
+                    // they used to be — so the same slot becomes the offer to
+                    // re-sort around the new view instead of stating a stale
+                    // number beside it.
                     Positioned(
                       top: MediaQuery.of(context).padding.top + 60,
                       left: 0,
                       right: 0,
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: kCardColor,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.12),
-                                blurRadius: 14,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.location_on, color: kPrimaryColor, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                '${_nearbyParishes.length} parishes nearby',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      child: Center(child: _buildTopPill()),
                     ),
                     // Recenter control. Also the only way back to yourself
                     // after panning, so it sits above the carousel.
@@ -335,6 +341,15 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                       right: 16,
                       bottom: 186,
                       child: _buildRecenterButton(),
+                    ),
+                    // OSM credit. The ODbL wants attribution where the map is
+                    // actually shown, not buried in About — so it stays put
+                    // rather than hiding behind a tap. Sits level with the
+                    // recenter button, clear of the carousel below.
+                    Positioned(
+                      left: 12,
+                      bottom: 186,
+                      child: _buildMapAttribution(),
                     ),
                     // Bottom: swipeable parish carousel
                     Positioned(
@@ -346,6 +361,106 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                     ),
                   ],
                 ),
+    );
+  }
+
+  /// The count pill, or — once the view has been panned away — a tappable
+  /// "Search this area". One slot, two states, so nothing new competes for
+  /// space with the carousel and the controls above it.
+  Widget _buildTopPill() {
+    final searching = _userMovedCamera;
+    final pill = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 14,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            searching ? Icons.search : Icons.location_on,
+            color: kPrimaryColor,
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            searching
+                ? 'Search this area'
+                : '${_nearbyParishes.length} parishes nearby',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!searching) {
+      return Semantics(
+        label: '${_nearbyParishes.length} parishes nearby',
+        child: pill,
+      );
+    }
+
+    return Semantics(
+      button: true,
+      label: 'Search this area for parishes',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: _searchThisArea,
+          child: pill,
+        ),
+      ),
+    );
+  }
+
+  /// Tapping opens OSM's copyright page, which is what the licence points
+  /// readers at. Failing to launch is silent — a dead tap on a credit line is
+  /// better than an error over the map.
+  Future<void> _openOsmCopyright() async {
+    final url = Uri.parse('https://www.openstreetmap.org/copyright');
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Nothing to recover; the credit text itself still discharges the licence.
+    }
+  }
+
+  Widget _buildMapAttribution() {
+    return Semantics(
+      link: true,
+      label: 'Map data from OpenStreetMap contributors. Opens the OpenStreetMap '
+          'copyright page.',
+      child: Material(
+        color: kCardColor.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(4),
+        child: InkWell(
+          onTap: _openOsmCopyright,
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            child: Text(
+              '© OpenStreetMap contributors',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                color: kSecondaryColor.withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
