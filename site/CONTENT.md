@@ -47,7 +47,7 @@ ships. Nothing reads this file at build time — there is no build step.
 > Discover the *Life* of the Church
 
 ### Lede [hero.lede]
-> A free app for your phone: Masses, confession, and adoration across 184 Catholic parishes — the feasts, the hours, and what's happening today, gathered from the bulletins so you don't have to hunt through them.
+> A free app for your phone: Masses, confession, and adoration across 180+ Catholic parishes — the feasts, the hours, and what's happening today, gathered from the bulletins so you don't have to hunt through them.
 
 ### Coming-soon badge [hero.note]
 > Coming soon to Google~Play and the Apple~App~Store
@@ -111,7 +111,7 @@ ships. Nothing reads this file at build time — there is no build step.
 > Compiled from bulletins
 
 ### Big number [coverage.figure]
-> 184
+> 180+
 
 ### Text beside the number [coverage.caption]
 > parishes across the 8 counties of the Diocese of Cleveland — each schedule is pulled from the parish bulletin, *the* most up-to-date resource at a parish.
@@ -340,9 +340,12 @@ ships. Nothing reads this file at build time — there is no build step.
   the privacy text here, that file needs the same edit or the two will drift.
   The hosted page is what Play and users actually see.
 
-- **The "184 parishes" figure appears twice** — the hero lede and the big
-  number. It comes from the live `export.json`, so both move together when the
-  dataset changes.
+- **The parish count appears twice** — the hero lede and the big number — and
+  the two must move together. It is deliberately the floor **"180+"**, not an
+  exact figure (changed from 184 on 2026-08-06): the count of *parishes* versus
+  *worship sites* is easy to conflate, and a floor stays true as the dataset
+  shifts. `docs/play-listing.md` uses the same figure and carries the reasoning;
+  change both or neither.
 
 - **The privacy claims are load-bearing.** Statements like "your location never
   leaves your phone" and "no analytics" are what the app was built to be able to

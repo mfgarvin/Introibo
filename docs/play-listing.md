@@ -28,82 +28,109 @@ below.
 ## Short description (80 char max)
 
 ```
-Catholic Mass, confession and adoration times for Cleveland and Akron parishes.
+Catholic Mass, confession & adoration times across the Diocese of Cleveland.
 ```
-*78 characters.*
+*76 characters.*
 
 > Resist putting the tagline here. This field is the single biggest lever on
 > Play search ranking, and "Discover the Life of the Church" contains none of
 > the words people actually type — *Mass times*, *confession*, *adoration*,
 > *Cleveland*. The tagline sets the tone where someone has already arrived; the
 > short description has to get them there.
+>
+> Says **Diocese of Cleveland**, not "Cleveland and Akron", to match the site —
+> see the coverage note under the full description.
 
 ## Full description (4000 char max)
 
 ```
-Discover the Life of the Church in Greater Cleveland and Akron.
+Discover the Life of the Church across the Diocese of Cleveland.
 
-ParishFinder brings together Mass, confession, and adoration schedules for 184
-Catholic parishes across the Cleveland and Akron area — compiled from parish
-bulletins and websites so you don't have to hunt through a dozen of them.
+ParishFinder is a free app that brings together Masses, confession, and
+adoration for 180+ Catholic parishes across the 8 counties of the Diocese of
+Cleveland — each schedule pulled from the parish bulletin, the most up-to-date
+resource a parish has, so you don't have to hunt through them.
 
 WHAT'S THE NEXT MASS?
 Open the app and see the next Mass starting near you, with the parish, the time,
 and how long you have to get there. No searching required.
 
-FIND A PARISH NEAR YOU
-An interactive map shows the parishes around you. Swipe through them to see
-schedules and details, or tap any marker to go straight to a parish page.
+PARISHES NEAR YOU
+New to the area? Look at a map of what's around you. Swipe the carousel for
+schedules, or tap a marker for the full parish page.
 
 SEARCH BY NAME, CITY, OR ZIP
 Looking for a specific parish? Search by name, city, or ZIP code. The search
 understands how people actually type — "St", "St.", "Saint", and "Sts" all find
 what you mean.
 
-CONFESSION AND ADORATION
-Filter for parishes offering confession or adoration, sorted by distance or by
-what's happening soonest. Perpetual adoration chapels are marked.
+CONFESSION & ADORATION
+Whether you're planning ahead or the Spirit is moving you now, find where
+confession and adoration are being offered — sorted by distance or by what's
+happening soonest. Perpetual adoration chapels are marked.
 
 EVERYTHING A PARISH PAGE SHOULD HAVE
 Full Mass schedules with vigils and language noted, confession windows,
 adoration times, address with one-tap directions, phone, website, and a link to
 the latest bulletin.
 
-SAVE YOUR HOME PARISHES
-Keep the parishes you attend most at your fingertips.
+YOUR HOME PARISHES
+Keep the parishes you call home easily accessible, one tap away.
 
 THE LITURGICAL DAY
-See today's feast, saint, and liturgical season at a glance.
+Wondering what orations will be used? See today's feast, saint, or season at a
+glance.
 
-WORKS OFFLINE
-Parish data is cached on your device, so schedules are there when you need them
-— including in a church basement with no signal.
+IT WORKS OFFLINE
+Schedules are cached on your phone — after setting it up once, it'll work
+anywhere, even in the parish hall that has absolutely no reception.
 
 HELP KEEP IT ACCURATE
-Mass times change. Every parish page lets you confirm the information or report
-what's wrong, and corrections go straight to the person maintaining the data.
+Times change, especially around the holidays or holy days. Every parish page
+lets you confirm the information or report what's wrong, crowdsourcing any
+changes that need to be made. And if we can't verify a parish's schedule, we'll
+let you know.
 
-NO ADS, NO ACCOUNTS, NO TRACKING
-ParishFinder has no advertising, no sign-up, and no analytics. Location, if you
-grant it, is used only on your device to find parishes near you — it is never
-transmitted or stored.
+NO ADS. NO ACCOUNTS. NO TRACKING.
+No advertising, no sign-up, no profile, no analytics — and it's totally free.
+Your location never leaves your phone: it's used on the device to center the map
+and sort by distance, and is never transmitted or stored.
 
 ---
 
 Mass, confession, and adoration times are compiled from publicly available
-parish bulletins and websites and can change without notice, especially around
-holy days and holidays. Please confirm with the parish before you travel.
+parish bulletins and websites. They can change without notice, particularly
+around holy days and holidays. Please confirm with the parish directly before
+traveling.
 
-Not affiliated with or endorsed by the Roman Catholic Diocese of Cleveland.
+ParishFinder is a personal project of Fr. Michael Garvin. It is not an official
+function or arm of the Roman Catholic Diocese of Cleveland.
 
 Map data © OpenStreetMap contributors.
 ```
 
-> **Verify the "184 parishes" figure** against the live `export.json` before
-> publishing — count *parishes*, not worship sites; the diocese has more of the
-> latter (roughly 189), and the two numbers are easy to conflate. Re-check the
+> **The count is deliberately "180+"**, not an exact figure. The 2026-08-04
+> snapshot has 189 records with 189 distinct name+city pairs and 189 distinct
+> addresses — no repeated `parish_id` at all (183 records carry an id, 6 carry
+> none). The older "184 parishes" number isn't derivable from that data, and
+> parishes/worship sites are easy to conflate, so a floor that stays true as the
+> data shifts beats a precise number that quietly goes stale. Re-check the
 > disclaimer line too — you should state plainly that you are not affiliated
 > with the diocese, since the app covers its parishes.
+>
+> The landing page (`site/index.html` + `site/CONTENT.md`, twice each) and
+> `docs/QA_SPEC.md` were brought to "180+" on 2026-08-06 to match. `CLAUDE.md`
+> still describes the dataset as "189 records across 184 parishes" — an internal
+> note, not public copy, but it doesn't hold against the current snapshot.
+
+> **Coverage is stated as the Diocese of Cleveland**, aligned to the site
+> (2026-08-06). This listing previously said "Greater Cleveland and Akron",
+> which the site never says — `site/index.html` uses "Diocese of Cleveland"
+> seven times, plus "Northeast Ohio" and "the 8 counties". The site's framing is
+> also the one the data supports: the 2026-08-04 snapshot spans 96 cities and
+> ZIP prefixes 440–443, 446, and 448, so it reaches well past the two metros.
+> Keep the two in step — a listing that claims narrower coverage than the site
+> reads as two different products.
 
 ---
 
@@ -168,9 +195,8 @@ it keeps the corner fleurons and a smaller roundel, which the handoff describes 
 
 ## Categorization
 
-- **App category:** Lifestyle
-  *(Books & Reference is the alternative; Lifestyle fits a "find a place to go"
-  utility better.)*
+- **App category:** Lifestyle — **settled 2026-08-06.**
+  *(Books & Reference and Travel & Local were the alternatives considered.)*
 - **Tags:** choose up to 5 — Religion, Local, Maps & Navigation
 - **Contact email:** contact@parishfinder.app
 - **Website:** https://parishfinder.app

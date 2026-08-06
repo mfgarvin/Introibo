@@ -36,8 +36,9 @@ or add a redirect.
 - **`privacy.html` and the repo's `PRIVACY.md` are the same policy in two
   formats.** Edit both, or the hosted version will drift from the one under
   version control. The hosted one is what Play and users actually see.
-- **The "184 parishes" figure** on the landing page comes from the live
-  `export.json`. Re-check it when the dataset grows.
+- **The "180+ parishes" figure** on the landing page is a deliberate floor, not
+  a live count (it was an exact 184 until 2026-08-06). It appears twice — hero
+  lede and big number — and `docs/play-listing.md` must agree.
 - **The launch badge** is inert copy — "Coming soon to Google Play and the Apple
   App Store", no button and no waiting list. Swap it for real store badges and
   links once the listings are live.
