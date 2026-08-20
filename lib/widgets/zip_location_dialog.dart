@@ -107,8 +107,16 @@ class _ZipLocationDialogState extends State<_ZipLocationDialog> {
             ],
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submitting ? null : _submit(),
+            style: GoogleFonts.inter(fontSize: 16),
             decoration: InputDecoration(
+              // Faint on purpose: at full opacity the sample ZIP reads as a
+              // value already in the field rather than as a prompt.
               hintText: '44107',
+              hintStyle: GoogleFonts.inter(
+                fontSize: 16,
+                color: (isDark ? Colors.white : Colors.black)
+                    .withValues(alpha: 0.35),
+              ),
               errorText: _error,
               border: const OutlineInputBorder(),
               focusedBorder: OutlineInputBorder(
