@@ -209,7 +209,9 @@ bumped and tagged in one place, on Linux, or the two checkouts race the tag.
 Protocol: `main` only, one machine at a time, `git pull --rebase` before
 starting, commit and push before switching. Xcode rewrites `project.pbxproj`
 just by opening the project — commit that churn on its own, never mixed into
-Dart work. Keep Flutter versions in step across machines (Linux: 3.38.5 stable).
+Dart work. Keep Flutter versions in step across machines — both are pinned at **3.47.0**
+(Linux runs a git clone at that tag in `~/development/flutter`, not the snap,
+whose stable channel stalled at 3.38.5).
 
 iOS builds go through **`tool/ios_build.sh`**, which strips the pubspec's
 prerelease suffix because `CFBundleShortVersionString` must be purely numeric —

@@ -45,9 +45,10 @@ nothing but merge overhead.
 3. **Xcode rewrites `project.pbxproj` just by opening the project.** Commit that
    churn on its own (`Xcode: <what changed>`), never mixed into Dart work — a
    pbxproj conflict inside a feature commit is miserable to resolve.
-4. **Keep Flutter versions in step.** Linux is on **3.38.5 stable**; check
-   `flutter --version` on the Mac and match it. A mismatch churns `pubspec.lock`
-   and `Podfile.lock` on every switch.
+4. **Keep Flutter versions in step.** Both machines are on **3.47.0**. Linux
+   runs a git clone pinned at that tag in `~/development/flutter` — *not* the
+   snap, whose stable channel stalled at 3.38.5 and could never reach 3.47. A
+   mismatch churns `pubspec.lock` and `Podfile.lock` on every switch.
 5. First thing on the Mac, before anything else: `git status`. Whatever iOS
    files the Xcode session already generated need to be committed and pushed
    before Linux touches `ios/` again.
