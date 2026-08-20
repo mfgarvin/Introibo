@@ -1,5 +1,12 @@
 # iOS / Mac Setup — Pick-up Guide
 
+> **2026-08-19: partly superseded.** The Mac and the Apple Developer
+> account now exist, so the "Getting a Mac" section below is history.
+> For the machine split and the TestFlight path, read
+> [`ios-testflight.md`](ios-testflight.md) first; the rest of this file
+> — what's configured, and what was written blind on Linux — still
+> applies.
+
 > Notes for shipping **ParishFinder** on iOS, written to be read cold when you return
 > to this. Everything below assumes you're picking up on a Mac. Nothing here can
 > be finished on the Linux dev box — iOS builds, the Simulator, code signing, and

@@ -49,6 +49,12 @@
 	<string>Your location is used to show nearby parishes.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Your location is used to show nearby parishes.</string>
+	<!--
+	  No non-exempt encryption: the app uses only HTTPS through the OS. Stating
+	  it here skips the export-compliance question on every TestFlight upload.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<!--
