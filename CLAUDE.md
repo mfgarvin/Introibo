@@ -189,6 +189,30 @@ so the map and distance-based sorting work. The full structured shape and migrat
 live in `EXPORT_SHAPE_CHANGES.md` **in the scraper repo** (`../bulletin-v2`) — that copy is
 authoritative; `export.demo.json` is a local copy of the data for inspection.
 
+## Two machines (Linux + macOS)
+
+Work is split across a Linux dev box and a Mac. **If a tool other than Xcode can
+do it, it happens on Linux** — Dart, tests, Android builds, `tool/release.sh`,
+the worker, the site, and text-level iOS config (`Info.plist`, bundle IDs, the
+build-number script) are all plain files.
+
+**macOS is for iOS only**: Xcode UI changes (signing team, capabilities),
+CocoaPods (`ios/Podfile`, `ios/Podfile.lock`), Simulator/device testing, and
+archiving/uploading. **Never run `tool/release.sh` on the Mac** — versions are
+bumped and tagged in one place, on Linux, or the two checkouts race the tag.
+
+Protocol: `main` only, one machine at a time, `git pull --rebase` before
+starting, commit and push before switching. Xcode rewrites `project.pbxproj`
+just by opening the project — commit that churn on its own, never mixed into
+Dart work. Keep Flutter versions in step across machines (Linux: 3.38.5 stable).
+
+iOS builds go through **`tool/ios_build.sh`**, which strips the pubspec's
+prerelease suffix because `CFBundleShortVersionString` must be purely numeric —
+Apple rejects `1.0.0-beta.7`. The beta identity rides on the build number
+instead, which is all TestFlight requires to increase. Bundle ID is
+`app.parishfinder` (permanent once the App Store Connect record exists).
+Full runbook: [`docs/ios-testflight.md`](docs/ios-testflight.md).
+
 ## Change History
 
 Dated session-by-session change logs have been moved out of this file to keep it lean (it loads into context every session). See [`docs/session-history.md`](docs/session-history.md) for the full chronological record, including the `Future Enhancements` notes.

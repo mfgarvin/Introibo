@@ -72,19 +72,19 @@ takes from the pubspec version: today `1.0.0-beta.7`. **Apple requires a numeric
 marketing version** — one to three dot-separated integers. `1.0.0-beta.7` is
 refused by App Store Connect.
 
-The prerelease suffix is only meaningful to us, so pass a clean one at build
-time and let the build number carry the beta identity:
+The prerelease suffix is only meaningful to us, so **`tool/ios_build.sh`**
+strips it and lets the build number carry the beta identity:
 
 ```sh
-flutter build ipa --release \
-  --build-name=1.0.0 \
-  --build-number=$(git rev-list --count HEAD)
+tool/ios_build.sh            # builds the IPA
+tool/ios_build.sh --dry-run  # prints the version it would use (works on Linux)
 ```
 
-TestFlight only requires the **build number** to increase within a marketing
-version, and the git commit count does that by construction. If iOS releases
-become routine, teach `tool/release.sh` to emit the numeric version so this
-isn't a hand-typed flag.
+It derives the marketing version from `pubspec.yaml` (`1.0.0-beta.7` → `1.0.0`)
+and the build number the same way Android does — the git commit count, floored
+by the `+N` in the pubspec. TestFlight only requires the **build number** to
+increase within a marketing version, which the commit count does by
+construction.
 
 **4. Signing team is unset** (`DEVELOPMENT_TEAM` absent, `CODE_SIGN_STYLE =
 Automatic`). Set it once in Xcode → Runner → Signing & Capabilities → Team, and
