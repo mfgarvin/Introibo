@@ -14,7 +14,13 @@ import '../models/parish.dart';
 /// .supportsRuntimeMode` accepts `BuildMode.debug` and nothing else — so
 /// without this escape hatch there is no way to exercise Xcode's simulated
 /// locations, and every simulator run believes it is in Lakewood.
-const bool kUseRealGps = bool.fromEnvironment('REAL_GPS');
+///
+/// `bool.fromEnvironment` alone only recognizes the literal string `"true"` —
+/// `=1` (the form documented here and in CLAUDE.md) silently evaluates to
+/// false, so the "fix" quietly does nothing. Accept `1` explicitly too.
+const bool kUseRealGps =
+    bool.fromEnvironment('REAL_GPS') ||
+    String.fromEnvironment('REAL_GPS') == '1';
 
 /// Dev override: set to a LatLng to skip GPS, or null to use real location.
 /// Debug builds bypass Geolocator entirely unless [kUseRealGps] says otherwise;
