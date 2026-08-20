@@ -91,9 +91,12 @@ construction.
 Automatic`). Set it once in Xcode → Runner → Signing & Capabilities → Team, and
 commit the resulting pbxproj change.
 
-**5. Deployment target is iOS 12.0.** Confirm Flutter 3.38 and your Xcode still
-accept it; the first `pod install` will complain if not. Raising it is a one-line
-change in the pbxproj and the Podfile.
+**5. Deployment target — raised to iOS 15.0** (2026-08-19), matching Flutter
+3.47's own template, in `project.pbxproj` (three configurations) and
+`ios/Flutter/AppFrameworkInfo.plist`. It was 12.0, which modern pods refuse.
+The floor costs only iPhone 5s/6/6 Plus, which never went past iOS 12; iOS 15
+still reaches iPhone 6s and later. If CocoaPods still complains, uncomment
+`platform :ios, '15.0'` at the top of the generated `ios/Podfile`.
 
 Already fine: the 1024×1024 marketing icon is **RGB with no alpha channel**
 (Apple rejects alpha), location usage strings are present, and every plugin in
