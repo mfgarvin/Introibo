@@ -143,7 +143,12 @@ const LatLng? kDevLocation = kDebugMode
 - In debug mode (`flutter run`): uses mock location, skips Geolocator
 - In release builds: uses real GPS
 - To test with different locations: change the coordinates
-- To test real GPS in debug: set `kDevLocation` to `null`
+- To test real GPS in debug: **`--dart-define=REAL_GPS=1`** (no code edit)
+
+That flag exists for the **iOS Simulator**, which only ever runs debug builds
+(`IOSSimulator.supportsRuntimeMode` accepts `BuildMode.debug` alone) — without
+it, every simulator run ignores Xcode's simulated location and thinks it is in
+Lakewood.
 
 This mock is the **only** behavioural difference between debug and release, so
 `debugShowCheckedModeBanner` is deliberately left at its default — the DEBUG

@@ -104,6 +104,19 @@ use supports iOS.
 
 ---
 
+## Testing location on the Simulator
+
+The Simulator only runs **debug** builds, and debug builds normally pin the
+location to Lakewood via `kDevLocation`. To use Xcode's simulated locations
+instead:
+
+```sh
+flutter run --dart-define=REAL_GPS=1
+```
+
+Then Features → Location → Custom Location. `41.4489, -82.7079` is Sandusky and
+must raise the out-of-diocese notice; `41.1595, -81.4404` is Stow and must not.
+
 ## Making it a beta app with Apple
 
 TestFlight is the whole answer — there is no separate "beta app" product. The

@@ -7,12 +7,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/parish.dart';
 
+/// Set true with `--dart-define=REAL_GPS=1` to make a debug build use the real
+/// (or simulated) device location instead of [kDevLocation].
+///
+/// The iOS Simulator only ever runs debug builds — `IOSSimulator
+/// .supportsRuntimeMode` accepts `BuildMode.debug` and nothing else — so
+/// without this escape hatch there is no way to exercise Xcode's simulated
+/// locations, and every simulator run believes it is in Lakewood.
+const bool kUseRealGps = bool.fromEnvironment('REAL_GPS');
+
 /// Dev override: set to a LatLng to skip GPS, or null to use real location.
-/// Debug builds bypass Geolocator entirely; release builds always use the
-/// device. This used to be declared twice — once in `main.dart` and once in
-/// `find_parish_near_me_page.dart` — which is exactly how the two copies of
-/// the location logic drifted apart.
-const LatLng? kDevLocation = kDebugMode
+/// Debug builds bypass Geolocator entirely unless [kUseRealGps] says otherwise;
+/// release builds always use the device. This used to be declared twice — once
+/// in `main.dart` and once in `find_parish_near_me_page.dart` — which is
+/// exactly how the two copies of the location logic drifted apart.
+const LatLng? kDevLocation = kDebugMode && !kUseRealGps
     ? LatLng(41.48, -81.78) // Lakewood, OH - near several parishes
     : null;
 
