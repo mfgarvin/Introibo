@@ -104,6 +104,21 @@ use supports iOS.
 
 ---
 
+## Why the non-obvious Info.plist keys are there
+
+**Xcode strips XML comments from `Info.plist`** every time it rewrites the file
+— it did exactly that during the SPM migration on 2026-08-19 — so the reasoning
+cannot live next to the keys. It lives here instead.
+
+| key | why |
+|---|---|
+| `ITSAppUsesNonExemptEncryption` = `false` | The app uses only HTTPS through the OS, which is exempt. Declaring it skips the export-compliance question on every TestFlight upload. |
+| `NSAppTransportSecurity` → `NSExceptionDomains` → `calapi.inadiutorium.cz` | That liturgy API refuses HTTPS on IPv4 (port 443 refused, port 80 returns 200), so without a scoped cleartext exception the liturgy tile silently loses its enrichment and falls back to the offline Computus baseline. Mirrors `android/app/src/main/res/xml/network_security_config.xml`. Every other domain keeps the secure default. |
+| `NSLocationWhenInUseUsageDescription` and `…AlwaysAndWhenInUse` | Required strings; without them geolocator/permission_handler crash on launch. |
+
+If any of these vanish after an Xcode migration, that is a regression — check
+this table against the file.
+
 ## Testing location on the Simulator
 
 The Simulator only runs **debug** builds, and debug builds normally pin the
