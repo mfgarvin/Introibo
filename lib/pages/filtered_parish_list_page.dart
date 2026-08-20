@@ -1249,11 +1249,14 @@ class _ParishCard extends StatelessWidget {
     } else if (dayLabel != null) {
       // Soonest sort: the "Tomorrow morning" badge already names the day.
       // Without that badge (Nearest shows distance), the row carries it.
+      // [times] is the upcoming day's entries, so it answers the only question
+      // the label needs: is there one Mass that day, or several?
+      final single = times.length == 1;
       label = showTimeUntil
           ? switch (filter) {
               ParishFilter.confession => 'Next Confession',
               ParishFilter.adoration => 'Next Adoration',
-              _ => 'Next Masses',
+              _ => single ? 'Next Mass' : 'Next Masses',
             }
           : dayLabel;
     }
