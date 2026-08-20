@@ -54,6 +54,23 @@ flutter build ipa --release \
   --build-name="$build_name" \
   --build-number="$build_number"
 
+# Refuse to hand Transporter anything that isn't AOT-compiled. A debug build
+# mocks the device location (see kDevLocation), so shipping one to testers
+# silently pins everybody to Lakewood — the failure this check exists for.
+ipa=$(ls -t build/ios/ipa/*.ipa 2>/dev/null | head -1)
+if [ -z "$ipa" ]; then
+  echo "error: no IPA produced in build/ios/ipa/" >&2
+  exit 1
+fi
+
+if unzip -l "$ipa" | grep -q "kernel_blob.bin"; then
+  echo "error: $ipa contains kernel_blob.bin — that is a DEBUG build." >&2
+  echo "       Do not upload it: debug builds mock the device location." >&2
+  exit 1
+fi
+
 echo
-echo "Next: upload build/ios/ipa/*.ipa with Transporter.app,"
+echo "Release build confirmed (no debug kernel snapshot): $ipa"
+echo
+echo "Next: upload it with Transporter.app,"
 echo "      then enable it for internal testing in App Store Connect."

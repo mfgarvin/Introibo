@@ -240,7 +240,6 @@ class _ParishFinderAppState extends State<ParishFinderApp> {
 
     return MaterialApp(
       title: 'ParishFinder',
-      debugShowCheckedModeBanner: false,
       theme: ThemeData.light().copyWith(
         textTheme: GoogleFonts.interTextTheme(),
         scaffoldBackgroundColor: kBackgroundColor,
