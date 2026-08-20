@@ -191,6 +191,17 @@ IOS_ICONS = {
 }
 
 
+# Launch screen. The storyboard centres a single image over a background colour,
+# so this is the bare mark — no field — at 180pt, the size the roundel reads well
+# at on both an iPhone and an iPad without dominating either.
+LAUNCH_PT = 180
+LAUNCH_IMAGES = {
+    "LaunchImage.png": LAUNCH_PT,
+    "LaunchImage@2x.png": LAUNCH_PT * 2,
+    "LaunchImage@3x.png": LAUNCH_PT * 3,
+}
+
+
 def monochrome_svg() -> str:
     """Android 13+ themed-icon layer: the roundel silhouette, flat on transparency.
 
@@ -242,6 +253,15 @@ def build() -> dict:
     for name, px in IOS_ICONS.items():
         out[f"{ios}/{name}"] = flatten(
             render(svg(px, roundel_frac=FULLBLEED_FRAC, field=True), px))
+
+    # Launch screen: the roundel alone on transparency, so the storyboard's
+    # LaunchBackground colour (parchment / OLED black) shows through and the
+    # launch matches the app's own background in either appearance. Alpha is
+    # required here — unlike the app icon, which Apple rejects with it.
+    launch = "ios/Runner/Assets.xcassets/LaunchImage.imageset"
+    for name, px in LAUNCH_IMAGES.items():
+        out[f"{launch}/{name}"] = render(
+            svg(px, roundel_frac=0.98, field=False), px)
 
     for px in (192, 512):
         png = render(svg(px, roundel_frac=FULLBLEED_FRAC, field=True), px)
