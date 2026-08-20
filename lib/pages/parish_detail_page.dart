@@ -1008,6 +1008,12 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
   bool _isSubmitting = false;
   bool? _isAccurate;
 
+  /// Validation and submission errors, shown inside the sheet next to the
+  /// submit button. A SnackBar can't be used here: this is a modal bottom
+  /// sheet, so the bar comes up behind it and the user is left pressing a
+  /// button that appears to do nothing.
+  String? _formError;
+
   final List<Map<String, dynamic>> _issueOptions = [
     {'id': 'mass_times', 'label': 'Mass Times', 'icon': Icons.access_time},
     {'id': 'confession', 'label': 'Confession Times', 'icon': Icons.favorite},
@@ -1026,27 +1032,19 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
 
   Future<void> _submitFeedback() async {
     if (_isAccurate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please select whether the data is accurate', style: GoogleFonts.inter()),
-          backgroundColor: Colors.red[400],
-        ),
-      );
+      setState(() => _formError = 'Please select whether the data is accurate.');
       return;
     }
 
     if (_isAccurate == false && _selectedIssues.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please select at least one issue', style: GoogleFonts.inter()),
-          backgroundColor: Colors.red[400],
-        ),
-      );
+      setState(() =>
+          _formError = 'Please select at least one thing that needs updating.');
       return;
     }
 
     setState(() {
       _isSubmitting = true;
+      _formError = null;
     });
 
     final parish = widget.parish;
@@ -1083,12 +1081,8 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
       );
       Navigator.of(context).pop();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.error ?? 'Could not send feedback', style: GoogleFonts.inter()),
-          backgroundColor: Colors.red[400],
-        ),
-      );
+      // The sheet stays open on failure, so this has to be inline too.
+      setState(() => _formError = result.error ?? 'Could not send feedback.');
     }
   }
 
@@ -1200,6 +1194,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                             setState(() {
                               _isAccurate = true;
                               _selectedIssues.clear();
+                              _formError = null;
                             });
                           },
                         ),
@@ -1215,6 +1210,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                           onTap: () {
                             setState(() {
                               _isAccurate = false;
+                              _formError = null;
                             });
                           },
                         ),
@@ -1259,6 +1255,7 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                               } else {
                                 _selectedIssues.add(option['id']);
                               }
+                              _formError = null;
                             });
                           },
                         );
@@ -1297,6 +1294,33 @@ class _DataFeedbackSheetState extends State<_DataFeedbackSheet> {
                           contentPadding: const EdgeInsets.all(16),
                         ),
                       ),
+                    ),
+                  ],
+                  // Sits directly above the button that triggered it, so the
+                  // answer to "why did nothing happen?" is where the user is
+                  // already looking.
+                  if (_formError != null) ...[
+                    const SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _formError!,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                   const SizedBox(height: 24),
