@@ -738,7 +738,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${displayedParishes.length} parishes',
+                  displayedParishes.length == 1
+                      ? '1 parish'
+                      : '${displayedParishes.length} parishes',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -747,41 +749,46 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                 ),
               ),
               const Spacer(),
-              // Filter button
-              GestureDetector(
-                onTap: _showFilterSheet,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _hasActiveFilters()
-                        ? widget.accentColor.withValues(alpha: 0.1)
-                        : (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: _hasActiveFilters()
-                        ? Border.all(color: widget.accentColor.withValues(alpha: 0.5))
-                        : null,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.filter_list,
-                        size: 14,
-                        color: _hasActiveFilters() ? widget.accentColor : subtextColor,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Filter',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+              // Filter button. Soonest already answers "what is on next", so
+              // the day/time filter has nothing left to narrow there — and a
+              // filter left over from another sort would silently reshape the
+              // list with no control on screen to say so, which is why
+              // switching to Soonest clears it below.
+              if (_sortOrder != SortOrder.nearestAndSoonest)
+                GestureDetector(
+                  onTap: _showFilterSheet,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _hasActiveFilters()
+                          ? widget.accentColor.withValues(alpha: 0.1)
+                          : (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: _hasActiveFilters()
+                          ? Border.all(color: widget.accentColor.withValues(alpha: 0.5))
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.filter_list,
+                          size: 14,
                           color: _hasActiveFilters() ? widget.accentColor : subtextColor,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Text(
+                          'Filter',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: _hasActiveFilters() ? widget.accentColor : subtextColor,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -814,6 +821,12 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   setState(() {
                     _sortOrder = selection.first;
                     _showAllParishes = false;
+                    if (_sortOrder == SortOrder.nearestAndSoonest) {
+                      _dayFilter = DayFilter.any;
+                      _timeOfDayFilter = TimeOfDayFilter.any;
+                      _languageFilter = LanguageFilter.any;
+                      _selectedWeekdays = {};
+                    }
                     _applySorting();
                   });
                 },
@@ -870,7 +883,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Show $hiddenCount more parishes',
+                            hiddenCount == 1
+                                ? 'Show 1 more parish'
+                                : 'Show $hiddenCount more parishes',
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
