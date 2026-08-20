@@ -254,7 +254,13 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
       _filteredParishes.sort((a, b) {
         final scoreA = _calculateCompositeScore(a);
         final scoreB = _calculateCompositeScore(b);
-        return scoreA.compareTo(scoreB);
+        if (scoreA != scoreB) return scoreA.compareTo(scoreB);
+        // Everything underway right now scores the same, so the nearer one
+        // wins — otherwise a perpetual chapel across the street loses to an
+        // all-day chapel on the far side of town.
+        final distA = _distances[FavoritesManager.keyFor(a)] ?? double.infinity;
+        final distB = _distances[FavoritesManager.keyFor(b)] ?? double.infinity;
+        return distA.compareTo(distB);
       });
     } else {
       _filteredParishes.sort((a, b) => a.name.compareTo(b.name));
@@ -281,7 +287,11 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     // - Within 10 miles: score = minutes (0-9999 range, sorted by time)
     // - Beyond 10 miles: score = 10000 + distance (always after nearby parishes)
     if (distance <= _distanceCapMiles) {
-      return minutes.toDouble();
+      // In-progress entries come back negative (minutes since it started), and
+      // a perpetual chapel is pinned at 0. Ranking by how long ago something
+      // opened is meaningless, so everything happening now ties at 0 and the
+      // caller's distance tiebreak decides.
+      return minutes < 0 ? 0.0 : minutes.toDouble();
     } else {
       return 10000.0 + distance;
     }
@@ -923,13 +933,11 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   distance: distance,
                   minutesUntilNext: minutesUntil,
                   showDistance: _sortOrder == SortOrder.distance && distance != null,
-                  // No countdown for a perpetual chapel: it would render as
-                  // "This morning" for something that is open around the
-                  // clock, and the card already says "Perpetual (24/7)".
+                  // Perpetual chapels are ranked at zero minutes above, which
+                  // _formatTimeUntil renders as "Happening now" — exactly right
+                  // for something open around the clock.
                   showTimeUntil: _sortOrder == SortOrder.nearestAndSoonest &&
-                      minutesUntil != null &&
-                      !(widget.filter == ParishFilter.adoration &&
-                          parish.adorationIsPerpetual),
+                      minutesUntil != null,
                   preferUpcoming:
                       _sortOrder != SortOrder.alphabetical && !_hasActiveFilters(),
                   filteredTimes: _hasActiveFilters()
