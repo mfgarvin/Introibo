@@ -155,8 +155,14 @@ for you.
 **4. Build and upload.**
 ```sh
 git pull --rebase
-flutter build ipa --release --build-name=1.0.0 --build-number=$(git rev-list --count HEAD)
+tool/ios_build.sh
 ```
+Use the script, not a bare `flutter build ipa` — it derives the numeric
+marketing version and the git build number for you, and refuses to bless a
+debug build (a debug IPA still carries the Lakewood location mock, see
+`kDevLocation`). `tool/ios_build.sh --dry-run` prints what it would use without
+building, and works on Linux.
+
 Then upload `build/ios/ipa/*.ipa` with **Transporter.app** (simplest), or open
 the archive in Xcode → Organizer → Distribute App → App Store Connect.
 
