@@ -24,14 +24,16 @@ import 'utils/schedule_parser.dart';
 import 'utils/search_normalize.dart';
 import 'utils/app_version.dart';
 import 'services/feedback_client.dart';
+import 'services/diocese_boundary.dart';
 
 // kDevLocation now lives in services/location_service.dart, alongside the
 // logic that honours it.
 
-// If the user's nearest parish in our dataset is farther than this, we treat
-// them as outside the supported coverage area (currently the Cleveland/Akron
-// diocese) and surface a "not yet supported" notice. Data-driven rather than a
-// hardcoded boundary: inside the diocese the nearest parish is always close.
+// Fallback only. Coverage is decided by the diocese outline in
+// [dioceseBoundary]; this radius is what we fall back to if that asset can't
+// be read. It was the original rule, and it was wrong in both directions —
+// Kent is five miles from our Stow parishes but belongs to Youngstown, while
+// rural Ashland County is genuinely 25 miles from anything we list.
 const double kSupportedRadiusMiles = 60;
 
 // One-time first-launch data-accuracy disclaimer. Versioned so we can re-show it
@@ -59,6 +61,9 @@ Future<void> main() async {
 
   await favoritesManager.init();
   await AppVersion.load();
+  // 2.4 KB off the bundle — parsed here so the coverage check is a synchronous
+  // answer by the time the first location fix lands.
+  await dioceseBoundary.load();
   runApp(const ParishFinderApp());
 }
 
@@ -754,9 +759,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final nearestMiles =
         parishesWithDistance.isEmpty ? double.infinity : parishesWithDistance.first.value;
 
+    // County boundaries, not mileage: dioceses abut each other, so "how far is
+    // the nearest parish" answers a different question than "whose diocese is
+    // this". Falls back to the radius only if the outline failed to load.
+    final insideDiocese = dioceseBoundary.contains(_userLocation!);
+
     setState(() {
       _nearbyParishes = parishesWithDistance.take(10).map((e) => e.key).toList();
-      _outsideCoverage = nearestMiles > kSupportedRadiusMiles;
+      _outsideCoverage = insideDiocese == null
+          ? nearestMiles > kSupportedRadiusMiles
+          : !insideDiocese;
     });
   }
 
@@ -798,7 +810,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 const SizedBox(height: 2),
                 Text(
                   'ParishFinder currently covers the Diocese of Cleveland '
-                  '(NE Ohio). Parishes shown will be quite far from you.',
+                  '(NE Ohio). Parishes shown are located there, and may be '
+                  'quite far from you.',
                   style: GoogleFonts.inter(fontSize: 13, color: _subtextColor),
                 ),
               ],

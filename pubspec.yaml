@@ -75,6 +75,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/icons/
+    # Diocese outline for the out-of-area notice. Generated — see
+    # tool/gen_diocese_boundary.py.
+    - assets/data/
     # Inter + Cormorant Garamond, bundled rather than fetched at runtime. The
     # google_fonts package picks these up automatically by filename, so every
     # GoogleFonts.inter()/cormorantGaramond() call site keeps working unchanged.

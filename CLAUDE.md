@@ -199,6 +199,18 @@ A few non-obvious facts from that history worth keeping in view here:
 - **Liturgy tile** uses an offline Computus baseline (`LiturgicalService.localToday`) plus best-effort enrichment from calapi.inadiutorium.cz, which is reachable only over **plain HTTP** (its IPv4 refuses 443); Android cleartext is scoped to that domain in `res/xml/network_security_config.xml`.
 - **Feedback Worker** (`worker/`) is **deployed** to Cloudflare at `https://api.parishfinder.app` (D1-backed; account per `wrangler whoami`) — on our own zone, so zone-scoped WAF/rate-limiting rules can reach it. The old `introibo-feedback.mfgarvin.workers.dev` route was **retired 2026-08-02** (`workers_dev = false`); pre-beta.1 APKs pointing there can no longer submit. `/admin*` is behind **Cloudflare Access** (one-time PIN), with the Worker's Basic Auth kept as defence in depth. The Worker/D1 keep the old `introibo-feedback` name on purpose. `lib/config/feedback_endpoint.dart` defaults to `https://api.parishfinder.app/feedback`, so submissions are live; override per-build with `--dart-define=FEEDBACK_ENDPOINT=…`. Redeploy/inspect via `worker/README.md` (`wrangler deploy`, `wrangler d1 execute …`).
 - **Feedback monitoring**: the Worker now serves a Basic-Auth admin dashboard at `/admin` (secret `ADMIN_PASSWORD`) and posts a **daily Discord digest** via `scheduled()` on a `[triggers] crons = ["0 12 * * *"]` Cron Trigger (~8am ET) to the `DISCORD_WEBHOOK_URL` secret (optional `DASHBOARD_URL` link). Trigger manually with `POST /admin/digest`. `worker/logs.sh` remains a CLI viewer but needs local `wrangler login`. Secrets are **not** in git — set via `wrangler secret put` before the digest/dashboard work.
+- **Coverage / "you're outside the diocese"**: decided by a point-in-polygon test
+  against `assets/data/diocese_boundary.json` (`lib/services/diocese_boundary.dart`,
+  preloaded in `main()`), not by distance. The asset is **generated** by
+  `tool/gen_diocese_boundary.py` from US Census county boundaries — never
+  hand-edit it. The diocese is eight counties: Ashland, Cuyahoga, Geauga, Lake,
+  Lorain, Medina, Summit, Wayne (Ashtabula and Portage are **Youngstown**). The
+  old "nearest parish > 60 miles" rule survives only as a fallback if the asset
+  fails to load, and no radius can do this job: Kent is five miles from our Stow
+  parishes and belongs to Youngstown, while rural Ashland County is 25 miles from
+  anything we list — the same distance as Sandusky, which is Toledo.
+  `test/diocese_boundary_test.dart` pins one town per county plus the neighbours.
+
 - **Favorites/"Home Parishes"**: the user-facing label is "home parishes" but the SharedPreferences key (`favorite_parishes`) and class names (`FavoritesManager`/`FavoritesPage`) were deliberately left unchanged to preserve existing saves.
 - **Versioning**: semver lives in `pubspec.yaml` and is bumped by **`tool/release.sh`** (`beta` / `release` / `patch` / `minor` / `major` / `show`), which rewrites the version, commits, and tags `vX.Y.Z`. Never hand-edit the version line.
 - **Build number** is git-derived (`git rev-list --count HEAD`) on both platforms: Android via `gitBuildNumber` in `android/app/build.gradle`; iOS via a "Set Build Number From Git" Xcode Run Script phase that rewrites `CFBundleVersion` (in `ios/Runner.xcodeproj/project.pbxproj`, **untested on a Mac** as of 2026-07-16). The pubspec `+N` is a committed *floor* (kept in step with the commit count by `tool/release.sh`) — builds take `max(commit count, floor)`, so a rewritten history can't lower the number. **Release** builds with no usable git hard-fail rather than fall back; debug builds still fall back to the floor.
