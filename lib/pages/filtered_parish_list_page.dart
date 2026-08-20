@@ -176,6 +176,17 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   void _calculateNextOccurrences() {
     for (final parish in _parishes) {
+      // A perpetual chapel is open right now, so nothing is sooner. It carries
+      // no ScheduleEntry, though, so the generic path below left it with no
+      // countdown at all — which sorted it behind every scheduled parish and
+      // then hid it entirely, because the two-day cap drops anything without
+      // one. Rank it as open and move on.
+      if (widget.filter == ParishFilter.adoration &&
+          parish.adorationIsPerpetual) {
+        _minutesUntilNext[FavoritesManager.keyFor(parish)] = 0;
+        continue;
+      }
+
       List<ScheduleEntry> scheduleToCheck = [];
 
       // Get the appropriate schedule based on filter
@@ -912,7 +923,13 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   distance: distance,
                   minutesUntilNext: minutesUntil,
                   showDistance: _sortOrder == SortOrder.distance && distance != null,
-                  showTimeUntil: _sortOrder == SortOrder.nearestAndSoonest && minutesUntil != null,
+                  // No countdown for a perpetual chapel: it would render as
+                  // "This morning" for something that is open around the
+                  // clock, and the card already says "Perpetual (24/7)".
+                  showTimeUntil: _sortOrder == SortOrder.nearestAndSoonest &&
+                      minutesUntil != null &&
+                      !(widget.filter == ParishFilter.adoration &&
+                          parish.adorationIsPerpetual),
                   preferUpcoming:
                       _sortOrder != SortOrder.alphabetical && !_hasActiveFilters(),
                   filteredTimes: _hasActiveFilters()
