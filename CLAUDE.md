@@ -145,6 +145,11 @@ const LatLng? kDevLocation = kDebugMode
 - To test with different locations: change the coordinates
 - To test real GPS in debug: set `kDevLocation` to `null`
 
+This mock is the **only** behavioural difference between debug and release, so
+`debugShowCheckedModeBanner` is deliberately left at its default — the DEBUG
+ribbon is what distinguishes a location-mocked build on screen. Don't set it to
+`false`. `tool/ios_build.sh` refuses to bless a debug IPA for the same reason.
+
 ### OSM Tile Configuration
 
 The map uses OpenStreetMap tiles without subdomains (per OSM guidelines):
