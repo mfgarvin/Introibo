@@ -53,3 +53,6 @@ ParishFinder app icon design*.zip
 # Internal ops/security notes — kept local, not published (repo is public).
 docs/security-hardening.md
 privacy_note.md
+
+# Screenshots captured by test_driver/screens_test.dart — build output, not source.
+screenshots/
