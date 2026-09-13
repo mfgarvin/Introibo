@@ -46,55 +46,35 @@ Catholic Mass, confession & adoration times across the Diocese of Cleveland.
 ```
 Discover the Life of the Church across the Diocese of Cleveland.
 
-ParishFinder is a free app that brings together Masses, confession, and
-adoration for 180+ Catholic parishes across the 8 counties of the Diocese of
-Cleveland — each schedule pulled from the parish bulletin, the most up-to-date
-resource a parish has, so you don't have to hunt through them.
+ParishFinder is a free app that brings together Mass, confession, and adoration schedules for 180+ Catholic parishes across the 8 counties of the Diocese of Cleveland — all pulled from the parish bulletin, the most up-to-date resource a parish has, so you don't have to hunt through them.
 
-WHAT'S THE NEXT MASS?
-Open the app and see the next Mass starting near you, with the parish, the time,
-and how long you have to get there. No searching required.
+WHEN'S THE NEXT MASS?
+Open the app and see the next Mass starting near you, with the parish, the time, and how long you have to get there. No searching required.
 
 PARISHES NEAR YOU
-New to the area? Look at a map of what's around you. Swipe the carousel for
-schedules, or tap a marker for the full parish page.
-
-SEARCH BY NAME, CITY, OR ZIP
-Looking for a specific parish? Search by name, city, or ZIP code. The search
-understands how people actually type — "St", "St.", "Saint", and "Sts" all find
-what you mean.
+New to the area? Look at a map of what's around you. Swipe the carousel for schedules, or tap a marker for the full parish page.
 
 CONFESSION & ADORATION
-Whether you're planning ahead or the Spirit is moving you now, find where
-confession and adoration are being offered — sorted by distance or by what's
-happening soonest. Perpetual adoration chapels are marked.
+Whether you're planning ahead or the Spirit is moving you now, find where confession and adoration are being offered — sorted by distance or by what's happening soonest. Perpetual adoration chapels are marked, too.
 
 EVERYTHING A PARISH PAGE SHOULD HAVE
-Full Mass schedules with vigils and language noted, confession windows,
-adoration times, address with one-tap directions, phone, website, and a link to
-the latest bulletin.
+Full Mass schedules with vigils, languages and special liturgies noted, confession windows, adoration times, parish events, address with one-tap directions, phone, website, and a link to the latest bulletin, all right there.
 
 YOUR HOME PARISHES
 Keep the parishes you call home easily accessible, one tap away.
 
 THE LITURGICAL DAY
-Wondering what orations will be used? See today's feast, saint, or season at a
-glance.
+Wondering what orations will be used? See today's feast, saint, or season at a glance.
 
 IT WORKS OFFLINE
-Schedules are cached on your phone — after setting it up once, it'll work
-anywhere, even in the parish hall that has absolutely no reception.
+Schedules are cached on your phone — after setting it up once, it'll work anywhere, even in the parish hall that has absolutely no reception.
 
 HELP KEEP IT ACCURATE
-Times change, especially around the holidays or holy days. Every parish page
-lets you confirm the information or report what's wrong, crowdsourcing any
-changes that need to be made. And if we can't verify a parish's schedule, we'll
-let you know.
+Times change, especially around the holidays or holy days. Every parish page lets you confirm the information or report what's wrong, crowdsourcing any changes that need to be made. And if we can't verify a parish's schedule, we'll let you know.
 
 NO ADS. NO ACCOUNTS. NO TRACKING.
 No advertising, no sign-up, no profile, no analytics — and it's totally free.
-Your location never leaves your phone: it's used on the device to center the map
-and sort by distance, and is never transmitted or stored.
+Your location never leaves your phone: it's used on the device to center the map and sort by distance, and is never transmitted or stored.
 
 ---
 
