@@ -1829,38 +1829,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   List<Widget> _buildNextMassTiles() {
     if (_nearbyParishes.isEmpty) return const [];
 
-    final nearbyMin = NextMassTile.findSoonestMinutes(_nearbyParishes);
-    final imminent = nearbyMin != null && nearbyMin <= 60;
-
     void open(Parish p) => _pushPage(ParishDetailPage(parish: p));
 
-    final nearbyTile = NextMassTile(
-      parishes: _nearbyParishes,
-      label: imminent ? 'NEXT MASS\nNEARBY' : 'NEXT MASS NEARBY',
-      accentColor: primaryAccentFor(isDark: _isDark),
-      cardColor: _cardColor,
-      textColor: _textColor,
-      subtextColor: _subtextColor,
-      compact: !imminent,
-      announceNoMoreToday: true,
-      onTap: open,
-    );
-
-    if (imminent) {
-      // Imminent → prominent square, kept to the left half.
-      return [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: nearbyTile),
-            const Expanded(child: SizedBox.shrink()),
-          ],
-        ),
-        const SizedBox(height: 16),
-      ];
-    }
-    // Quieter compact banner when nothing's imminent.
-    return [nearbyTile, const SizedBox(height: 16)];
+    // One shape, always. The tile used to swell into a square inside the last
+    // hour before a Mass, which meant Home rearranged itself by the clock with
+    // nothing the user did — and on a tablet that square was half an 800dp
+    // page. The banner already carries everything that mattered: the parish,
+    // the time, and the countdown.
+    return [
+      NextMassTile(
+        parishes: _nearbyParishes,
+        label: 'NEXT MASS NEARBY',
+        accentColor: primaryAccentFor(isDark: _isDark),
+        cardColor: _cardColor,
+        textColor: _textColor,
+        subtextColor: _subtextColor,
+        announceNoMoreToday: true,
+        onTap: open,
+      ),
+      const SizedBox(height: 16),
+    ];
   }
 
   /// A soft fade over one gutter of a horizontal row, so cards dissolve into

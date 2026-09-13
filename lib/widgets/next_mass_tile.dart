@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/parish.dart';
-import '../utils/layout_scale.dart';
 import '../utils/schedule_parser.dart';
 import '../theme/app_text.dart';
-import 'stained_glass_header.dart';
 
 /// A live tile showing the soonest upcoming Mass across a set of nearby parishes.
 /// Self-tickers to keep the countdown fresh.
@@ -15,10 +13,6 @@ class NextMassTile extends StatefulWidget {
   final Color cardColor;
   final Color textColor;
   final Color subtextColor;
-
-  /// When true, render as a compact full-width banner instead of a 1:1 square.
-  /// Reserved for "next Mass is far enough away that this isn't the hero".
-  final bool compact;
 
   /// When the soonest Mass isn't today, show a "Tomorrow, 7:30 AM" chip
   /// instead of an "in Xh" countdown. Used for the nearby tile, where the
@@ -35,26 +29,8 @@ class NextMassTile extends StatefulWidget {
     required this.textColor,
     required this.subtextColor,
     required this.onTap,
-    this.compact = false,
     this.announceNoMoreToday = false,
   });
-
-  /// Minutes until the soonest Mass in [parishes], or null if none.
-  /// Exposed so callers can decide layout (compact vs expanded) before
-  /// instantiating the widget.
-  static int? findSoonestMinutes(List<Parish> parishes) {
-    final now = DateTime.now();
-    int best = 1 << 30;
-    for (final p in parishes) {
-      if (p.massTimes.isEmpty) continue;
-      final next = ScheduleParser.findNextOccurrence(
-          p.massTimes, now, kCountMassInProgress);
-      if (next == null) continue;
-      final m = next.minutesUntilNext(now, kCountMassInProgress);
-      if (m < best) best = m;
-    }
-    return best == 1 << 30 ? null : best;
-  }
 
   @override
   State<NextMassTile> createState() => _NextMassTileState();
@@ -134,142 +110,16 @@ class _NextMassTileState extends State<NextMassTile> {
           : null;
     }
 
-    return widget.compact
-        ? _buildCompact(hit, whenLine, chipText, isImminent)
-        : _buildExpanded(hit, whenLine, chipText, isImminent);
+    return _buildCompact(hit, whenLine, chipText, isImminent);
   }
 
-  Widget _buildExpanded(
-    ({Parish parish, ScheduleEntry entry, int minutes}) hit,
-    String whenLine,
-    String? chipText,
-    bool isImminent,
-  ) {
-    final seed = hit.parish.parishId ?? hit.parish.name;
-    return AspectRatio(
-      // Square at normal text size, taller as the text grows: the tile is half
-      // the page wide, so at 2x its three lines no longer fit a square and
-      // spilled 30px out the bottom. The ratio has to stay bounded (the
-      // content Column uses a Spacer, which needs a height), so the tile gets
-      // proportionally taller rather than unconstrained.
-      aspectRatio: 1.0 / context.textScale.clamp(1.0, 2.0),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => widget.onTap(hit.parish),
-          borderRadius: BorderRadius.circular(18),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: widget.cardColor,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: widget.accentColor.withValues(alpha: 0.25),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: 0.30,
-                      child: StainedGlassHeader(
-                        seed: seed,
-                        patron: hit.parish.name,
-                        overlayDarken: 0.0,
-                      ),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            widget.cardColor.withValues(alpha: 0.95),
-                            widget.cardColor.withValues(alpha: 0.55),
-                            widget.cardColor.withValues(alpha: 0.15),
-                          ],
-                          stops: const [0.0, 0.55, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                widget.label,
-                                style:
-                                    AppText.kicker(color: widget.accentColor),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (chipText != null) ...[
-                              const SizedBox(width: 6),
-                              _countdownChip(chipText, isImminent),
-                            ],
-                          ],
-                        ),
-                        const Spacer(),
-                        Text(
-                          hit.parish.name,
-                          style: AppText.bodyLarge(color: widget.textColor),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Container(
-                              width: 4,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: widget.accentColor,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                whenLine,
-                                style:
-                                    AppText.caption(color: widget.subtextColor),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Compact banner: full-width, ~72px tall. Used when next Mass isn't
-  /// imminent — keeps the slot productive without screaming for attention.
+  /// Full-width banner, ~72px tall — the only form the tile takes.
+  ///
+  /// It once swelled into a half-page square inside the last hour before a
+  /// Mass. That made Home rearrange itself by the clock rather than by
+  /// anything the user did, and on a tablet the square came out at half of an
+  /// 800dp page. The countdown chip still goes gold when a Mass is imminent,
+  /// which is the part that was actually carrying the urgency.
   Widget _buildCompact(
     ({Parish parish, ScheduleEntry entry, int minutes}) hit,
     String whenLine,
