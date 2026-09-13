@@ -15,6 +15,40 @@ class FeedbackResult {
   const FeedbackResult.fail(this.error) : ok = false;
 }
 
+/// What the user sees when the request never reached the Worker.
+///
+/// Every failure here is the same fact to someone standing in a parish hall
+/// with no signal — no DNS, no route, a TLS handshake that never completed, a
+/// timeout — and the raw exception was being printed inline between the
+/// comment box and the Submit button ("ClientException with SocketException:
+/// Failed host lookup: 'api.parishfinder.app' (OS Error: No address
+/// associated with hostname, errno = 7)"). The detail goes to debugPrint,
+/// where it helps someone who can act on it.
+const String kUnreachableMessage =
+    "Can't reach the server — are you connected to the internet?";
+
+/// Test seam: the HTTP client a submission posts through. Production never
+/// reassigns it; a test swaps in a MockClient to exercise the failure paths,
+/// which are otherwise reachable only by unplugging the network.
+@visibleForTesting
+http.Client Function() feedbackClientFactory = http.Client.new;
+
+/// A reply the Worker did not word itself.
+///
+/// The Worker answers its own errors as JSON, which passes through verbatim.
+/// This is for the ones that never reach it: Cloudflare's zone-level WAF and
+/// rate limiting answer with an HTML page, so the JSON decode fails and
+/// without this the user was shown "Server returned 429".
+String _serverErrorMessage(int status) {
+  if (status == 429) {
+    return 'Too many messages just now — please try again in a few minutes.';
+  }
+  if (status >= 500) {
+    return 'Something went wrong on our end. Please try again in a moment.';
+  }
+  return "That didn't go through. Please try again.";
+}
+
 String _platformLabel() {
   if (kIsWeb) return 'web';
   try {
@@ -58,8 +92,9 @@ Future<FeedbackResult> submitFeedback({
     'platform': _platformLabel(),
   };
 
+  final client = feedbackClientFactory();
   try {
-    final resp = await http
+    final resp = await client
         .post(
           Uri.parse(kFeedbackEndpoint),
           headers: const {'Content-Type': 'application/json'},
@@ -76,8 +111,13 @@ Future<FeedbackResult> submitFeedback({
         errMsg = decoded['error'] as String;
       }
     } catch (_) {}
-    return FeedbackResult.fail(errMsg ?? 'Server returned ${resp.statusCode}');
+    return FeedbackResult.fail(errMsg ?? _serverErrorMessage(resp.statusCode));
   } catch (e) {
-    return FeedbackResult.fail('Network error: $e');
+    // The detail is for whoever can fix it, not for the person trying to
+    // report a wrong Mass time.
+    debugPrint('feedback submit failed: $e');
+    return const FeedbackResult.fail(kUnreachableMessage);
+  } finally {
+    client.close();
   }
 }
