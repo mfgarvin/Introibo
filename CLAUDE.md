@@ -78,6 +78,29 @@ static const _remoteUrl =
     'https://raw.githubusercontent.com/mfgarvin/bulletin/refs/heads/main/export.json';
 ```
 
+**That load happens once per process, so it is not the whole story.** A cold
+start always fetches, but a phone rarely grants one — Android keeps the process
+cached and iOS keeps it suspended, sometimes for weeks, and tapping the icon
+*resumes* it, re-running neither `main()` nor any `initState()`. `_isLoaded`
+would stay true for the life of that process and the app would serve whatever it
+fetched on install. So `ParishService` is itself a `WidgetsBindingObserver`
+(registered in `main()`), and on resume:
+
+- older than `refreshInterval` (**24h**) → silent re-fetch. It never clears
+  `isLoaded`, so nothing on screen falls back to a spinner, and a failed attempt
+  leaves the loaded parishes untouched. `getParishes()` fires one too, without
+  awaiting it. Overlapping calls share one request.
+- older than `staleThreshold` (**7 days**) → `isStale`, which raises a warning
+  banner on Home. Only reachable after a week of *failed* refreshes, so a
+  healthy install never sees it. Note that `isUsingCachedData` answers a
+  different question — "the last attempt failed" — and is silent about age.
+
+The service is a `ChangeNotifier`; `HomePage` listens and adopts new data
+mid-session. Both thresholds and the resume path are pinned by
+`test/parish_refresh_test.dart`, through two `@visibleForTesting` seams (an
+injectable clock and `http.Client`) — a 24-hour timer is not observable by
+looking at a screen.
+
 There is no bundled parish data asset — first launch requires a
 network connection (an "Internet Required" screen handles that case). Use the local
 `export.demo.json` (new shape, 189 records across 184 parishes — refreshed from

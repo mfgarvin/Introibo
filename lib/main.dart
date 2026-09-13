@@ -67,6 +67,9 @@ Future<void> main() async {
   // 2.4 KB off the bundle — parsed here so the coverage check is a synchronous
   // answer by the time the first location fix lands.
   await dioceseBoundary.load();
+  // Watches for app resumes so parish data can't go stale in a process the OS
+  // keeps alive for weeks. See ParishService.refreshInterval.
+  parishService.init();
   runApp(const ParishFinderApp());
 }
 
@@ -662,6 +665,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   // they're outside the supported diocese. Drives the coverage notice banner.
   bool _outsideCoverage = false;
   bool _coverageNoticeDismissed = false;
+  bool _staleNoticeDismissed = false;
+  bool _retryingStaleFetch = false;
 
   @override
   void initState() {
@@ -673,6 +678,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     themeNotifier.addListener(_onThemeChanged);
     favoritesManager.addListener(_onThemeChanged);
     locationService.addListener(_onSharedLocation);
+    parishService.addListener(_onParishDataChanged);
   }
 
   @override
@@ -685,6 +691,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     themeNotifier.removeListener(_onThemeChanged);
     favoritesManager.removeListener(_onThemeChanged);
     locationService.removeListener(_onSharedLocation);
+    parishService.removeListener(_onParishDataChanged);
     super.dispose();
   }
 
@@ -693,9 +700,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     // Re-fetch location when the app returns to the foreground so "nearby"
     // reflects where the user actually is now (and picks up a permission grant
     // made in Settings while we were backgrounded). Silent — no spinner flash.
+    //
+    // The parish data has its own resume hook inside ParishService; when it
+    // lands, _onParishDataChanged picks it up.
     if (state == AppLifecycleState.resumed) {
       _getUserLocation();
     }
+  }
+
+  /// A background refresh finished. Adopt whatever the service now holds —
+  /// silently, since the user did not ask for this and may be mid-scroll.
+  void _onParishDataChanged() {
+    if (!mounted) return;
+    setState(() => _parishes = parishService.parishes);
+    _updateNearbyParishes();
   }
 
   List<Parish> get _favoriteParishes =>
@@ -1072,6 +1090,97 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
+  /// Warns that the schedules on screen have aged out.
+  ///
+  /// Unreachable on a healthy install: the app re-fetches on resume once the
+  /// data passes [ParishService.refreshInterval], so reaching
+  /// [ParishService.staleThreshold] means a week of failed attempts. That is
+  /// worth saying plainly — these are times people plan around, and a schedule
+  /// that is quietly a month old is the one failure this app must not have.
+  Widget _buildStaleDataBanner() {
+    final age = parishService.dataAge;
+    if (!parishService.isStale || age == null || _staleNoticeDismissed) {
+      return const SizedBox.shrink();
+    }
+    final accent = warningAccentFor(isDark: _isDark);
+    final days = age.inDays;
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: _isDark ? 0.14 : 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.schedule_outlined, color: accent, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'These times may be out of date',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _textColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'ParishFinder last reached the server $days days ago. '
+                  'Please confirm with the parish before you travel.',
+                  style: GoogleFonts.inter(fontSize: 13, color: _subtextColor),
+                ),
+                const SizedBox(height: 6),
+                TextButton(
+                  onPressed: _retryingStaleFetch ? null : _retryStaleFetch,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: accent,
+                  ),
+                  child: Text(
+                    _retryingStaleFetch ? 'Checking…' : 'Try again now',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, size: 18, color: _subtextColor),
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Dismiss',
+            onPressed: () => setState(() => _staleNoticeDismissed = true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _retryStaleFetch() async {
+    setState(() => _retryingStaleFetch = true);
+    await parishService.refreshParishes();
+    if (!mounted) return;
+    setState(() => _retryingStaleFetch = false);
+    if (!parishService.isUsingCachedData) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Parish times are up to date.',
+              style: GoogleFonts.inter()),
+        ),
+      );
+    }
+  }
+
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 200), () {
@@ -1246,6 +1355,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   // Location-triggered notice when the user is outside the
                   // supported diocese. Independent of the first-run disclaimer.
                   _buildCoverageBanner(),
+                  _buildStaleDataBanner(),
                   const SizedBox(height: 24),
 
                   // Today hero card — day-aware suggestion
