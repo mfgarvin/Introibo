@@ -147,10 +147,15 @@ void main() {
         // The bug this guards: the trailing badge took what it wanted and the
         // name, in an Expanded, got the remainder — one character per line at
         // 2x. Any name on screen must have room for several characters.
+        //
+        // Matched by the name's own style rather than by a "Saint " prefix:
+        // the list is sorted by soonest Mass, so which parishes are built at
+        // all depends on the hour the suite runs in, and an afternoon run
+        // whose first cards are "Our Lady of …" found nothing to measure.
         final names = find.byWidgetPredicate((w) =>
             w is Text &&
-            (w.data ?? '').startsWith('Saint ') &&
-            (w.style?.fontWeight == FontWeight.bold));
+            w.style?.fontWeight == FontWeight.bold &&
+            w.style?.fontSize == 16);
         expect(names, findsWidgets);
         for (final name in names.evaluate()) {
           final width = tester.getSize(find.byWidget(name.widget)).width;
