@@ -3,6 +3,7 @@
 How to sign, build, and ship ParishFinder to the Play Store.
 
 Companion documents:
+- [`launch-checklist.md`](launch-checklist.md) — the ordered 1.0.0 launch runbook, both stores
 - [`play-data-safety.md`](play-data-safety.md) — answers for the Data Safety form
 - [`play-listing.md`](play-listing.md) — store listing copy and asset specs
 - [`../PRIVACY.md`](../PRIVACY.md) — the privacy policy that must be hosted publicly
@@ -144,39 +145,54 @@ Play Console into readable stack traces.
 
 ## First submission checklist
 
-Work top to bottom. The items above the line block the upload itself.
+**Superseded for the 1.0.0 public launch** — see
+[`launch-checklist.md`](launch-checklist.md) for the ordered runbook across both
+stores. This list is kept as the record of what the *first* upload required, and
+of what is genuinely still open.
+
+Everything below was satisfied by 2026-09-04: the app is on Play with six
+uploads behind it (through `1.0.0-beta.9`, versionCode 140), the closed test is
+complete, and production access is granted. Play requires the App content
+declarations before any track can ship, so those are done by construction.
 
 - [x] **Launcher icons and both store graphics are generated and shipped** —
       `tool/gen_icons.py` renders them from the design handoff's vector source.
       The 512×512 Play icon and the 1024×500 feature graphic are at
       `docs/store/`. Never hand-edit the PNGs; `gen_icons.py --check` catches drift.
-- [ ] **Phone screenshots — 2 to 8 images, still missing.** The one remaining
-      listing asset. See the screenshot plan in [`play-listing.md`](play-listing.md).
-- [ ] Upload keystore generated and backed up (steps 1–2 above). `keytool` is not
-      on `PATH`; it lives at `/usr/lib/Stirling-PDF/runtime/jre/bin/keytool`.
-- [ ] `applicationId` is `app.parishfinder`. **This is permanent after the first
-      upload** — change it now or never.
+- [x] **Phone screenshots — 2 to 8 images.** A clean release-build set of five
+      (1080×2400), plus 7" and 10" tablet sets, is at `~/Desktop/emulator/`,
+      captured 2026-08-06 — see [`launch-checklist.md`](launch-checklist.md)
+      § Step 1 for which file is which. Note that `screenshots/` **in this
+      repo** is gitignored driver output and is debug-build; do not ship it.
+- [x] Upload keystore generated and backed up (steps 1–2 above) —
+      `~/keys/parishfinder-upload.jks`, alias `mykey`. `keytool` is on `PATH` at
+      `/usr/bin/keytool`.
+- [x] `applicationId` is `app.parishfinder`. **Permanent since the first
+      upload** — it can no longer be changed.
 - [x] Privacy policy hosted — `https://parishfinder.app/privacy.html` is live
       (Git-deployed via Cloudflare Pages). Use the `.html` URL in the Play
       Console: bare `/privacy` only works on hosts that strip extensions.
-- [ ] Data Safety form completed — see [`play-data-safety.md`](play-data-safety.md).
-- [ ] Store listing copy and graphics — see [`play-listing.md`](play-listing.md).
-- [ ] Content rating questionnaire completed (expect "Everyone").
-- [ ] Target audience set. Declaring an audience that includes children triggers
+- [x] Data Safety form completed — see [`play-data-safety.md`](play-data-safety.md).
+- [x] Store listing copy — see [`play-listing.md`](play-listing.md). Graphics
+      are done except the screenshots above.
+- [x] Content rating questionnaire completed.
+- [x] Target audience set. Declaring an audience that includes children triggers
       the Families policy and extra review — this app targets a general/adult
       audience.
-- [ ] Ads declaration: **no ads**.
-- [ ] Test on a physical device against `targetSdk 36` (Android 16). Edge-to-edge
+- [x] Ads declaration: **no ads**.
+- [x] Test on a physical device against `targetSdk 36` (Android 16). Edge-to-edge
       is mandatory at this API level — check that content is not hidden behind
       the status bar, the navigation bar, or a display cutout.
-- [ ] Verify location permission flows: grant, deny, and "only this time".
+- [x] Verify location permission flows: grant, deny, and "only this time".
       Denying must leave the rest of the app fully usable.
-- [ ] Verify first launch with **no network** shows "Internet connection
+- [x] Verify first launch with **no network** shows "Internet connection
       required to download parish data" rather than an empty or broken state,
       and that a subsequent launch with a warm cache shows the "Offline mode -
       data may be out of date" banner.
-- [ ] Confirm the feedback form reaches the Worker from a release build.
-- [ ] Internal testing track first, then closed, then production.
+- [x] Confirm the feedback form reaches the Worker from a release build.
+- [x] Internal testing track first, then closed, then production. Internal and
+      closed are done; production is what [`launch-checklist.md`](launch-checklist.md)
+      covers.
 
 ### Known gaps to decide on before shipping
 
