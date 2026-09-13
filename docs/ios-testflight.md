@@ -203,3 +203,29 @@ beta group needs a fresh build roughly quarterly. And App Store Connect's App
 Privacy questionnaire is a separate thing from Play's Data Safety form, but the
 answers are the same — see [`play-data-safety.md`](play-data-safety.md);
 feedback is the only thing collected, and location never leaves the device.
+
+**8. From TestFlight to the public App Store.** TestFlight and the store are the
+same build record, so going public is a metadata step, not a rebuild — you do
+not "promote" anything. In App Store Connect, create the **1.0.0** iOS App Store
+version, fill the fields Play has no equivalent for (subtitle, keywords,
+promotional text — the copy is in
+[`launch-checklist.md`](launch-checklist.md) Step 4), complete the **App
+Privacy** questionnaire and age rating, set pricing to free/United States,
+attach the iPhone and iPad screenshot sets, select the build, and submit.
+
+Two settings worth choosing deliberately:
+
+- **Release option.** "Manually release this version" is Apple's equivalent of
+  Play's managed publishing — approval parks the version until you press
+  Release, rather than going live at whatever hour review finishes. Pick it if
+  you want the store listing, the site badges and any announcement to land
+  together.
+- **Notes for the reviewer.** Say plainly that this is a personal project
+  listing publicly available Mass times compiled from parish bulletins, and that
+  it is not an official app of the diocese or any parish. That answers
+  Guideline 5.2 before it is asked. The full wording is in
+  [`launch-checklist.md`](launch-checklist.md) Step 4.
+
+Submitted **2026-09-13** with build 155. Review takes days rather than the
+minutes a TestFlight processing pass takes; the external beta group keeps
+running on its own build throughout, and still needs a fresh one every 90 days.

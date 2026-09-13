@@ -1,12 +1,57 @@
 # Going public: the 1.0.0 launch checklist
 
 Written **2026-09-04**, when the app was in beta on both stores and the decision
-was made to go public. **Updated 2026-09-13**: production access is granted, and
-the Android screenshot set turned out to already exist (Step 1). This is the one ordered runbook for that crossing; the
+was made to go public. **Updated 2026-09-13**: both stores are submitted — Android to
+production review and iOS to App Store review — and the screenshot problem that
+gated iOS is solved on the Simulator (Step 1). This is the one ordered runbook for that crossing; the
 per-store mechanics live in [`play-release.md`](play-release.md) and
 [`ios-testflight.md`](ios-testflight.md), and the Play copy in
 [`play-listing.md`](play-listing.md). Nothing here repeats those — it says what
 order to do them in, and what is still missing.
+
+---
+
+## Status: both stores are submitted (2026-09-13)
+
+**iOS 1.0.0 (build 155) was uploaded with Transporter and submitted for App
+Store review the same day Android went to production review.** Both listings are
+now waiting on a reviewer; neither publishes without a human pressing a button.
+
+| | |
+|---|---|
+| Version | `1.0.0`, **CFBundleVersion 155**, bundle `app.parishfinder` |
+| Signed | `Apple Distribution: MICHAEL FRANCIS GARVIN (YYF433Z327)` |
+| Device family | `UIDeviceFamily [1, 2]` — iPhone **and** iPad, so both screenshot sets were required |
+| Built with | `tool/ios_build.sh` (never a bare `flutter build ipa`) |
+| Screenshots | Simulator, not a borrowed phone — see Step 1 |
+
+**No app code changed today.** The IPA is `bb76df0` (the `v1.0.0` tag) compiled
+for iOS; the only commits are documentation. The screenshot work needed no
+source edit at all, which was the point of finding the VM service route.
+
+**iOS build 155 against Android's versionCode 154 is correct.** Both derive from
+`max(git commit count, pubspec floor)`; the count advanced by one between the
+two uploads. The numbers are per-platform and only have to increase within their
+own store. Do not try to make them match.
+
+### Verified before upload
+
+`tool/ios_build.sh` refuses a debug IPA by checking for `kernel_blob.bin`, which
+is the guard that matters — a debug build still carries `kDevLocation`'s
+Lakewood mock, and shipping one pins every tester to Lakewood. It passed. Also
+confirmed by hand: version `1.0.0` (purely numeric, as
+`CFBundleShortVersionString` requires), the distribution certificate above, and
+that Xcode had not rewritten `project.pbxproj` during the build.
+
+### What is still open
+
+- **App Store review.** Days, not minutes. The reviewer notes drafted in Step 4
+  preempt Guideline 5.2; external TestFlight already passed Beta App Review,
+  so a reviewer has seen this app once without objecting.
+- **Google Play production review**, with managed publishing **on** — approval
+  parks the release until someone presses Publish.
+- **Step 5 is untouched**: `site/index.html` line 45 still says "Coming soon to
+  Google Play and the Apple App Store". Both badges go in once the two are live.
 
 ---
 
@@ -155,30 +200,95 @@ If reshooting, three things ruin a capture and are only obvious afterwards:
 Play wants 2–8 phone images, 16:9 or 9:16, 320–3840 px. Both the Pixel's native
 resolution and the 1080×2400 set above qualify as-is.
 
-### iOS — take them from TestFlight, not the Simulator
+### iOS — shot on the Simulator, 2026-09-13
 
 `TARGETED_DEVICE_FAMILY = "1,2"`, so the App Store requires **both** an iPhone
-set and an iPad set. Confirm the exact required display sizes in App Store
-Connect when you upload — Apple has consolidated them more than once, and the
-current requirement is roughly one 6.9″ iPhone set and one 13″ iPad set.
+set and an iPad set. Both were taken on the Simulator and accepted:
 
-**The iPad set comes off the TestFlight build**, which is a release build: no
-DEBUG banner, no mocked location. That is the whole solution for iPad, and it
-is already installed.
+| Simulator | Native capture | Apple slot |
+|---|---|---|
+| iPhone 17 Pro Max | 1320×2868 | 6.9″ |
+| iPad Pro 13-inch (M5) | 2064×2752 | 13″ |
 
-**The iPhone set is the actual problem.** There is no iPhone here, and the
-Simulator runs debug builds only — which carry the DEBUG ribbon *and*
-`kDevLocation`'s Lakewood mock. Three ways out, in order of preference:
+**This section used to say the Simulator was unusable because debug builds carry
+the DEBUG ribbon. That was wrong**, and it cost a plan to borrow a phone. The
+Simulator *is* debug-only — `IOSSimulator.supportsRuntimeMode` still accepts
+`BuildMode.debug` alone in 3.47 — but the ribbon is not part of that bargain.
+`flutter run` suppresses it around its own capture (press **`s`**;
+`resident_runner.dart` wraps `takeScreenshot` in `_toggleDebugBanner`), and the
+underlying switch is a VM service extension you can call yourself. Turn it off
+once and it stays off for the life of the isolate, so the Simulator's own ⌘S
+comes out clean too:
 
-1. **Borrow a 6.9″ iPhone and install the TestFlight build.** External testing
-   is already running, so a public link makes this a five-minute favour from
-   anyone with a recent iPhone. No code changes, real build, correct pixels.
-2. Gate the banner behind a new `--dart-define`. Works, but it adds a second
-   behavioural difference between debug and release, and the DEBUG ribbon is
-   deliberately left on precisely so a location-mocked build is identifiable on
-   screen (see CLAUDE.md, "Dev Location Override"). Don't do this quietly.
-3. Flip `debugShowCheckedModeBanner` locally and never commit it. Same objection
-   as (2), plus a change that must not survive the session.
+```bash
+VM=$(grep -o 'http://127.0.0.1:[0-9]*/[A-Za-z0-9_=+-]*/' run.log | head -1)
+ISO=$(curl -s "${VM}getVM" | python3 -c "import sys,json;print(json.load(sys.stdin)['result']['isolates'][0]['id'])")
+curl -s --get "${VM}ext.flutter.debugAllowBanner" \
+  --data-urlencode "isolateId=$ISO" --data-urlencode "enabled=false"
+```
+
+The framework documents the hook at `widgets/app.dart` — "this is how
+`flutter run` turns off the banner when you take a screen shot with 's'". So
+options 2 and 3 above (a new `--dart-define`, or editing
+`debugShowCheckedModeBanner`) are both unnecessary; neither was used, and the
+invariant in CLAUDE.md — a location-mocked build is identifiable on screen —
+survives untouched.
+
+The rest of the recipe, in order:
+
+```bash
+xcrun simctl boot <udid>; open -a Simulator
+xcrun simctl location <udid> set 41.4993,-81.6944       # Public Square
+flutter run -d <udid> --dart-define=REAL_GPS=1
+xcrun simctl privacy <udid> grant location app.parishfinder
+xcrun simctl status_bar <udid> override --time "9:41" \
+  --dataNetwork wifi --wifiMode active --wifiBars 3 \
+  --batteryState charged --batteryLevel 100
+```
+
+`REAL_GPS=1` is load-bearing: without it `kDevLocation` short-circuits
+Geolocator and the simulated location is ignored, so you get Lakewood no matter
+what `simctl` was told. Granting the permission up front keeps the system
+prompt out of the frame.
+
+**Three traps, each of which produced a bad frame before it was caught:**
+
+- **After changing the simulated location, hot *restart* (`R`), not reload.**
+  Hot reload preserves state, so the app never re-requests a fix and keeps
+  showing the old one. Restart re-runs `main()`, which resets
+  `debugAllowBannerOverride` — so re-disable the banner immediately after.
+- **Check the parish names, not just that parishes appeared.** The iPad's first
+  run came up with "Your diocese is not yet supported" over parishes in Stow,
+  Cuyahoga Falls and Tallmadge — a Kent-area fix, and Kent is Portage County,
+  which is Youngstown. The banner is the app correctly reporting that the
+  location was wrong.
+- **The status bar and the app's own clock must agree.** Apple's 9:41 convention
+  against a hero reading "in 1h 54m" puts the real time at 3:36, and the
+  mismatch is visible to anyone who looks. Either set `--time` to the real
+  clock or move the real clock.
+
+**Moving the real clock is what makes the hero good.** The Simulator takes its
+time from the host, so the app's next-Mass logic follows the Mac. Sunday 9:41am
+puts a 10:00 Mass fourteen minutes out — the best version of that banner. Note
+the BSD argument order, which is `mmddHHMM` then `ccyy`, not the GNU order:
+
+```bash
+sudo systemsetup -setusingnetworktime off   # or NTP snaps it back
+sudo date 091309412026                      # Sun 13 Sep 2026, 09:41
+# ... shoot ...
+sudo systemsetup -setusingnetworktime on    # restore
+```
+
+Don't commit while the clock is shifted. Verify `date` before you do.
+
+**For a real device, none of this applies.** `xcrun devicectl` has no location
+or time subcommand — location simulation on hardware is an Xcode debug-session
+feature only, which puts you back in a debug build. The route that does work on
+a release/TestFlight build is the app's own ZIP fallback: deny the location
+permission and Home offers **"Use a ZIP code"**, resolved offline from the
+parish data. It leaves visible traces — a "Near ZIP 44114" line under *Nearby
+Parishes*, a pin-drop recentre icon, and distances measured to the ZIP centroid
+— but it needs no code change and no Developer Mode on someone else's phone.
 
 Do not resize the Android captures. The screenshots must show the iOS UI.
 
