@@ -81,7 +81,7 @@ static const _remoteUrl =
 There is no bundled parish data asset — first launch requires a
 network connection (an "Internet Required" screen handles that case). Use the local
 `export.demo.json` (new shape, 189 records across 184 parishes — refreshed from
-live 2026-08-04) for inspection. Records outnumber parishes because a parish with
+live 2026-09-13, so it carries `cancelled`) for inspection. Records outnumber parishes because a parish with
 multiple worship sites gets one record each; `parish_id` is the identity, not
 `name` (six names repeat across cities).
 
@@ -106,19 +106,32 @@ multiple worship sites gets one record each; `parish_id` is the identity, not
 - `bulletinUrl`, `eventsSummary`, `imageUrl`, `contactInfo` — optional
 - `latitude`, `longitude` — nullable plain floats (now present in the data)
 - `lastUpdated` — parsed from the per-record `timestamp`
+- `cancelled: bool` on `ScheduleEntry` — from `cancelled`, present on every
+  entry since 2026-09-12, `false` unless the bulletin printed this slot's own
+  time beside "NO MASS". It means *standing slot, off this week*, not deleted:
+  the schedule cards keep the row and strike it through (`CancelledBadge` plus
+  the reason from `notes`), while everything answering **availability** steps
+  over it — `ScheduleParser.findNextOccurrence`/`minutesUntilNext` filter it,
+  `currentWindowStart` refuses it so nothing is "in progress", the list page's
+  day/time filters drop it, and `Parish.previewMassTime` skips past it. A view
+  that wants the suspended rows asks for them: `groupByBucket(...,
+  includeCancelled: true)`. It is re-derived from scratch every scraper run,
+  so nothing has to expire it. **Live count is currently zero** — the field
+  shipped with a week whose bulletins had none — so the code paths are
+  exercised by tests (`test/cancelled_schedule_test.dart`), not yet by data.
 - `inviteFeedback: bool` — from `invite_feedback`; true (14 parishes as of the 2026-08-04 data) means the schedule was never machine-verified from a bulletin, so `ParishDetailPage` shows an `InviteFeedbackCard` under the next-Mass banner asking the user to confirm or correct the times. Defaults to false if the key is missing (older cached JSON).
 
 JSON comes from the **structured** `export.json` shape:
-- `schedules.mass[]`: `{day, start "HH:MM", mass_date, language, notes}`
-- `schedules.confession[]`: `{day, start, end, notes}`
-- `schedules.adoration`: `{is_perpetual, times: [{day, start, end, notes}]}`
+- `schedules.mass[]`: `{day, start "HH:MM", mass_date, language, notes, cancelled}`
+- `schedules.confession[]`: `{day, start, end, notes, cancelled}`
+- `schedules.adoration`: `{is_perpetual, times: [{day, start, end, notes, cancelled}]}`
 - plain numeric `latitude`/`longitude`, plus `bulletin_url`, `timestamp`, `invite_feedback`
 - optional `weeks_of_month` / `excluded_weeks` (`int[]`, domain `1`–`5` and `-1`)
   on any schedule entry: monthly-ordinal recurrence ("First Friday", "Last
   Sunday"). Absent/null/empty all mean *every week* — the app must not
-  distinguish them. **Live in the data as of 2026-09-02**: 57 entries across
-  40 parishes (mass, confession and adoration alike), values `1` (45), `2`
-  (7), `-1` (4) and `3` (1). No `excluded_weeks` in the wild yet. The
+  distinguish them. **Live in the data as of 2026-09-13**: 48 entries across
+  37 parishes (mass, confession and adoration alike), values `1` (36), `2`
+  (8), `-1` (3), `3` (2) and `4` (1). No `excluded_weeks` in the wild yet. The
   ordinal-recurrence code paths are therefore exercised by real records now,
   not inert.
 - Legacy keys (`mass_times`, `confessions`, `conf_times`, `www`, `lonlat`) are gone.
@@ -255,8 +268,8 @@ area) — see Data Flow above. The **structured** shape (sample, abbreviated):
   "timestamp": "2026-05-20",
   "schedules": {
     "mass": [
-      {"day": "sunday", "start": "09:00", "mass_date": null, "language": "en", "notes": null},
-      {"day": "saturday", "start": "16:30", "mass_date": null, "language": "en", "notes": "Vigil"}
+      {"day": "sunday", "start": "09:00", "mass_date": null, "language": "en", "notes": null, "cancelled": false},
+      {"day": "tuesday", "start": "08:00", "mass_date": null, "language": "en", "notes": "Fr. Trask is away", "cancelled": true}
     ],
     "confession": [
       {"day": "tuesday", "start": "19:00", "end": "19:30", "notes": null}

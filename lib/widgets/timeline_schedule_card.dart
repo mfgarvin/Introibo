@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../main.dart' show cardBorderFor;
 import '../utils/layout_scale.dart';
 import '../utils/schedule_parser.dart';
+import 'cancelled_badge.dart';
 import 'day_chip_text.dart';
 
 /// Schedule card that groups entries into Today / Tomorrow / This week / Beyond
@@ -34,7 +35,10 @@ class TimelineScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buckets = ScheduleParser.groupByBucket(items);
+    // Suspended slots stay in their bucket, struck through: this card is the
+    // parish's standing schedule, and a slot that vanishes for a week reads as
+    // one the parish never had.
+    final buckets = ScheduleParser.groupByBucket(items, includeCancelled: true);
     final hasUpcoming = buckets.values.any((l) => l.isNotEmpty);
 
     return Container(
@@ -175,6 +179,7 @@ class TimelineScheduleCard extends StatelessWidget {
   Widget _entryRow(UpcomingEntry e, String bucketLabel) {
     final showDay = bucketLabel == 'This week' || bucketLabel == 'Beyond';
     final note = e.noteLabel;
+    final cancelled = e.cancelled;
     // Prose note: its own full-width line under the row.
     final blockStyle = GoogleFonts.inter(
       fontSize: 13,
@@ -192,6 +197,10 @@ class TimelineScheduleCard extends StatelessWidget {
     // character budget can't see how wide the row is, so notes that "fit" it
     // still rendered as "Mar ia…" in the narrow tail.
     return LayoutBuilder(builder: (context, constraints) {
+      // Same muting as the Mass card: the accent says "this is happening".
+      final dayInk = cancelled ? subtextColor : color;
+      final timeInk = cancelled ? subtextColor : textColor;
+
       final dayWidth = showDay
           ? context.scaled(_dayColumnWidth, max: constraints.maxWidth * 0.25)
           : 0.0;
@@ -199,9 +208,11 @@ class TimelineScheduleCard extends StatelessWidget {
       final timeWidth = context.scaled(_timeColumnWidth,
           max: constraints.maxWidth - dayLead - 24);
 
+      // See MassScheduleCard: a cancelled row's note is the reason, and it
+      // travels with the badge on the line below rather than in the tail.
       String? chipNote;
       String? blockNote;
-      if (note != null) {
+      if (note != null && !cancelled) {
         final tail = constraints.maxWidth - dayLead - timeWidth;
         final painter = TextPainter(
           text: TextSpan(text: note, style: chipStyle),
@@ -231,7 +242,7 @@ class TimelineScheduleCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 3),
                     margin: const EdgeInsets.only(right: 10),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
+                      color: color.withValues(alpha: cancelled ? 0.06 : 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     // Sized to fill the chip rather than sit in it as a
@@ -245,7 +256,7 @@ class TimelineScheduleCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: dayChipTextSize(e.dayLabel),
                           fontWeight: FontWeight.w700,
-                          color: color,
+                          color: dayInk,
                         ),
                       ),
                     ),
@@ -258,7 +269,9 @@ class TimelineScheduleCard extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: textColor,
+                      color: timeInk,
+                      decoration: cancelled ? TextDecoration.lineThrough : null,
+                      decorationColor: timeInk,
                     ),
                   ),
                 ),
@@ -286,6 +299,21 @@ class TimelineScheduleCard extends StatelessWidget {
                   ),
               ],
             ),
+            // The cancellation line: badge plus the bulletin's reason.
+            if (cancelled)
+              Padding(
+                padding: EdgeInsets.only(left: dayLead, top: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CancelledBadge(isDark: isDark),
+                    if (note != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(note, style: blockStyle)),
+                    ],
+                  ],
+                ),
+              ),
             // Long note: full width under the row, indented past the day chip.
             if (blockNote != null)
               Padding(

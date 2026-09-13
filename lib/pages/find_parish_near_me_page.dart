@@ -785,7 +785,7 @@ class _MapParishCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firstMass = parish.massTimes.isNotEmpty ? parish.massTimes.first.display : null;
+    final firstMass = parish.previewMassTime?.display;
     final isDark = themeNotifier.isDarkMode;
     final cardColor = isDark ? kCardColorDark : kCardColor;
     final textColor = isDark ? kTextDark : Colors.black87;

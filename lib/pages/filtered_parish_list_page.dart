@@ -15,6 +15,7 @@ import '../main.dart'
         kCardColor,
         kCardColorDark,
         cardBorderFor,
+        errorAccentFor,
         onAccentFor,
         themeNotifier;
 import 'parish_detail_page.dart';
@@ -43,10 +44,10 @@ enum DayFilter {
 
 enum TimeOfDayFilter {
   any,
-  morning,    // 5am-12pm
-  afternoon,  // 12pm-5pm
-  evening,    // 5pm-9pm
-  night,      // 9pm-5am
+  morning, // 5am-12pm
+  afternoon, // 12pm-5pm
+  evening, // 5pm-9pm
+  night, // 9pm-5am
 }
 
 enum LanguageFilter {
@@ -76,6 +77,7 @@ class FilteredParishListPage extends StatefulWidget {
 class _FilteredParishListPageState extends State<FilteredParishListPage> {
   List<Parish> _parishes = [];
   List<Parish> _filteredParishes = [];
+
   /// Keyed by [FavoritesManager.keyFor], not by name — six parish names repeat
   /// across cities, and name keys made those records overwrite each other.
   final Map<String, double> _distances = {};
@@ -90,7 +92,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
   /// Language filtering only applies to Mass schedules (which carry a language).
   bool get _languageFilterApplies =>
-      widget.filter == ParishFilter.massTimes || widget.filter == ParishFilter.all;
+      widget.filter == ParishFilter.massTimes ||
+      widget.filter == ParishFilter.all;
 
   /// 2 days in minutes
   static const int _twoDaysInMinutes = 2880;
@@ -146,7 +149,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     }
   }
 
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
     const double earthRadiusMiles = 3958.8;
     final double dLat = _toRadians(lat2 - lat1);
     final double dLon = _toRadians(lon2 - lon1);
@@ -204,9 +208,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           scheduleToCheck = parish.adoration;
           break;
         case ParishFilter.all:
-          scheduleToCheck = parish.massTimes.isNotEmpty
-              ? parish.massTimes
-              : parish.confTimes;
+          scheduleToCheck =
+              parish.massTimes.isNotEmpty ? parish.massTimes : parish.confTimes;
           break;
       }
 
@@ -222,19 +225,15 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   void _applyFilter() {
     switch (widget.filter) {
       case ParishFilter.massTimes:
-        _filteredParishes = _parishes
-            .where((p) => p.massTimes.isNotEmpty)
-            .toList();
+        _filteredParishes =
+            _parishes.where((p) => p.massTimes.isNotEmpty).toList();
         break;
       case ParishFilter.confession:
-        _filteredParishes = _parishes
-            .where((p) => p.confTimes.isNotEmpty)
-            .toList();
+        _filteredParishes =
+            _parishes.where((p) => p.confTimes.isNotEmpty).toList();
         break;
       case ParishFilter.adoration:
-        _filteredParishes = _parishes
-            .where((p) => p.hasAdoration)
-            .toList();
+        _filteredParishes = _parishes.where((p) => p.hasAdoration).toList();
         break;
       case ParishFilter.all:
         _filteredParishes = List.from(_parishes);
@@ -246,13 +245,12 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   void _applySorting() {
     if (_sortOrder == SortOrder.distance && widget.userLocation != null) {
       _filteredParishes.sort((a, b) {
-        final distA =
-            _distances[FavoritesManager.keyFor(a)] ?? double.infinity;
-        final distB =
-            _distances[FavoritesManager.keyFor(b)] ?? double.infinity;
+        final distA = _distances[FavoritesManager.keyFor(a)] ?? double.infinity;
+        final distB = _distances[FavoritesManager.keyFor(b)] ?? double.infinity;
         return distA.compareTo(distB);
       });
-    } else if (_sortOrder == SortOrder.nearestAndSoonest && widget.userLocation != null) {
+    } else if (_sortOrder == SortOrder.nearestAndSoonest &&
+        widget.userLocation != null) {
       // Composite score: combine distance and time
       _filteredParishes.sort((a, b) {
         final scoreA = _calculateCompositeScore(a);
@@ -308,16 +306,20 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   }
 
   /// The schedule entries the time filters scan, based on filter type.
+  /// Cancelled slots are out: "Confessions today" is a question about where a
+  /// churchgoer can actually go today, so a suspended slot must not put a
+  /// parish in the results or supply the times its card then samples.
   List<ScheduleEntry> _filterableEntries(Parish parish) {
     switch (widget.filter) {
       case ParishFilter.massTimes:
-        return parish.massTimes;
+        return ScheduleParser.active(parish.massTimes);
       case ParishFilter.confession:
-        return parish.confTimes;
+        return ScheduleParser.active(parish.confTimes);
       case ParishFilter.adoration:
-        return parish.adoration;
+        return ScheduleParser.active(parish.adoration);
       case ParishFilter.all:
-        return [...parish.massTimes, ...parish.confTimes];
+        return ScheduleParser.active(
+            [...parish.massTimes, ...parish.confTimes]);
     }
   }
 
@@ -334,7 +336,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     }
 
     // Check weekday filter
-    if (_selectedWeekdays.isNotEmpty && !_selectedWeekdays.contains(entry.dayOfWeek)) {
+    if (_selectedWeekdays.isNotEmpty &&
+        !_selectedWeekdays.contains(entry.dayOfWeek)) {
       return false;
     }
 
@@ -366,7 +369,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     if (_dayFilter != DayFilter.any) {
       final nextOccurrence =
           entry.nextOccurrence(now, _countInProgressFor(parish));
-      final eventDay = DateTime(nextOccurrence.year, nextOccurrence.month, nextOccurrence.day);
+      final eventDay = DateTime(
+          nextOccurrence.year, nextOccurrence.month, nextOccurrence.day);
       final daysUntil = eventDay.difference(today).inDays;
 
       bool matchesDay = false;
@@ -486,149 +490,175 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
-                    // Day filter
-                    Text(
-                      'When',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: subtextColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildFilterChip('Any day', _dayFilter == DayFilter.any, () {
-                          setSheetState(() => _dayFilter = DayFilter.any);
-                          setState(() {});
-                        }, cardColor, textColor, subtextColor),
-                        _buildFilterChip('Today', _dayFilter == DayFilter.today, () {
-                          setSheetState(() => _dayFilter = DayFilter.today);
-                          setState(() {});
-                        }, cardColor, textColor, subtextColor),
-                        _buildFilterChip('Tomorrow', _dayFilter == DayFilter.tomorrow, () {
-                          setSheetState(() => _dayFilter = DayFilter.tomorrow);
-                          setState(() {});
-                        }, cardColor, textColor, subtextColor),
-                        _buildFilterChip('This week', _dayFilter == DayFilter.thisWeek, () {
-                          setSheetState(() => _dayFilter = DayFilter.thisWeek);
-                          setState(() {});
-                        }, cardColor, textColor, subtextColor),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Time of day filter
-                    Text(
-                      'Time of day',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: subtextColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildFilterChip('Any time', _timeOfDayFilter == TimeOfDayFilter.any, () {
-                          setSheetState(() => _timeOfDayFilter = TimeOfDayFilter.any);
-                          setState(() {});
-                        }, cardColor, textColor, subtextColor),
-                        _buildFilterChip('Morning', _timeOfDayFilter == TimeOfDayFilter.morning, () {
-                          setSheetState(() => _timeOfDayFilter = TimeOfDayFilter.morning);
-                          setState(() {});
-                        }, cardColor, textColor, subtextColor),
-                        _buildFilterChip('Afternoon', _timeOfDayFilter == TimeOfDayFilter.afternoon, () {
-                          setSheetState(() => _timeOfDayFilter = TimeOfDayFilter.afternoon);
-                          setState(() {});
-                        }, cardColor, textColor, subtextColor),
-                        _buildFilterChip('Evening', _timeOfDayFilter == TimeOfDayFilter.evening, () {
-                          setSheetState(() => _timeOfDayFilter = TimeOfDayFilter.evening);
-                          setState(() {});
-                        }, cardColor, textColor, subtextColor),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Language filter (Mass only)
-                    if (_languageFilterApplies) ...[
-                      Text(
-                        'Language',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: subtextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _buildFilterChip('Any', _languageFilter == LanguageFilter.any, () {
-                            setSheetState(() => _languageFilter = LanguageFilter.any);
-                            setState(() {});
-                          }, cardColor, textColor, subtextColor),
-                          _buildFilterChip('Spanish', _languageFilter == LanguageFilter.spanish, () {
-                            setSheetState(() => _languageFilter = LanguageFilter.spanish);
-                            setState(() {});
-                          }, cardColor, textColor, subtextColor),
-                          _buildFilterChip('Other language', _languageFilter == LanguageFilter.other, () {
-                            setSheetState(() => _languageFilter = LanguageFilter.other);
-                            setState(() {});
-                          }, cardColor, textColor, subtextColor),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Weekday filter
-                    Text(
-                      'Day of week',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: subtextColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final day in [
-                          (7, 'Sun'),
-                          (1, 'Mon'),
-                          (2, 'Tue'),
-                          (3, 'Wed'),
-                          (4, 'Thu'),
-                          (5, 'Fri'),
-                          (6, 'Sat'),
-                        ])
-                          _buildFilterChip(
-                            day.$2,
-                            _selectedWeekdays.contains(day.$1),
-                            () {
-                              setSheetState(() {
-                                if (_selectedWeekdays.contains(day.$1)) {
-                                  _selectedWeekdays.remove(day.$1);
-                                } else {
-                                  _selectedWeekdays.add(day.$1);
-                                }
-                              });
-                              setState(() {});
-                            },
-                            cardColor,
-                            textColor,
-                            subtextColor,
+                        // Day filter
+                        Text(
+                          'When',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: subtextColor,
                           ),
-                      ],
-                    ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _buildFilterChip(
+                                'Any day', _dayFilter == DayFilter.any, () {
+                              setSheetState(() => _dayFilter = DayFilter.any);
+                              setState(() {});
+                            }, cardColor, textColor, subtextColor),
+                            _buildFilterChip(
+                                'Today', _dayFilter == DayFilter.today, () {
+                              setSheetState(() => _dayFilter = DayFilter.today);
+                              setState(() {});
+                            }, cardColor, textColor, subtextColor),
+                            _buildFilterChip(
+                                'Tomorrow', _dayFilter == DayFilter.tomorrow,
+                                () {
+                              setSheetState(
+                                  () => _dayFilter = DayFilter.tomorrow);
+                              setState(() {});
+                            }, cardColor, textColor, subtextColor),
+                            _buildFilterChip(
+                                'This week', _dayFilter == DayFilter.thisWeek,
+                                () {
+                              setSheetState(
+                                  () => _dayFilter = DayFilter.thisWeek);
+                              setState(() {});
+                            }, cardColor, textColor, subtextColor),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Time of day filter
+                        Text(
+                          'Time of day',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: subtextColor,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _buildFilterChip('Any time',
+                                _timeOfDayFilter == TimeOfDayFilter.any, () {
+                              setSheetState(
+                                  () => _timeOfDayFilter = TimeOfDayFilter.any);
+                              setState(() {});
+                            }, cardColor, textColor, subtextColor),
+                            _buildFilterChip('Morning',
+                                _timeOfDayFilter == TimeOfDayFilter.morning,
+                                () {
+                              setSheetState(() =>
+                                  _timeOfDayFilter = TimeOfDayFilter.morning);
+                              setState(() {});
+                            }, cardColor, textColor, subtextColor),
+                            _buildFilterChip('Afternoon',
+                                _timeOfDayFilter == TimeOfDayFilter.afternoon,
+                                () {
+                              setSheetState(() =>
+                                  _timeOfDayFilter = TimeOfDayFilter.afternoon);
+                              setState(() {});
+                            }, cardColor, textColor, subtextColor),
+                            _buildFilterChip('Evening',
+                                _timeOfDayFilter == TimeOfDayFilter.evening,
+                                () {
+                              setSheetState(() =>
+                                  _timeOfDayFilter = TimeOfDayFilter.evening);
+                              setState(() {});
+                            }, cardColor, textColor, subtextColor),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Language filter (Mass only)
+                        if (_languageFilterApplies) ...[
+                          Text(
+                            'Language',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: subtextColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildFilterChip(
+                                  'Any', _languageFilter == LanguageFilter.any,
+                                  () {
+                                setSheetState(
+                                    () => _languageFilter = LanguageFilter.any);
+                                setState(() {});
+                              }, cardColor, textColor, subtextColor),
+                              _buildFilterChip('Spanish',
+                                  _languageFilter == LanguageFilter.spanish,
+                                  () {
+                                setSheetState(() =>
+                                    _languageFilter = LanguageFilter.spanish);
+                                setState(() {});
+                              }, cardColor, textColor, subtextColor),
+                              _buildFilterChip('Other language',
+                                  _languageFilter == LanguageFilter.other, () {
+                                setSheetState(() =>
+                                    _languageFilter = LanguageFilter.other);
+                                setState(() {});
+                              }, cardColor, textColor, subtextColor),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Weekday filter
+                        Text(
+                          'Day of week',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: subtextColor,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final day in [
+                              (7, 'Sun'),
+                              (1, 'Mon'),
+                              (2, 'Tue'),
+                              (3, 'Wed'),
+                              (4, 'Thu'),
+                              (5, 'Fri'),
+                              (6, 'Sat'),
+                            ])
+                              _buildFilterChip(
+                                day.$2,
+                                _selectedWeekdays.contains(day.$1),
+                                () {
+                                  setSheetState(() {
+                                    if (_selectedWeekdays.contains(day.$1)) {
+                                      _selectedWeekdays.remove(day.$1);
+                                    } else {
+                                      _selectedWeekdays.add(day.$1);
+                                    }
+                                  });
+                                  setState(() {});
+                                },
+                                cardColor,
+                                textColor,
+                                subtextColor,
+                              ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -678,7 +708,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           color: selected ? widget.accentColor : cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? widget.accentColor : subtextColor.withValues(alpha: 0.3),
+            color: selected
+                ? widget.accentColor
+                : subtextColor.withValues(alpha: 0.3),
           ),
         ),
         child: Text(
@@ -766,7 +798,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         : _filteredParishes;
 
     // Then filter by 2-day limit when in "Soonest" mode (unless showing all)
-    final displayedParishes = (_sortOrder == SortOrder.nearestAndSoonest && !_showAllParishes && !_hasActiveFilters())
+    final displayedParishes = (_sortOrder == SortOrder.nearestAndSoonest &&
+            !_showAllParishes &&
+            !_hasActiveFilters())
         ? timeFilteredParishes.where((p) {
             final minutes = _minutesUntilNext[FavoritesManager.keyFor(p)];
             return minutes != null && minutes <= _twoDaysInMinutes;
@@ -783,7 +817,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: widget.accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -809,14 +844,17 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                 GestureDetector(
                   onTap: _showFilterSheet,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: _hasActiveFilters()
                           ? widget.accentColor.withValues(alpha: 0.1)
-                          : (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
+                          : (isDark ? Colors.white : Colors.grey)
+                              .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                       border: _hasActiveFilters()
-                          ? Border.all(color: widget.accentColor.withValues(alpha: 0.5))
+                          ? Border.all(
+                              color: widget.accentColor.withValues(alpha: 0.5))
                           : null,
                     ),
                     child: Row(
@@ -825,7 +863,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                         Icon(
                           Icons.filter_list,
                           size: 14,
-                          color: _hasActiveFilters() ? widget.accentColor : subtextColor,
+                          color: _hasActiveFilters()
+                              ? widget.accentColor
+                              : subtextColor,
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -833,7 +873,9 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: _hasActiveFilters() ? widget.accentColor : subtextColor,
+                            color: _hasActiveFilters()
+                                ? widget.accentColor
+                                : subtextColor,
                           ),
                         ),
                       ],
@@ -846,7 +888,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         // Sort selector — M3 segmented button replaces the older cycling toggle
         if (canSortByDistance)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 8),
             child: SizedBox(
               width: double.infinity,
               child: SegmentedButton<SortOrder>(
@@ -889,7 +932,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   });
                 },
                 style: SegmentedButton.styleFrom(
-                  selectedBackgroundColor: widget.accentColor.withValues(alpha: 0.15),
+                  selectedBackgroundColor:
+                      widget.accentColor.withValues(alpha: 0.15),
                   selectedForegroundColor: widget.accentColor,
                   foregroundColor: subtextColor,
                   textStyle: GoogleFonts.inter(
@@ -963,14 +1007,16 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
               final distance = _distances[parishKey];
               final minutesUntil = _minutesUntilNext[parishKey];
               return Padding(
-                padding: EdgeInsets.only(bottom: index < displayedParishes.length - 1 ? 12 : 0),
+                padding: EdgeInsets.only(
+                    bottom: index < displayedParishes.length - 1 ? 12 : 0),
                 child: _ParishCard(
                   parish: parish,
                   filter: widget.filter,
                   accentColor: widget.accentColor,
                   distance: distance,
                   minutesUntilNext: minutesUntil,
-                  showDistance: _sortOrder == SortOrder.distance && distance != null,
+                  showDistance:
+                      _sortOrder == SortOrder.distance && distance != null,
                   // Perpetual chapels are ranked at zero minutes above, which
                   // _formatTimeUntil renders as "Happening now" — exactly right
                   // for something open around the clock.
@@ -988,8 +1034,8 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            ParishDetailPage(parish: parish, focus: widget.filter),
+                        builder: (context) => ParishDetailPage(
+                            parish: parish, focus: widget.filter),
                       ),
                     );
                   },
@@ -1173,7 +1219,8 @@ class _ParishCard extends StatelessWidget {
               ),
               // Times section based on filter
               if (_getTimesToShow().isNotEmpty ||
-                  (filter == ParishFilter.adoration && parish.adorationIsPerpetual)) ...[
+                  (filter == ParishFilter.adoration &&
+                      parish.adorationIsPerpetual)) ...[
                 const SizedBox(height: 12),
                 Divider(height: 1, color: subtextColor.withValues(alpha: 0.2)),
                 const SizedBox(height: 12),
@@ -1195,7 +1242,9 @@ class _ParishCard extends StatelessWidget {
       case ParishFilter.adoration:
         return parish.adoration;
       case ParishFilter.all:
-        return parish.massTimes.isNotEmpty ? parish.massTimes : parish.confTimes;
+        return parish.massTimes.isNotEmpty
+            ? parish.massTimes
+            : parish.confTimes;
     }
   }
 
@@ -1224,7 +1273,10 @@ class _ParishCard extends StatelessWidget {
     if (soonest == null) return null;
     final target = soonest.nextOccurrence(now, _countInProgress);
     final entries = times.where((e) {
-      if (e.isPast(now, _countInProgress)) return false;
+      // findNextOccurrence already stepped over cancelled slots; this sweep
+      // for everything else on that date has to do the same, or the "Today"
+      // sample lists a Mass that isn't being said.
+      if (e.cancelled || e.isPast(now, _countInProgress)) return false;
       final o = e.nextOccurrence(now, _countInProgress);
       return o.year == target.year &&
           o.month == target.month &&
@@ -1234,8 +1286,9 @@ class _ParishCard extends StatelessWidget {
           .nextOccurrence(now, _countInProgress)
           .compareTo(b.nextOccurrence(now, _countInProgress)));
     final today = DateTime(now.year, now.month, now.day);
-    final daysUntil =
-        DateTime(target.year, target.month, target.day).difference(today).inDays;
+    final daysUntil = DateTime(target.year, target.month, target.day)
+        .difference(today)
+        .inDays;
     final label = daysUntil == 0
         ? 'Today'
         : daysUntil == 1
@@ -1250,6 +1303,10 @@ class _ParishCard extends StatelessWidget {
     final e = entries[i];
     final label = e.timeLabel;
     if (e.hasRange) return label;
+    // A struck-out time has "CANCELLED" printed after it, which breaks the run
+    // the shared meridiem depends on: "7:30 CANCELLED · 9:00 AM" no longer
+    // reads as one morning list, so this time keeps its own AM/PM.
+    if (e.cancelled) return label;
     if (i + 1 < entries.length) {
       final n = entries[i + 1];
       if (!n.hasRange && (e.hour >= 12) == (n.hour >= 12)) {
@@ -1269,6 +1326,12 @@ class _ParishCard extends StatelessWidget {
         letterSpacing: 0.5,
       );
 
+  /// Same mark, in the error hue — it contradicts the time it follows rather
+  /// than qualifying it. See CancelledBadge for the full-size version.
+  TextStyle get _cancelledSpanStyle => _ordinalSpanStyle.copyWith(
+        color: errorAccentFor(isDark: themeNotifier.isDarkMode),
+      );
+
   Widget _groupChip(ScheduleDayGroup group) {
     final base = GoogleFonts.inter(fontSize: 12, color: textColor);
     final spans = <TextSpan>[
@@ -1284,7 +1347,20 @@ class _ParishCard extends StatelessWidget {
     for (var i = 0; i < group.entries.length; i++) {
       final e = group.entries[i];
       if (i > 0) spans.add(TextSpan(text: ' · ', style: base));
-      spans.add(TextSpan(text: _groupedTime(group.entries, i), style: base));
+      // These chips are the parish's standing schedule, so a slot suspended
+      // this week keeps its place and is struck out — dropping it would say
+      // the parish doesn't have a Monday Mass at all.
+      spans.add(TextSpan(
+        text: _groupedTime(group.entries, i),
+        style: e.cancelled
+            ? base.copyWith(
+                decoration: TextDecoration.lineThrough,
+                decorationColor: textColor)
+            : base,
+      ));
+      if (e.cancelled) {
+        spans.add(TextSpan(text: ' CANCELLED', style: _cancelledSpanStyle));
+      }
       // These chips are the *standing weekly schedule* with no note beside
       // them, so a monthly slot would otherwise read as happening every week.
       // A day group can mix rules (groupByDay only keeps whole days apart), so
@@ -1293,8 +1369,7 @@ class _ParishCard extends StatelessWidget {
       if (ordinal != null) {
         spans.add(TextSpan(text: ' $ordinal', style: _ordinalSpanStyle));
       }
-      final badge =
-          filter == ParishFilter.adoration ? null : e.languageBadge;
+      final badge = filter == ParishFilter.adoration ? null : e.languageBadge;
       if (badge != null) {
         spans.add(TextSpan(
           text: ' $badge',
@@ -1403,7 +1478,8 @@ class _ParishCard extends StatelessWidget {
           children: [
             if (isPerpetual)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -1443,8 +1519,7 @@ class _ParishCard extends StatelessWidget {
                       ),
                       if (time.ordinalShortLabel != null) ...[
                         const SizedBox(width: 4),
-                        Text(time.ordinalShortLabel!,
-                            style: _ordinalSpanStyle),
+                        Text(time.ordinalShortLabel!, style: _ordinalSpanStyle),
                       ],
                       if (badge != null) ...[
                         const SizedBox(width: 6),

@@ -344,7 +344,7 @@ class _ParishCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (parish.massTimes.isNotEmpty) ...[
+                  if (parish.previewMassTime != null) ...[
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -356,7 +356,7 @@ class _ParishCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            parish.massTimes.first.display,
+                            parish.previewMassTime!.display,
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               color: kPrimaryColor,

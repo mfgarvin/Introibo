@@ -2272,7 +2272,7 @@ class _NearbyParishCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const Spacer(),
-            if (parish.massTimes.isNotEmpty)
+            if (parish.previewMassTime != null)
               Row(
                 children: [
                   Icon(
@@ -2283,7 +2283,7 @@ class _NearbyParishCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      parish.massTimes.first.display,
+                      parish.previewMassTime!.display,
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         color: subtextColor,
@@ -3147,7 +3147,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                     color: subtextColor,
                                   ),
                                 ),
-                                if (parish.massTimes.isNotEmpty) ...[
+                                if (parish.previewMassTime != null) ...[
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
@@ -3159,7 +3159,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          parish.massTimes.first.display,
+                                          parish.previewMassTime!.display,
                                           style: GoogleFonts.inter(
                                             fontSize: 12,
                                             color: subtextColor,

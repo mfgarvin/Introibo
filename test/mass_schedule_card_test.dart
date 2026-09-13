@@ -6,13 +6,18 @@ import 'package:parishfinder/widgets/mass_schedule_card.dart';
 import 'support/test_fonts.dart';
 
 ScheduleEntry _entry(int day, int hour, int minute,
-        {String? note, List<int>? weeksOfMonth}) =>
+        {String? note, List<int>? weeksOfMonth, bool cancelled = false}) =>
     ScheduleEntry(
         dayOfWeek: day,
         hour: hour,
         minute: minute,
         note: note,
-        weeksOfMonth: weeksOfMonth);
+        weeksOfMonth: weeksOfMonth,
+        cancelled: cancelled);
+
+/// The style the time for [time] is painted in.
+TextStyle _timeStyle(WidgetTester tester, String time) =>
+    tester.widget<Text>(find.text(time)).style!;
 
 Widget _wrap(List<ScheduleEntry> items,
         {double width = 360, double textScale = 1.0}) =>
@@ -250,6 +255,46 @@ void main() {
       ]));
       expect(tester.takeException(), isNull);
       expect(find.text('Mon, Tue, Thu'), findsOneWidget);
+    });
+  });
+
+  group('a cancelled Mass', () {
+    testWidgets('keeps its place, struck through and marked', (tester) async {
+      await tester.pumpWidget(_wrap([
+        _entry(7, 9, 0),
+        _entry(4, 8, 45, cancelled: true, note: 'Fr. Trask is away'),
+      ]));
+
+      // Still listed: this is what the parish normally does on a Thursday.
+      expect(find.text('Thu'), findsOneWidget);
+      expect(_timeStyle(tester, '8:45 AM').decoration,
+          TextDecoration.lineThrough);
+      expect(find.text('CANCELLED'), findsOneWidget);
+      // The bulletin's reason travels with the badge.
+      expect(find.text('Fr. Trask is away'), findsOneWidget);
+
+      // The Masses that are on are untouched.
+      expect(_timeStyle(tester, '9:00 AM').decoration, isNull);
+    });
+
+    testWidgets('does not fold into a live weekday run', (tester) async {
+      await tester.pumpWidget(_wrap([
+        for (var d = 1; d <= 5; d++)
+          _entry(d, 8, 0, cancelled: d == 3),
+      ]));
+      // Mon–Tue and Thu–Fri are on, Wednesday is off: one strike, and no row
+      // claiming the whole week either way.
+      expect(find.text('Mon–Fri'), findsNothing);
+      expect(find.text('Wed'), findsOneWidget);
+      expect(find.text('CANCELLED'), findsOneWidget);
+    });
+
+    testWidgets('lays out at 2x text without overflowing', (tester) async {
+      await tester.pumpWidget(_wrap(
+        [_entry(4, 8, 45, cancelled: true, note: 'Fr. Trask is away')],
+        textScale: 2.0,
+      ));
+      expect(tester.takeException(), isNull);
     });
   });
 }

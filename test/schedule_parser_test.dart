@@ -30,6 +30,10 @@ Map<String, dynamic> windowJson(String day, String start, String end,
 ScheduleEntry windowEntry(String day, String start, String end) =>
     ScheduleEntry.fromJson(windowJson(day, start, end))!;
 
+/// A standing slot the bulletin marked off for this week ("NO MASS").
+Map<String, dynamic> cancelledJson(String day, String start, {String? notes}) =>
+    {...massJson(day, start, notes: notes), 'cancelled': true};
+
 void main() {
   group('ScheduleEntry.fromJson', () {
     test('parses a weekly Mass entry', () {
@@ -350,7 +354,7 @@ void main() {
         massJson('Tuesday', '08:00'),  // tomorrow
         massJson('Saturday', '09:00'), // this week
       ]);
-      final buckets = ScheduleParser.groupByBucket(entries, now);
+      final buckets = ScheduleParser.groupByBucket(entries, fromTime: now);
       expect(buckets['today']!.length, 1);
       expect(buckets['tomorrow']!.length, 1);
       expect(buckets['thisWeek']!.length, 1);
@@ -609,6 +613,82 @@ void main() {
       final entries = ScheduleEntry.listFromJson([
         massJson('Wednesday', '08:15'),
         monthly('Thursday', '08:15', weeks: [1]),
+        massJson('Friday', '08:15'),
+      ]);
+      final groups = ScheduleParser.groupByDay(entries);
+      expect(groups.map((g) => g.label).toList(), ['Wed', 'Thu', 'Fri']);
+    });
+  });
+
+  group('cancelled', () {
+    test('defaults to false when the key is absent (older cached export)', () {
+      final e = ScheduleEntry.fromJson(massJson('Sunday', '09:00'))!;
+      expect(e.cancelled, false);
+    });
+
+    test('parses the flag and keeps the reason in the note', () {
+      final e = ScheduleEntry.fromJson(
+          cancelledJson('Thursday', '08:45', notes: 'Fr. Trask is away'))!;
+      expect(e.cancelled, true);
+      expect(e.dayOfWeek, 4);
+      expect(e.hour, 8);
+      expect(e.note, 'Fr. Trask is away');
+    });
+
+    test('is skipped by findNextOccurrence in favour of the next live Mass', () {
+      final now = DateTime(2026, 1, 5, 10, 0); // Monday
+      final entries = ScheduleEntry.listFromJson([
+        cancelledJson('Monday', '17:00'), // today, but off
+        massJson('Wednesday', '08:00'),
+      ]);
+      final next = ScheduleParser.findNextOccurrence(entries, now);
+      expect(next?.dayOfWeek, 3);
+    });
+
+    test('a parish whose whole week is off has no next occurrence', () {
+      final now = DateTime(2026, 1, 5, 10, 0);
+      final entries = ScheduleEntry.listFromJson([
+        cancelledJson('Monday', '17:00'),
+        cancelledJson('Wednesday', '08:00'),
+      ]);
+      expect(ScheduleParser.findNextOccurrence(entries, now), isNull);
+      expect(ScheduleParser.minutesUntilNext(entries, now), isNull);
+    });
+
+    test('a suspended window is never in progress', () {
+      final json = {...windowJson('Monday', '09:00', '17:00'), 'cancelled': true};
+      final e = ScheduleEntry.fromJson(json)!;
+      final duringTheWindow = DateTime(2026, 1, 5, 12, 0); // Monday noon
+      expect(e.isInProgress(duringTheWindow), false);
+      expect(e.currentWindowStart(duringTheWindow), isNull);
+    });
+
+    test('active() keeps the live entries and drops the rest', () {
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Sunday', '09:00'),
+        cancelledJson('Monday', '08:00'),
+      ]);
+      expect(ScheduleParser.active(entries).single.dayOfWeek, 7);
+    });
+
+    test('groupByBucket hides it by default and keeps it on request', () {
+      final now = DateTime(2026, 1, 5, 10, 0); // Monday
+      final entries = ScheduleEntry.listFromJson([
+        cancelledJson('Monday', '17:00'),
+        massJson('Tuesday', '08:00'),
+      ]);
+      expect(ScheduleParser.groupByBucket(entries, fromTime: now)['today'],
+          isEmpty);
+      final shown = ScheduleParser.groupByBucket(entries,
+          fromTime: now, includeCancelled: true);
+      expect(shown['today']!.single.cancelled, true);
+      expect(shown['tomorrow']!.single.cancelled, false);
+    });
+
+    test('groupByDay never merges a suspended day into a live run', () {
+      final entries = ScheduleEntry.listFromJson([
+        massJson('Wednesday', '08:15'),
+        cancelledJson('Thursday', '08:15'),
         massJson('Friday', '08:15'),
       ]);
       final groups = ScheduleParser.groupByDay(entries);

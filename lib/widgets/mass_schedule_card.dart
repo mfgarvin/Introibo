@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../main.dart' show cardBorderFor;
 import '../utils/layout_scale.dart';
 import '../utils/schedule_parser.dart';
+import 'cancelled_badge.dart';
 import 'day_chip_text.dart';
 import 'language_badge.dart';
 
@@ -188,9 +189,11 @@ class MassScheduleCard extends StatelessWidget {
         children: [
           _sectionLabel(label),
           const SizedBox(height: 10),
-          ...rows.map((r) => _row(r.daysLabel, r.entry.timeLabel,
-              r.entry.displayNote, r.entry.languageBadge,
-              r.entry.ordinalShortLabel)),
+          ...rows.map((r) => _row(
+              r.daysLabel, r.entry.timeLabel, r.entry.displayNote,
+              languageBadge: r.entry.languageBadge,
+              ordinalLabel: r.entry.ordinalShortLabel,
+              cancelled: r.entry.cancelled)),
         ],
       ),
     );
@@ -208,7 +211,8 @@ class MassScheduleCard extends StatelessWidget {
           ...entries.map((e) {
             final d = e.nextOccurrence(now, kCountMassInProgress);
             final dateLabel = '${e.dayLabel} ${d.month}/${d.day}';
-            return _row(dateLabel, e.timeLabel, e.displayNote, e.languageBadge);
+            return _row(dateLabel, e.timeLabel, e.displayNote,
+                languageBadge: e.languageBadge, cancelled: e.cancelled);
           }),
         ],
       ),
@@ -228,8 +232,11 @@ class MassScheduleCard extends StatelessWidget {
 
   /// One schedule row. [ordinalLabel] is the monthly-recurrence marker
   /// ("1st", "Last", "Not 1st") shown under the day, or null for a weekly row.
+  /// A [cancelled] row keeps its place — this is still what the parish
+  /// normally does — struck through, with the badge and the reason on the
+  /// line beneath it.
   Widget _row(String dayLabel, String timeLabel, String? note,
-      [String? languageBadge, String? ordinalLabel]) {
+      {String? languageBadge, String? ordinalLabel, bool cancelled = false}) {
     // Prose note: its own full-width line under the row.
     final blockStyle = GoogleFonts.inter(
       fontSize: 13,
@@ -253,14 +260,24 @@ class MassScheduleCard extends StatelessWidget {
       // Cap each column so the two of them can never crowd the row: the day
       // chip may take a quarter of it, the time whatever is left over with a
       // little room kept back for a note.
-      final dayWidth = context.scaled(_dayColumnWidth,
-          max: constraints.maxWidth * 0.25);
+      // A cancelled row drops to the muted ink the notes use: the accent is
+      // the card's "this is happening" colour, and keeping it here would fight
+      // the strikethrough. subtextColor rather than a faded accent because it
+      // is the one muted tone this app has already measured for contrast.
+      final dayInk = cancelled ? subtextColor : color;
+      final timeInk = cancelled ? subtextColor : textColor;
+
+      final dayWidth =
+          context.scaled(_dayColumnWidth, max: constraints.maxWidth * 0.25);
       final timeWidth = context.scaled(_timeColumnWidth,
           max: constraints.maxWidth - dayWidth - _dayColumnMargin - 24);
 
       String? chipNote;
       String? blockNote;
-      if (note != null) {
+      // A cancelled row's note is the *reason* ("Fr. Trask is away"), so it
+      // belongs beside the badge that announces the cancellation rather than
+      // floating in the row's tail as one more annotation on a time.
+      if (note != null && !cancelled) {
         final tail =
             constraints.maxWidth - dayWidth - _dayColumnMargin - timeWidth;
         final painter = TextPainter(
@@ -294,10 +311,11 @@ class MassScheduleCard extends StatelessWidget {
                   // clips. A longer label still grows the row, as it always did.
                   constraints: const BoxConstraints(minHeight: 38),
                   alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
                   margin: const EdgeInsets.only(right: 10),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: color.withValues(alpha: cancelled ? 0.06 : 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Column(
@@ -316,7 +334,7 @@ class MassScheduleCard extends StatelessWidget {
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: color.withValues(alpha: 0.75),
+                              color: dayInk.withValues(alpha: 0.75),
                             ),
                           ),
                         ),
@@ -332,7 +350,7 @@ class MassScheduleCard extends StatelessWidget {
                             style: GoogleFonts.inter(
                               fontSize: dayChipTextSize(dayLabel),
                               fontWeight: FontWeight.w700,
-                              color: color,
+                              color: dayInk,
                               height: 1.1,
                             ),
                           ),
@@ -344,7 +362,7 @@ class MassScheduleCard extends StatelessWidget {
                           style: GoogleFonts.inter(
                             fontSize: dayChipTextSize(dayLabel),
                             fontWeight: FontWeight.w700,
-                            color: color,
+                            color: dayInk,
                             height: 1.1,
                           ),
                         ),
@@ -361,7 +379,10 @@ class MassScheduleCard extends StatelessWidget {
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: textColor,
+                            color: timeInk,
+                            decoration:
+                                cancelled ? TextDecoration.lineThrough : null,
+                            decorationColor: timeInk,
                           ),
                         ),
                       ),
@@ -396,12 +417,31 @@ class MassScheduleCard extends StatelessWidget {
                   ),
               ],
             ),
+            // The cancellation line: the badge, and the bulletin's reason
+            // beside it. Under the row rather than in it because "CANCELLED"
+            // plus a reason is wider than the tail a note chip gets, and a
+            // marker that ellipsises is worse than none.
+            if (cancelled)
+              Padding(
+                padding:
+                    EdgeInsets.only(left: dayWidth + _dayColumnMargin, top: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CancelledBadge(isDark: isDark),
+                    if (note != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(note, style: blockStyle)),
+                    ],
+                  ],
+                ),
+              ),
             // Long note: full width under the row, aligned with the time column
             // so it reads as an annotation on that Mass rather than a new entry.
             if (blockNote != null)
               Padding(
-                padding: EdgeInsets.only(
-                  left: dayWidth + _dayColumnMargin, top: 2),
+                padding:
+                    EdgeInsets.only(left: dayWidth + _dayColumnMargin, top: 2),
                 child: Text(blockNote, style: blockStyle),
               ),
           ],
@@ -423,7 +463,7 @@ class MassScheduleCard extends StatelessWidget {
       // merges with a weekly one at the same time and the row claims both
       // happen every week.
       final key = '${e.hour}:${e.minute}:${e.endHour}:${e.endMinute}:'
-          '${e.language ?? ''}:${e.note ?? ''}:${e.recurrenceKey}';
+          '${e.language ?? ''}:${e.note ?? ''}:${e.recurrenceKey}:${e.cancelled}';
       groups.putIfAbsent(key, () => []).add(e);
     }
 

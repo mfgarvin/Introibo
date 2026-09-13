@@ -18,7 +18,8 @@ class ScheduleEntry {
   final int dayOfWeek; // 1 = Monday, 7 = Sunday (ISO standard)
   final int hour; // 0-23 — start time
   final int minute; // 0-59
-  final int? endHour; // 0-23 — optional end time for ranges (e.g. confession windows)
+  final int?
+      endHour; // 0-23 — optional end time for ranges (e.g. confession windows)
   final int? endMinute;
 
   /// The exporter's `end_next_day`: this window's end falls on the following
@@ -52,6 +53,19 @@ class ScheduleEntry {
   /// Never non-null alongside [weeksOfMonth]; null means never skipped.
   final List<int>? excludedWeeks;
 
+  /// The exporter's `cancelled`: this standing slot is *not* being celebrated
+  /// during the week the bulletin covered ("8:45 am … NO MASS"). It is not a
+  /// deletion and not a correction — the Mass is still the parish's normal
+  /// Monday Mass, it simply isn't happening this Monday, and the reason, when
+  /// the bulletin gives one, is in [note].
+  ///
+  /// So the slot keeps its place in the standing schedule a parish page is
+  /// showing, struck through, while every question about availability —
+  /// what's next, what's soonest, what's open now — steps over it. Views take
+  /// that for free: [currentWindowStart] refuses it, and
+  /// [ScheduleParser.findNextOccurrence] and friends filter it out.
+  final bool cancelled;
+
   ScheduleEntry({
     required this.dayOfWeek,
     required this.hour,
@@ -64,6 +78,7 @@ class ScheduleEntry {
     this.note,
     this.weeksOfMonth,
     this.excludedWeeks,
+    this.cancelled = false,
   });
 
   /// True when the entry carries a real window, not just a start time.
@@ -121,7 +136,9 @@ class ScheduleEntry {
     bool listed(List<int> weeks) =>
         weeks.contains(n) || (weeks.contains(-1) && isLast);
 
-    return weeksOfMonth != null ? listed(weeksOfMonth!) : !listed(excludedWeeks!);
+    return weeksOfMonth != null
+        ? listed(weeksOfMonth!)
+        : !listed(excludedWeeks!);
   }
 
   /// Grouping discriminator for UI that merges entries sharing a time into one
@@ -223,6 +240,9 @@ class ScheduleEntry {
           : (json['notes'] as String).trim(),
       weeksOfMonth: weeks,
       excludedWeeks: excluded,
+      // Present on every entry since 2026-09-12; a cached export written
+      // before that has no key, and "not cancelled" is what it meant.
+      cancelled: json['cancelled'] == true,
     );
   }
 
@@ -293,7 +313,10 @@ class ScheduleEntry {
   /// entries can be in progress. Checks today and yesterday, since a window
   /// that crosses midnight began the day before.
   DateTime? currentWindowStart([DateTime? fromTime]) {
-    if (!hasRange) return null;
+    // A suspended slot is never underway, whatever the clock says: the doors
+    // are shut this week. This is the one place "in progress" is decided, so
+    // every badge and ranking that asks it follows from here.
+    if (cancelled || !hasRange) return null;
     final now = fromTime ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -307,7 +330,8 @@ class ScheduleEntry {
   }
 
   /// True when a ranged entry's window contains [fromTime].
-  bool isInProgress([DateTime? fromTime]) => currentWindowStart(fromTime) != null;
+  bool isInProgress([DateTime? fromTime]) =>
+      currentWindowStart(fromTime) != null;
 
   /// Calculate the next occurrence of this entry from now.
   ///
@@ -384,7 +408,13 @@ class ScheduleEntry {
   /// Full weekday, e.g. "Sunday".
   String get dayName {
     const names = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
     ];
     return names[dayOfWeek - 1];
   }
@@ -460,7 +490,10 @@ class ScheduleEntry {
       if (lang.contains(entry.keyword)) return entry.badge;
     }
     if (lang.contains('bilingual')) return 'BIL';
-    return language!.replaceAll(RegExp(r'[^A-Za-z]'), '').substring(0, 2).toUpperCase();
+    return language!
+        .replaceAll(RegExp(r'[^A-Za-z]'), '')
+        .substring(0, 2)
+        .toUpperCase();
   }
 
   /// True when this Mass is (at least partly) in Spanish.
@@ -481,14 +514,28 @@ class ScheduleEntry {
 /// Helpers over lists of [ScheduleEntry]. (Formerly a string parser — now that
 /// `export.json` ships structured schedules, this only does occurrence math.)
 class ScheduleParser {
+  /// The entries actually being celebrated — the standing schedule minus
+  /// anything this week's bulletin cancelled. Anything answering "when can I
+  /// go" reads this; the schedule *cards* keep the full list, because a
+  /// suspended Mass is still part of what the parish normally does.
+  static List<ScheduleEntry> active(List<ScheduleEntry> entries) =>
+      entries.where((e) => !e.cancelled).toList();
+
   /// Entries that are upcoming: weekly entries always qualify; dated entries
-  /// only while still in the future.
+  /// only while still in the future. Cancelled entries are not upcoming unless
+  /// [includeCancelled], which only a view showing the standing schedule asks
+  /// for.
   static List<ScheduleEntry> _upcomingOnly(
     List<ScheduleEntry> entries,
     DateTime now,
-    bool countInProgress,
-  ) {
-    return entries.where((e) => !e.isPast(now, countInProgress)).toList();
+    bool countInProgress, {
+    bool includeCancelled = false,
+  }) {
+    return entries
+        .where((e) =>
+            (includeCancelled || !e.cancelled) &&
+            !e.isPast(now, countInProgress))
+        .toList();
   }
 
   /// Find the soonest upcoming entry, or null. Pass [countInProgress] `false`
@@ -522,15 +569,22 @@ class ScheduleParser {
 
   /// Group entries by relative day buckets, sorted by occurrence.
   /// Buckets: 'today', 'tomorrow', 'thisWeek', 'beyond' (8+ days out).
+  ///
+  /// Pass [includeCancelled] to keep suspended slots in their bucket — a card
+  /// drawing the standing schedule wants them (struck through); anything
+  /// answering "when can I go" does not.
   static Map<String, List<UpcomingEntry>> groupByBucket(
-    List<ScheduleEntry> entries, [
+    List<ScheduleEntry> entries, {
     DateTime? fromTime,
     bool countInProgress = true,
-  ]) {
+    bool includeCancelled = false,
+  }) {
     final now = fromTime ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    final upcoming = _upcomingOnly(entries, now, countInProgress).map((e) {
+    final upcoming = _upcomingOnly(entries, now, countInProgress,
+            includeCancelled: includeCancelled)
+        .map((e) {
       final next = e.nextOccurrence(now, countInProgress);
       final eventDay = DateTime(next.year, next.month, next.day);
       return UpcomingEntry(
@@ -586,9 +640,11 @@ class ScheduleParser {
     // card: same times, ranges, and language marks.
     // Read the end through hasRange so an open-ended slot signs the same
     // whether the exporter wrote a null end or an end equal to the start.
+    // Cancellation signs too: a suspended Monday Mass must not fold into a
+    // live "Mon–Fri" run, which would strike out the whole week or none of it.
     String signature(List<ScheduleEntry> list) => list
         .map((e) =>
-            '${e.hour}:${e.minute}-${e.hasRange ? '${e.endHour}:${e.endMinute}' : ''}-${e.languageBadge}-${e.recurrenceKey}')
+            '${e.hour}:${e.minute}-${e.hasRange ? '${e.endHour}:${e.endMinute}' : ''}-${e.languageBadge}-${e.recurrenceKey}-${e.cancelled}')
         .join('|');
 
     final runs = <({int firstDay, int lastDay, List<ScheduleEntry> entries})>[];
@@ -611,8 +667,18 @@ class ScheduleParser {
 
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return [
       for (final r in runs)
@@ -655,4 +721,5 @@ class UpcomingEntry {
   String get timeLabel => entry.timeLabel;
   String get dayLabel => entry.dayLabel;
   String? get noteLabel => entry.noteLabel;
+  bool get cancelled => entry.cancelled;
 }

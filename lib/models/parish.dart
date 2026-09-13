@@ -58,14 +58,27 @@ class Parish {
   /// True if the parish has any adoration to show (timed slots or perpetual).
   bool get hasAdoration => adorationIsPerpetual || adoration.isNotEmpty;
 
+  /// One representative Mass for a preview line (a search result, a map card),
+  /// or null when there is nothing to show. The first entry the exporter
+  /// listed, skipping any the bulletin cancelled — a one-line teaser has no
+  /// room to explain a suspension, so it shows a Mass that is actually being
+  /// celebrated instead.
+  ScheduleEntry? get previewMassTime {
+    for (final e in massTimes) {
+      if (!e.cancelled) return e;
+    }
+    return null;
+  }
+
   factory Parish.fromJson(Map<String, dynamic> json) {
     // Handle zipCode as either int or String
     final zipCodeString =
         json['zip_code'] != null ? json['zip_code'].toString() : '';
 
     // Structured schedules: { mass: [...], confession: [...], adoration: {...} }
-    final schedules =
-        json['schedules'] is Map<String, dynamic> ? json['schedules'] as Map<String, dynamic> : const {};
+    final schedules = json['schedules'] is Map<String, dynamic>
+        ? json['schedules'] as Map<String, dynamic>
+        : const {};
 
     final adorationJson = schedules['adoration'];
     bool perpetual = false;

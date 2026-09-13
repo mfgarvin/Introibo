@@ -8,7 +8,7 @@ import 'package:parishfinder/widgets/day_chip_text.dart';
 import 'support/test_fonts.dart';
 
 ScheduleEntry _entry(int day, int hour, int minute,
-        {int? endHour, String? note}) =>
+        {int? endHour, String? note, bool cancelled = false}) =>
     ScheduleEntry(
       dayOfWeek: day,
       hour: hour,
@@ -16,6 +16,7 @@ ScheduleEntry _entry(int day, int hour, int minute,
       endHour: endHour,
       endMinute: endHour == null ? null : 0,
       note: note,
+      cancelled: cancelled,
     );
 
 Widget _wrap(List<ScheduleEntry> items,
@@ -112,5 +113,39 @@ void main() {
     expect(day.style!.fontSize, dayChipTextSize('Sat'),
         reason: 'Confession and Adoration sit on the same page as Mass '
             'Times; a day set smaller in one card reads as a mistake');
+  });
+
+  group('a cancelled slot', () {
+    /// The day after tomorrow, so the row always lands in a bucket that is
+    /// neither "Today" nor "Tomorrow" — its times read the same whatever day
+    /// the test runs on.
+    int laterThisWeek() => (DateTime.now().weekday + 2 - 1) % 7 + 1;
+
+    testWidgets('is still listed, struck through and marked', (tester) async {
+      await tester.pumpWidget(
+          _wrap([_entry(laterThisWeek(), 15, 0, endHour: 16,
+              note: 'Fr. Trask is away', cancelled: true)]));
+
+      final time = tester.widget<Text>(find.textContaining('3:00').first);
+      expect(time.style!.decoration, TextDecoration.lineThrough);
+      expect(find.text('CANCELLED'), findsOneWidget);
+      expect(find.text('Fr. Trask is away'), findsOneWidget);
+    });
+
+    testWidgets('does not empty the card when it is the only slot',
+        (tester) async {
+      await tester.pumpWidget(
+          _wrap([_entry(laterThisWeek(), 15, 0, endHour: 16, cancelled: true)]));
+      expect(find.text('No times listed'), findsNothing);
+      expect(find.text('CANCELLED'), findsOneWidget);
+    });
+
+    testWidgets('lays out at 2x text without overflowing', (tester) async {
+      await tester.pumpWidget(_wrap([
+        _entry(laterThisWeek(), 15, 0,
+            endHour: 16, note: 'Fr. Trask is away', cancelled: true)
+      ], textScale: 2.0));
+      expect(tester.takeException(), isNull);
+    });
   });
 }
