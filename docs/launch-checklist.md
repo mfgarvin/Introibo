@@ -10,6 +10,61 @@ order to do them in, and what is still missing.
 
 ---
 
+## Status: Android is submitted (2026-09-13)
+
+**Google Play 1.0.0 is uploaded to the production track and in review.** This
+section is the handover; the dated table below is kept as the record of what
+the crossing started from.
+
+| | |
+|---|---|
+| Version | `1.0.0`, **versionCode 154**, versionName `1.0.0` |
+| Tag | `v1.0.0`, annotated, at `bb76df0` — **pushed** |
+| Signing | Verified pre-upload: `CN=Michael Garvin, O=St. Isidore Solutions`, block `META-INF/MYKEY.RSA` |
+| Managed publishing | **On** — approval does *not* go live; someone presses Publish |
+| Countries | United States only |
+| Screenshots | Shot from the Android emulators at 1.0.0 |
+
+**versionCode 154 against a pubspec that reads `+152` is correct, not drift.**
+The build number is `max(git commit count, pubspec floor)`; two fixes landed
+after `release.sh` set the floor. `tool/release.sh` resyncs the floor at the
+next cut. Never hand-edit the version line to force them to match.
+
+`android/key.properties` was recreated from the password manager for the build
+and **deleted immediately after**, re-arming the guard in
+`android/app/build.gradle` that makes an unsigned release build fail loudly.
+
+### Four changes shipped after beta.9
+
+- **Parish data re-fetches on resume** — `ParishService.refreshInterval` (24h),
+  `staleThreshold` (7d) raising a Home banner. Before this, `_isLoaded` stayed
+  true for the life of a process the OS keeps alive for weeks, so a phone could
+  serve schedules fetched on install, indefinitely. **This matters more on iOS**,
+  which suspends processes harder and longer than Android — worth confirming a
+  resume actually delivers `AppLifecycleState.resumed` there.
+- **The next-Mass tile has one shape.** It used to swell into a half-page square
+  within 60 minutes of a Mass — 380dp on an 800dp tablet.
+- **Feedback failures are sentences**, not a raw `SocketException`.
+- Store copy synced to the live listing.
+
+### For whoever picks up iOS (likely on another machine)
+
+1. **`git pull --rebase` first.** The Mac checkout is behind; `v1.0.0` is at
+   `bb76df0`.
+2. **Do not run `tool/release.sh` on the Mac, and do not bump the version.**
+   1.0.0 is already cut; iOS ships the same number. Build with
+   **`tool/ios_build.sh`**, never a bare `flutter build ipa`.
+3. **There is no CocoaPods.** Flutter 3.47 registers plugins via Swift Package
+   Manager; `ios/Podfile` does not exist and must not be created. See
+   [`ios-testflight.md`](ios-testflight.md), "No Podfile, by design".
+4. **The Android screenshot trick does not transfer.** Android's store shots
+   came from a *profile* build — no DEBUG ribbon, no `kDevLocation` mock, and no
+   keystore needed (the signing guard only fires on task names containing
+   "release"). The iOS Simulator runs **debug builds only**, so there is no
+   equivalent; see Step 1 for the real options.
+
+---
+
 ## Where things stood on 2026-09-04
 
 | | Google Play | Apple App Store |
