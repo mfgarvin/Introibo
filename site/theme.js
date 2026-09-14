@@ -7,8 +7,14 @@
    preference gets a flash of the wrong theme.
 
    Progressive enhancement — the button is built here rather than sitting in the
-   markup, so a viewer without JS gets their OS preference and no dead control.
+   markup, so a viewer without JS gets the default theme and no dead control.
    Nothing here leaves the browser; the choice lives in localStorage.
+
+   **Light is the default**, matching the app, where a fresh install lands on
+   light and following the system is an opt-in from Settings. The site has no
+   third "system" state, so an OS preference for dark does not decide this — a
+   first-time visitor gets light whatever their OS says, and the toggle is how
+   they change it.
 --------------------------------------------------------------------------- */
 (function () {
   'use strict';
@@ -19,20 +25,16 @@
     try { return localStorage.getItem(KEY); } catch (e) { return null; }  // private mode
   }
 
-  function osPrefersDark() {
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }
-
-  // Only write the attribute when there is a saved choice. Leaving it off lets
-  // the @media query stay in charge, which is what an untouched page should do.
+  // Always stamp the attribute: the saved choice if there is one, light if not.
+  // Light has to be written rather than merely left alone, because the
+  // stylesheet's dark rules key off [data-theme="dark"] and the default has to
+  // be a positive statement for the toggle to have something to flip.
   var saved = stored();
-  if (saved === 'dark' || saved === 'light') {
-    document.documentElement.setAttribute('data-theme', saved);
-  }
+  document.documentElement.setAttribute(
+    'data-theme', (saved === 'dark' || saved === 'light') ? saved : 'light');
 
   function current() {
-    return document.documentElement.getAttribute('data-theme') ||
-           (osPrefersDark() ? 'dark' : 'light');
+    return document.documentElement.getAttribute('data-theme') || 'light';
   }
 
   var SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM11 1h2v3h-2zm0 19h2v3h-2zM1 11h3v2H1zm19 0h3v2h-3zM3.5 4.9l1.4-1.4 2.1 2.1-1.4 1.4zM17 18.4l1.4-1.4 2.1 2.1-1.4 1.4zM18.4 7l-1.4-1.4 2.1-2.1L20.5 4.9zM5.6 20.5 4.2 19.1l2.1-2.1 1.4 1.4z"/></svg>';

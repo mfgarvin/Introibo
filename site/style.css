@@ -67,25 +67,12 @@
 /* Dark is a *night-time* version of the parchment world — deep warm plum-black
    with candlelight on it, not the app's OLED #000. Pure black on a wide desktop
    page turns the parchment palette into a void and makes the gold glare; these
-   grounds keep the same warmth the light theme has. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:       #17100F;
-    --bg-sunk:  #1D1513;
-    --surface:  #241A18;
-    --ink:      #F2EBE0;
-    --ink-soft: #B6A69B;
-    --accent:   #C24343;
-    --accent-text: #D4A24A;  /* candlelight */
-    --rule:     rgba(212, 162, 74, 0.2);
-    --rule-strong: rgba(212, 162, 74, 0.42);
-    --glass-shadow: rgba(0, 0, 0, 0.6);
-    --halo:     rgba(212, 162, 74, 0.09);
-    --diaper:   rgba(212, 162, 74, 0.05);
-    --lift:     0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 28px -20px rgba(0, 0, 0, 0.8);
-  }
-}
-/* The viewer's explicit choice must beat the OS preference in both directions. */
+   grounds keep the same warmth the light theme has.
+
+   It is reached only by the toggle. There is no `prefers-color-scheme` block:
+   the site defaults to light the way the app does, so an OS set to dark does
+   not decide for a first-time visitor. theme.js stamps [data-theme] on every
+   load, including the default, which is what makes this the only dark rule. */
 :root[data-theme="dark"] {
   --bg: #17100F; --bg-sunk: #1D1513; --surface: #241A18;
   --ink: #F2EBE0; --ink-soft: #B6A69B;
@@ -520,13 +507,6 @@ footer { border-top: 1px solid var(--rule); padding-block: 3rem 4rem; background
 }
 /* The phone art is near-black, and on the dark ground it loses its own edge;
    a little more lift separates it without turning into a glow. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .shots img {
-    filter:
-      drop-shadow(0 18px 30px rgba(0, 0, 0, 0.7))
-      drop-shadow(0 0 1px rgba(212, 162, 74, 0.45));
-  }
-}
 :root[data-theme="dark"] .shots img {
   filter:
     drop-shadow(0 18px 30px rgba(0, 0, 0, 0.7))

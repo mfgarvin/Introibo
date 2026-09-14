@@ -125,12 +125,19 @@ class="diaper">` at ~5% alpha. It's the only ornament borrowed from the app's
 own drawing code rather than invented for the web, which is what makes the site
 feel like the same object as the app.
 
-`theme.js` is loaded synchronously in `<head>` so
-`[data-theme]` lands before first paint (otherwise a viewer whose saved choice
-differs from their OS setting gets a flash of the wrong theme), and it *builds*
-the toggle button rather than the markup shipping one — no JS, no dead control,
-just the OS preference. The choice is kept in `localStorage`; nothing leaves the
-browser.
+`theme.js` is loaded synchronously in `<head>` so `[data-theme]` lands before
+first paint (otherwise a viewer whose saved choice differs from the default gets
+a flash of the wrong theme), and it *builds* the toggle button rather than the
+markup shipping one — no JS, no dead control. The choice is kept in
+`localStorage`; nothing leaves the browser.
+
+**Light is the default, and `prefers-color-scheme` is deliberately not
+consulted.** The app behaves the same way: a fresh install lands on light and
+following the system is an opt-in from Settings. The site has no third "system"
+state, so there is no `@media (prefers-color-scheme: dark)` block in
+`style.css` at all — dark is reached only through `[data-theme="dark"]`, which
+the toggle sets. Adding the media query back would split behaviour between
+JS-on and JS-off viewers.
 
 `faq.js` is the second and last script here, and it is on `support.html` only.
 The FAQ's rows are `<details>`, so they open and close with no script at all;
