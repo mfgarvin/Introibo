@@ -31,7 +31,6 @@ dependencies:
   flutter:
     sdk: flutter
   google_fonts: ^6.1.0
-  # mapbox_gl: ^0.16.0
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   geolocator: ^14.0.3
@@ -50,8 +49,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  # Only used by lib/driver_main.dart, the dev-only entrypoint that enables the
-  # Flutter driver extension so tooling can drive the running app.
+  # Only used by test_driver/driver_main.dart, the dev-only entrypoint that
+  # enables the Flutter driver extension so tooling can drive the running app.
   flutter_driver:
     sdk: flutter
 

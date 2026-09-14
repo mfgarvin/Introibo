@@ -1,7 +1,7 @@
 // Dev-only: drives the running app and saves screenshots to `screenshots/`
-// (gitignored). Paired with `lib/driver_main.dart`.
+// (gitignored). Paired with `test_driver/driver_main.dart`.
 //
-//   flutter drive -t lib/driver_main.dart -d linux \
+//   flutter drive -t test_driver/driver_main.dart -d linux \
 //     --driver=test_driver/screens_test.dart
 //
 // To shoot a state the live data doesn't currently contain — a cancelled Mass,

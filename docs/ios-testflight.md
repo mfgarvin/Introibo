@@ -1,9 +1,11 @@
 # iOS: two machines, and the road to TestFlight
 
 Written 2026-08-19, when the Mac came online with an Apple Developer account.
-Supersedes the "getting a Mac" section of [`ios-mac-setup.md`](ios-mac-setup.md);
-the rest of that file (what's already configured, what was never Mac-verified)
-still applies.
+This is now the only iOS runbook: `ios-mac-setup.md` was deleted 2026-09-14,
+every part of it having been overtaken — the Mac and the developer account
+exist, the build-number Run Script has been verified on a Mac (it produced
+build 155), and its setup checklist still named the pre-App-Store-Connect
+bundle id.
 
 ---
 
