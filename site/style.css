@@ -411,3 +411,130 @@ footer { border-top: 1px solid var(--rule); padding-block: 3rem 4rem; background
   border-bottom-color: var(--rule-strong);
 }
 .prose td:last-child { color: var(--ink-soft); }
+
+/* --- Ordered lists in prose ---------------------------------------------- */
+/* The privacy policy has none; the support page's "how to report a wrong Mass
+   time" is a sequence, and a sequence needs numbers. */
+.prose ol { padding-left: 1.3rem; margin: 0 0 1.25rem; display: grid; gap: 0.5rem; }
+.prose ol li::marker { color: var(--gold-text); font-variant-numeric: tabular-nums; }
+
+/* --- Support page: the FAQ ------------------------------------------------ */
+/* Twenty-odd answers as a flat wall of prose is a page nobody reads. Each one
+   is a <details> instead: the questions are the page, and an answer opens where
+   it sits. No library and no state to manage — the element does it.
+
+   Every row carries an id, so a reply to someone's feedback can link straight
+   at one answer (/support#not-supported). faq.js opens the row that a deep
+   link names; without it the link still lands on the right question. */
+.faq h2 { scroll-margin-top: 1rem; }
+.qa-list { border-top: 1px solid var(--rule); margin: 1.75rem 0 0; }
+.qa { border-bottom: 1px solid var(--rule); scroll-margin-top: 1.5rem; }
+
+.qa > summary {
+  display: flex; align-items: baseline; gap: 0.85rem;
+  padding: 1rem 0;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+  /* Safari shows a disclosure triangle of its own without both of these. */
+  list-style: none;
+}
+.qa > summary::-webkit-details-marker { display: none; }
+.qa > summary:hover { color: var(--accent-text); }
+/* The outline would otherwise trace the full-width summary box; keeping it on
+   the row is what makes tabbing through twenty questions legible. */
+.qa > summary:focus-visible { outline-offset: -2px; }
+
+/* A caret drawn in two borders rather than shipped as an image: it inherits the
+   accent, so it is candlelight in the dark theme and oxblood-gold in the light
+   one, and it costs nothing. */
+.qa > summary::before {
+  content: '';
+  flex: none;
+  width: 0.42rem; height: 0.42rem;
+  border-right: 2px solid var(--accent-text);
+  border-bottom: 2px solid var(--accent-text);
+  transform: rotate(-45deg);
+  transition: transform 0.18s ease;
+}
+.qa[open] > summary::before { transform: rotate(45deg); }
+.qa[open] > summary { color: var(--accent-text); }
+
+/* Indented to hang under the question's first letter, not under its caret. */
+.qa-body { padding: 0 0 1.4rem 1.27rem; }
+/* Only the final element loses its margin — a blanket rule on lists jams the
+   paragraph that follows a numbered sequence up against step 4. */
+.qa-body > :last-child { margin-bottom: 0; }
+
+/* --- 404 ------------------------------------------------------------------ */
+.notfound .eyebrow { margin-bottom: 0.75rem; }
+.notfound h1 { margin-bottom: 1rem; }
+.signposts { list-style: none; padding-left: 0; margin: 2rem 0; display: grid; gap: 0.9rem; }
+.signposts li { color: var(--ink-soft); padding-left: 1.6rem; position: relative; }
+/* The same gold lozenge the privacy panel uses for its bullets. */
+.signposts li::before {
+  content: '';
+  position: absolute; left: 0; top: 0.55em;
+  width: 0.5rem; height: 0.5rem;
+  background: var(--gold);
+  transform: rotate(45deg);
+}
+.signposts a { font-weight: 600; }
+
+/* --- Store badges --------------------------------------------------------- */
+/* Official artwork, self-hosted: Apple's from their Marketing Tools badge API,
+   Google's generic English badge. Both must ship unmodified — no recolouring,
+   no cropping, no redrawing — so the only thing CSS does here is size them.
+   Google's PNG carries its required clear space *inside* the image while
+   Apple's SVG does not, which is why the two heights differ: matched numbers
+   would leave the Play badge visibly smaller. */
+.store-badges {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+}
+.store-badges a { display: inline-flex; border-radius: 8px; }
+.store-badges img { display: block; width: auto; }
+.store-badges .badge-apple img { height: 42px; margin: 10px; }   /* clear space added here */
+.store-badges .badge-play img  { height: 62px; }                 /* clear space baked in */
+
+/* --- Screenshots ---------------------------------------------------------- */
+/* Two captures that arrive with the phone's body already around them, on a
+   transparent ground. So the CSS adds no bezel of its own -- and the shadow has
+   to be a `drop-shadow` filter rather than `box-shadow`, because box-shadow
+   traces the image's bounding rectangle and would draw a hard-edged box behind
+   a rounded phone. drop-shadow follows the alpha. */
+.shots {
+  list-style: none; padding: 0;
+  margin: 2.75rem auto 0;
+  display: grid; gap: clamp(1.5rem, 5vw, 3rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 46rem;
+}
+@media (max-width: 34rem) { .shots { grid-template-columns: 1fr; max-width: 20rem; } }
+.shots img {
+  display: block; width: 100%; height: auto;
+  filter:
+    drop-shadow(0 18px 28px rgba(74, 40, 40, 0.18))
+    drop-shadow(0 3px 6px rgba(74, 40, 40, 0.12));
+}
+/* The phone art is near-black, and on the dark ground it loses its own edge;
+   a little more lift separates it without turning into a glow. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .shots img {
+    filter:
+      drop-shadow(0 18px 30px rgba(0, 0, 0, 0.7))
+      drop-shadow(0 0 1px rgba(212, 162, 74, 0.45));
+  }
+}
+:root[data-theme="dark"] .shots img {
+  filter:
+    drop-shadow(0 18px 30px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 1px rgba(212, 162, 74, 0.45));
+}
+.shots figcaption {
+  margin-top: 0.9rem;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  text-align: center;
+}

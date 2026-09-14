@@ -1,6 +1,6 @@
 # ParishFinder Privacy Policy
 
-**Last updated: 1 August 2026**
+**Last updated: 14 September 2026**
 
 ParishFinder helps you find Catholic parishes, Mass times, confession and
 adoration schedules across the Diocese of Cleveland.
@@ -28,8 +28,13 @@ sort parishes by distance. It is **not transmitted to us**, not stored after the
 screen is closed, and not shared with anyone.
 
 Location permission is optional. If you decline it, every other part of the app —
-search, parish details, schedules, home parishes — continues to work; the map
-simply opens at a default view of the region.
+search, parish details, schedules, home parishes — continues to work, and the app
+offers you a ZIP code instead ("Use a ZIP code" on the home screen, "Enter a ZIP
+code instead" on the map). A ZIP you type is matched against the parish directory
+already on your device to work out roughly where to centre the map and how to sort
+by distance; **no lookup service is contacted, and the ZIP is not sent to us.** It
+is saved on your device so you don't have to retype it, and clearing it — the
+"Near ZIP …" line on the home screen has a control for that — removes it.
 
 You can revoke location access at any time:
 
@@ -68,6 +73,7 @@ it is transmitted to us:
 - Your saved home parishes
 - A cached copy of the parish directory, so the app works offline
 - A cached copy of the liturgical calendar
+- A ZIP code you entered, if you used the ZIP-code option instead of location
 - A flag recording that you have seen the first-run notice
 - Your light/dark theme preference
 

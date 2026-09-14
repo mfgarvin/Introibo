@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found — ParishFinder</title>
+<meta name="description" content="That page doesn't exist on parishfinder.app.">
+<meta name="theme-color" content="#8C1F1F">
+<!-- A 404 should never be indexed, and it is the one page on the site that
+     says so. Cloudflare Pages serves this file for any path it cannot match,
+     with a real 404 status — before it existed, every unknown URL returned the
+     landing page with a 200, which search engines index as a duplicate. -->
+<meta name="robots" content="noindex, follow">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+</head>
+<body class="diaper">
+
+<div class="banner"></div>
+
+<header class="wrap topbar">
+  <a class="wordmark" href="/">
+    <img src="app-icon-544.png" alt="" width="544" height="544" decoding="async">
+    ParishFinder
+  </a>
+</header>
+
+<main class="wrap prose notfound">
+  <p class="eyebrow"><span class="lozenge" aria-hidden="true"></span>404</p>
+  <h1>This page isn't here</h1>
+  <p class="lead">
+    The link may be old, or slightly mistyped. Nothing is lost — the site is
+    only a few pages, and they are all below.
+  </p>
+  <ul class="signposts">
+    <li><a href="/">The app</a> — what ParishFinder is and what it does.</li>
+    <li><a href="/support">Help &amp; FAQ</a> — using the app, and reporting a Mass time that's wrong.</li>
+    <li><a href="/privacy">Privacy policy</a> — what the app does and doesn't collect.</li>
+  </ul>
+  <p>
+    If you followed a link from somewhere else and it should have worked, tell
+    me where it was: <a href="mailto:contact@parishfinder.app">contact@parishfinder.app</a>.
+  </p>
+</main>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div class="colophon">
+      <p><strong>ParishFinder</strong> — Mass times for the Diocese of Cleveland</p>
+      <p>A personal project of Fr. Michael Garvin. Not an official function or arm of the Roman Catholic Diocese of Cleveland.</p>
+      <p class="copyright">© 2026 Fr. Michael Garvin. All rights reserved.</p>
+    </div>
+    <nav class="foot-links" aria-label="Footer">
+      <a href="/">Home</a>
+      <a href="/support">Help &amp; FAQ</a>
+      <a href="/privacy">Privacy policy</a>
+      <a href="mailto:contact@parishfinder.app">contact@parishfinder.app</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

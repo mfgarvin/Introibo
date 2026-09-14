@@ -1,0 +1,17 @@
+# parishfinder.app
+#
+# Nothing here is private and nothing is behind a form — the whole site is four
+# static pages. Crawl all of it.
+#
+# This file exists mainly so /robots.txt stops resolving to the homepage:
+# Cloudflare Pages serves 404.html for unknown paths, and without a real
+# robots.txt every crawler was being handed the landing page with a 200.
+
+User-agent: *
+Allow: /
+
+# Cloudflare's own endpoints — email decoding, analytics beacon, challenges.
+# Injected at the edge, not part of the site, and of no use to a crawler.
+Disallow: /cdn-cgi/
+
+Sitemap: https://parishfinder.app/sitemap.xml

@@ -417,7 +417,7 @@ Fields Apple wants that Play has no equivalent for:
 | Keywords | 100 | **New copy, comma-separated, no spaces.** Apple's main search lever; there is no Play equivalent. Do not repeat words already in the name or subtitle — Apple indexes those separately. Candidates: `catholic,mass,confession,adoration,parish,church,cleveland,diocese,bulletin,liturgical` |
 | Promotional text | 170 | Editable without a new build — useful later for holy-day notes |
 | Description | 4000 | Adapt the full description from [`play-listing.md`](play-listing.md) |
-| Support URL | — | `https://parishfinder.app` |
+| Support URL | — | `https://parishfinder.app/support` — a real help page as of 2026-09-14. It was the bare homepage at submission; change it in App Store Connect, which needs no new build |
 | Category | — | Primary **Lifestyle** (matches the settled Play category); Reference is the sensible secondary |
 
 Then:
@@ -446,11 +446,24 @@ Then:
 
 ## Step 5 — Once both are live
 
-- **Replace the placeholder on the marketing site.** `site/index.html` line 45
-  still carries "Coming soon to Google Play and the Apple App Store" — it is
-  marked as a placeholder in `site/CONTENT.md` (§ the launch badge). Real store
-  badges and links go there. The site is Git-deployed via Cloudflare Pages, so
-  pushing to `main` publishes it; never `wrangler pages deploy`.
+- **Replace the placeholder on the marketing site.** The hero still carries
+  "Coming soon to Google Play and the Apple App Store". **The replacement is
+  already written and sitting underneath it**, fenced inside a comment marked
+  `BADGES-OFF` / `BADGES-ON`, with the official Apple and Google badge artwork
+  self-hosted beside it. Launch day is three edits: delete the coming-soon
+  paragraph, delete the two fence lines, and paste the ten-digit Apple ID from
+  App Store Connect (App Information → General) over `id0000000000`. The Play
+  URL is already right — it is keyed on `app.parishfinder`. The site is
+  Git-deployed via Cloudflare Pages, so pushing to `main` publishes it; never
+  `wrangler pages deploy`.
+- **Point both stores' support URL at `/support`.** The help page went up
+  2026-09-14; the iOS listing was submitted with the bare homepage, and Play's
+  support field wants checking too. Neither needs a new build.
+- ~~Add the screenshots to the landing page.~~ **Done 2026-09-14.** The
+  "What it looks like" section is live with `shot-home.png` and
+  `shot-parish.png` — Android profile-build captures, taken on an emulator with
+  the clock at Sunday 10:30 and the location in downtown Cleveland, framed by
+  `tool/framed_screenshot.py` and resized by `tool/site_screenshots.py`.
 - Watch the feedback Worker's Discord digest and the `/admin` dashboard. Public
   launch is the first time strangers submit corrections, and the data quality
   argument for this app is entirely downstream of that.
