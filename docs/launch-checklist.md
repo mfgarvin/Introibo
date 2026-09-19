@@ -1,13 +1,49 @@
 # Going public: the 1.0.0 launch checklist
 
 Written **2026-09-04**, when the app was in beta on both stores and the decision
-was made to go public. **Updated 2026-09-13**: both stores are submitted — Android to
-production review and iOS to App Store review — and the screenshot problem that
-gated iOS is solved on the Simulator (Step 1). This is the one ordered runbook for that crossing; the
+was made to go public. **Updated 2026-09-19**: iOS is **live on the App Store**;
+Android is still parked behind managed publishing. The 2026-09-13 update below
+— both stores submitted, and the screenshot problem that gated iOS solved on
+the Simulator (Step 1) — is kept as the record of the crossing. This is the one ordered runbook for that crossing; the
 per-store mechanics live in [`play-release.md`](play-release.md) and
 [`ios-testflight.md`](ios-testflight.md), and the Play copy in
 [`play-listing.md`](play-listing.md). Nothing here repeats those — it says what
 order to do them in, and what is still missing.
+
+---
+
+## Status: iOS is live (2026-09-19)
+
+**ParishFinder 1.0.0 is public on the App Store**, released 2026-09-18 — the
+first version of this app a stranger can install.
+
+| | |
+|---|---|
+| Apple ID | **6803622742** (App Store Connect → App Information → General) |
+| Listing | `https://apps.apple.com/us/app/parishfinder/id6803622742` |
+| Build | `1.0.0`, CFBundleVersion 155 — the build submitted 2026-09-13, unchanged |
+| Released | 2026-09-18; current version date 2026-09-19 |
+
+That Apple ID is the number Step 5 was waiting on, and the only piece of the
+launch that could not be written down in advance: it does not exist until the
+App Store Connect record does, and nothing in the repo can derive it. It is now
+in `site/index.html`, and this table is its second home.
+
+**Google Play is still not public.** `play.google.com/store/apps/details?id=app.parishfinder`
+returned 404 on 2026-09-19, which is what an unpublished listing returns —
+managed publishing is doing exactly what it was turned on to do, parking the
+approved release until someone presses Publish. Until then the hero carries one
+badge and a "Coming soon to Google Play" note; see Step 5.
+
+### What is still open
+
+- **Press Publish on Google Play**, then finish Step 5's second badge.
+- **Point the App Store listing's support URL at `/support`.** It was submitted
+  with the bare homepage. App Store Connect takes the change without a new
+  build, but it is a *listing* edit, so it goes out with the next version's
+  review unless made now.
+- **Watch the feedback Worker.** Public launch is the first time strangers
+  submit corrections; the digest lands in Discord daily.
 
 ---
 
@@ -45,13 +81,16 @@ that Xcode had not rewritten `project.pbxproj` during the build.
 
 ### What is still open
 
-- **App Store review.** Days, not minutes. The reviewer notes drafted in Step 4
-  preempt Guideline 5.2; external TestFlight already passed Beta App Review,
-  so a reviewer has seen this app once without objecting.
+*(As of 2026-09-19 the first of these is done — see the section above.)*
+
+- ~~**App Store review.**~~ **Passed**; released 2026-09-18. The reviewer notes
+  drafted in Step 4 preempted Guideline 5.2, and external TestFlight had
+  already passed Beta App Review, so a reviewer had seen this app once without
+  objecting.
 - **Google Play production review**, with managed publishing **on** — approval
-  parks the release until someone presses Publish.
-- **Step 5 is untouched**: `site/index.html` line 45 still says "Coming soon to
-  Google Play and the Apple App Store". Both badges go in once the two are live.
+  parks the release until someone presses Publish. Still parked.
+- ~~**Step 5 is untouched.**~~ Half done: the App Store badge is live in the
+  hero with the real Apple ID; the Play badge waits on the paragraph above.
 
 ---
 
@@ -446,19 +485,20 @@ Then:
 
 ## Step 5 — Once both are live
 
-- **Replace the placeholder on the marketing site.** The hero still carries
-  "Coming soon to Google Play and the Apple App Store". **The replacement is
-  already written and sitting underneath it**, fenced inside a comment marked
-  `BADGES-OFF` / `BADGES-ON`, with the official Apple and Google badge artwork
-  self-hosted beside it. Launch day is three edits: delete the coming-soon
-  paragraph, delete the two fence lines, and paste the ten-digit Apple ID from
-  App Store Connect (App Information → General) over `id0000000000`. The Play
-  URL is already right — it is keyed on `app.parishfinder`. The site is
-  Git-deployed via Cloudflare Pages, so pushing to `main` publishes it; never
-  `wrangler pages deploy`.
+- ~~**Replace the placeholder on the marketing site.**~~ **Done 2026-09-19, by
+  half.** The stores did not go live together, so the hero does not either: the
+  App Store badge is live with Apple ID `6803622742`, and a quiet
+  `<p class="play-soon">` note — "Coming soon to Google Play" — stands where
+  the second badge will go. The Play anchor is still in the file, re-fenced
+  inside a comment marked `PLAY-OFF` / `PLAY-ON`. **When Play is published, it
+  is two edits**: delete those two fence lines and delete the `play-soon`
+  paragraph. The Play URL needs no id — it is keyed on `app.parishfinder`.
+  The site is Git-deployed via Cloudflare Pages, so pushing to `main` publishes
+  it; never `wrangler pages deploy`.
 - **Point both stores' support URL at `/support`.** The help page went up
-  2026-09-14; the iOS listing was submitted with the bare homepage, and Play's
-  support field wants checking too. Neither needs a new build.
+  2026-09-14; the iOS listing was submitted with the bare homepage — and is now
+  *live* with it, so this is a real user-facing gap, not a pre-launch nit —
+  and Play's support field wants checking too. Neither needs a new build.
 - ~~Add the screenshots to the landing page.~~ **Done 2026-09-14.** The
   "What it looks like" section is live with `shot-home.png` and
   `shot-parish.png` — Android profile-build captures, taken on an emulator with

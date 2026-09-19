@@ -213,21 +213,16 @@ a:hover { color: var(--accent); }
   margin: 1.5rem 0 2.25rem;
 }
 
-/* The hero has no call to action — the app isn't out yet and there is no
-   waiting list to join. This is a status badge, not a control: nothing to
-   click, nothing to type into. */
-.coming-soon {
-  display: inline-flex; align-items: center; gap: 0.7rem;
-  margin: 0;
-  padding: 0.7rem 1.25rem;
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  background: var(--surface);
-  color: var(--accent-text);
+/* The hero's second store is not open yet. This is a status note, not a
+   control — no button, no waiting list — so it is set quieter than the badge
+   above it and must never grow into something that looks clickable. */
+.play-soon {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  margin: 1rem 0 0;
+  color: var(--ink-soft);
   font-size: var(--step--1);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.04em;
-  box-shadow: var(--lift);
 }
 
 /* --- The app icon, shown the way a store listing shows it ----------------- */
@@ -483,6 +478,10 @@ footer { border-top: 1px solid var(--rule); padding-block: 3rem 4rem; background
 .store-badges a { display: inline-flex; border-radius: 8px; }
 .store-badges img { display: block; width: auto; }
 .store-badges .badge-apple img { height: 42px; margin: 10px; }   /* clear space added here */
+/* ...and pulled back off the left edge, so the badge's *artwork* lines up with
+   the lede above it rather than sitting 10px proud of it. Google's file needs
+   no equivalent: its clear space is inside the image, which is transparent. */
+.store-badges .badge-apple { margin-inline-start: -10px; }
 .store-badges .badge-play img  { height: 62px; }                 /* clear space baked in */
 
 /* --- Screenshots ---------------------------------------------------------- */

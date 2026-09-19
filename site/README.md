@@ -67,18 +67,22 @@ engines file as a duplicate of the homepage.
 - **The "180+ parishes" figure** on the landing page is a deliberate floor, not
   a live count (it was an exact 184 until 2026-08-06). It appears twice — hero
   lede and big number — and `docs/play-listing.md` must agree.
-- **The launch badge** is inert copy — "Coming soon to Google Play and the Apple
-  App Store", no button and no waiting list. Its replacement is already written
-  and sits directly below it in `index.html`, fenced inside a comment marked
-  `BADGES-OFF` / `BADGES-ON`. At launch: delete the coming-soon paragraph,
-  delete the two fence lines, and paste the ten-digit Apple ID from App Store
-  Connect over `id0000000000` (the Play URL needs nothing — it is keyed on
-  `app.parishfinder`).
+- **The hero shows one badge and a note.** iOS went live 2026-09-18 and Google
+  Play had not, so the App Store badge is real — Apple ID `6803622742` — while
+  a quiet `<p class="play-soon">` ("Coming soon to Google Play") holds the
+  second badge's place. That note is inert copy: no button, no waiting list.
+  **When Play publishes, it is two edits**: delete the `PLAY-OFF` / `PLAY-ON`
+  fence lines around the Play anchor in `index.html`, and delete the
+  `play-soon` paragraph. The Play URL needs no id — it is keyed on the
+  application id `app.parishfinder`.
 - **The badge artwork must not be edited.** `badge-app-store.svg` came from
   Apple's Marketing Tools badge API and `badge-google-play.png` from Google's
   badge generator; both licences require the artwork unmodified. The CSS only
   sizes them, and the two heights differ on purpose — Google's file has its
-  required clear space baked into the image, Apple's does not.
+  required clear space baked into the image, Apple's does not. That asymmetry
+  is also why `.badge-apple` carries `margin-inline-start: -10px`: it pulls
+  Apple's added clear space back off the page gutter so the artwork lines up
+  with the lede above, which Google's transparent padding already does.
 
 ## Screenshots
 
