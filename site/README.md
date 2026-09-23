@@ -67,14 +67,9 @@ engines file as a duplicate of the homepage.
 - **The "180+ parishes" figure** on the landing page is a deliberate floor, not
   a live count (it was an exact 184 until 2026-08-06). It appears twice — hero
   lede and big number — and `docs/play-listing.md` must agree.
-- **The hero shows one badge and a note.** iOS went live 2026-09-18 and Google
-  Play had not, so the App Store badge is real — Apple ID `6803622742` — while
-  a quiet `<p class="play-soon">` ("Coming soon to Google Play") holds the
-  second badge's place. That note is inert copy: no button, no waiting list.
-  **When Play publishes, it is two edits**: delete the `PLAY-OFF` / `PLAY-ON`
-  fence lines around the Play anchor in `index.html`, and delete the
-  `play-soon` paragraph. The Play URL needs no id — it is keyed on the
-  application id `app.parishfinder`.
+- **The hero shows both store badges.** iOS went live 2026-09-18 (Apple ID
+  `6803622742`) and Google Play 2026-09-23. The Play URL needs no id — it is
+  keyed on the application id `app.parishfinder`.
 - **The badge artwork must not be edited.** `badge-app-store.svg` came from
   Apple's Marketing Tools badge API and `badge-google-play.png` from Google's
   badge generator; both licences require the artwork unmodified. The CSS only

@@ -29,15 +29,14 @@ launch that could not be written down in advance: it does not exist until the
 App Store Connect record does, and nothing in the repo can derive it. It is now
 in `site/index.html`, and this table is its second home.
 
-**Google Play is still not public.** `play.google.com/store/apps/details?id=app.parishfinder`
-returned 404 on 2026-09-19, which is what an unpublished listing returns —
-managed publishing is doing exactly what it was turned on to do, parking the
-approved release until someone presses Publish. Until then the hero carries one
-badge and a "Coming soon to Google Play" note; see Step 5.
+**Google Play went public 2026-09-23.** `play.google.com/store/apps/details?id=app.parishfinder`
+returned 404 on 2026-09-19 (managed publishing parking the approved release)
+and 200 on 2026-09-23. The hero now carries both badges; see Step 5.
 
 ### What is still open
 
-- **Press Publish on Google Play**, then finish Step 5's second badge.
+- ~~**Press Publish on Google Play**, then finish Step 5's second badge.~~
+  **Done 2026-09-23.**
 - **Point the App Store listing's support URL at `/support`.** It was submitted
   with the bare homepage. App Store Connect takes the change without a new
   build, but it is a *listing* edit, so it goes out with the next version's
@@ -88,9 +87,8 @@ that Xcode had not rewritten `project.pbxproj` during the build.
   already passed Beta App Review, so a reviewer had seen this app once without
   objecting.
 - **Google Play production review**, with managed publishing **on** — approval
-  parks the release until someone presses Publish. Still parked.
-- ~~**Step 5 is untouched.**~~ Half done: the App Store badge is live in the
-  hero with the real Apple ID; the Play badge waits on the paragraph above.
+  parks the release until someone presses Publish. **Published 2026-09-23.**
+- ~~**Step 5 is untouched.**~~ Both badges are live in the hero.
 
 ---
 
@@ -485,14 +483,10 @@ Then:
 
 ## Step 5 — Once both are live
 
-- ~~**Replace the placeholder on the marketing site.**~~ **Done 2026-09-19, by
-  half.** The stores did not go live together, so the hero does not either: the
-  App Store badge is live with Apple ID `6803622742`, and a quiet
-  `<p class="play-soon">` note — "Coming soon to Google Play" — stands where
-  the second badge will go. The Play anchor is still in the file, re-fenced
-  inside a comment marked `PLAY-OFF` / `PLAY-ON`. **When Play is published, it
-  is two edits**: delete those two fence lines and delete the `play-soon`
-  paragraph. The Play URL needs no id — it is keyed on `app.parishfinder`.
+- ~~**Replace the placeholder on the marketing site.**~~ **Done.** The App
+  Store badge went up 2026-09-19 (Apple ID `6803622742`); the Play badge
+  followed 2026-09-23 when Play published. The Play URL needs no id — it is
+  keyed on `app.parishfinder`.
   The site is Git-deployed via Cloudflare Pages, so pushing to `main` publishes
   it; never `wrangler pages deploy`.
 - **Point both stores' support URL at `/support`.** The help page went up

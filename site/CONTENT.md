@@ -52,25 +52,11 @@ ships. Nothing reads this file at build time — there is no build step.
 ### Store badges [hero.badges]
 > (not editable here — the official App Store and Google Play artwork)
 
-> **The App Store badge is live** as of 2026-09-19, linking to Apple ID
-> `6803622742`. The badge artwork is Apple's and Google's official files,
+> **Both badges are live**: the App Store's since 2026-09-19 (Apple ID
+> `6803622742`), Google Play's since 2026-09-23 (keyed on the application id
+> `app.parishfinder`, no store id needed). The badge artwork is Apple's and Google's official files,
 > self-hosted, and neither may be recoloured, cropped or redrawn — which is
 > why they are images and not text you can edit here.
-
-### "Coming soon to Google Play" note [hero.note]
-> Coming soon to Google~Play
-
-> The two stores did not go live together, so the hero does not either. iOS
-> released 2026-09-18; the Play listing was still unpublished (its URL 404s)
-> when this note went in. **This is a status note, not a control** — no button,
-> no waiting list — and it is set deliberately quieter than the badge above it
-> so it never reads as a second one.
->
-> **The Play badge is already written**, directly above this note in
-> `index.html`, fenced inside a comment marked `PLAY-OFF` / `PLAY-ON`. When
-> Play publishes, it is two edits: delete those two fence lines, and delete
-> this note. The Play URL needs no id — it is keyed on the application id
-> `app.parishfinder`.
 
 ### App icon alt text [hero.icon.alt]
 > The ParishFinder app icon: a gold church in a stained-glass roundel.
@@ -675,10 +661,9 @@ links already sent.
   say, and Play's Data Safety form is filled out to match. If you soften or
   strengthen any of them, `docs/play-data-safety.md` needs to agree.
 
-- **The hero carries one store badge and a note**, because iOS went live on
-  2026-09-18 and Play had not. The Play badge waits behind the `PLAY-OFF` /
-  `PLAY-ON` fence in `index.html` — see the note by `[hero.note]`. There is
-  deliberately no waiting list and no CTA button beyond the badges themselves.
+- **The hero carries both store badges** (App Store live 2026-09-18, Google
+  Play 2026-09-23). There is deliberately no waiting list and no CTA button
+  beyond the badges themselves.
 
 - **`support.html` is the store listings' support URL.** Both Apple and Google
   publish it beside the app, so it is the page a confused user actually lands
