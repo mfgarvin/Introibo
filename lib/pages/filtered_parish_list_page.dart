@@ -50,6 +50,19 @@ enum TimeOfDayFilter {
   night, // 9pm-5am
 }
 
+extension TimeOfDayFilterMinutes on TimeOfDayFilter {
+  /// The period in minutes after midnight, half-open, for
+  /// [ScheduleEntry.touchesPeriod]; null for [TimeOfDayFilter.any]. Night
+  /// wraps, so its `to` is less than its `from`.
+  ({int from, int to})? get minutes => switch (this) {
+        TimeOfDayFilter.any => null,
+        TimeOfDayFilter.morning => (from: 5 * 60, to: 12 * 60),
+        TimeOfDayFilter.afternoon => (from: 12 * 60, to: 17 * 60),
+        TimeOfDayFilter.evening => (from: 17 * 60, to: 21 * 60),
+        TimeOfDayFilter.night => (from: 21 * 60, to: 5 * 60),
+      };
+}
+
 enum LanguageFilter {
   any,
   spanish,
@@ -341,28 +354,12 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
       return false;
     }
 
-    // Check time of day filter
-    if (_timeOfDayFilter != TimeOfDayFilter.any) {
-      final hour = entry.hour;
-      bool matchesTime = false;
-      switch (_timeOfDayFilter) {
-        case TimeOfDayFilter.morning:
-          matchesTime = hour >= 5 && hour < 12;
-          break;
-        case TimeOfDayFilter.afternoon:
-          matchesTime = hour >= 12 && hour < 17;
-          break;
-        case TimeOfDayFilter.evening:
-          matchesTime = hour >= 17 && hour < 21;
-          break;
-        case TimeOfDayFilter.night:
-          matchesTime = hour >= 21 || hour < 5;
-          break;
-        case TimeOfDayFilter.any:
-          matchesTime = true;
-          break;
-      }
-      if (!matchesTime) return false;
+    // Check time of day filter. A window counts in every period it overlaps
+    // — an all-day chapel is open in the afternoon, not only in the morning
+    // it opened in.
+    final period = _timeOfDayFilter.minutes;
+    if (period != null && !entry.touchesPeriod(period.from, period.to)) {
+      return false;
     }
 
     // Check day filter
@@ -397,6 +394,13 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   /// Check if a parish has any schedule entries matching the current filters
   bool _matchesTimeFilters(Parish parish) {
     if (!_hasActiveFilters()) return true;
+
+    // A perpetual chapel is open every day at every hour, so it answers any
+    // day/time question — and it carries no entries, so it has to be let in
+    // before the empty-schedule bail-out below drops it.
+    if (widget.filter == ParishFilter.adoration && parish.adorationIsPerpetual) {
+      return true;
+    }
 
     final entries = _filterableEntries(parish);
     if (entries.isEmpty) return false;

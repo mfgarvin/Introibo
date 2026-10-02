@@ -620,6 +620,66 @@ void main() {
     });
   });
 
+  group('touchesPeriod', () {
+    ScheduleEntry window(String start, String? end, {bool nextDay = false}) =>
+        ScheduleEntry.fromJson({
+          'day': 'Tuesday',
+          'start': start,
+          'end': end,
+          'end_next_day': nextDay,
+        })!;
+    const morning = (5 * 60, 12 * 60);
+    const afternoon = (12 * 60, 17 * 60);
+    const evening = (17 * 60, 21 * 60);
+    const night = (21 * 60, 5 * 60); // wraps
+    bool touches(ScheduleEntry e, (int, int) p) => e.touchesPeriod(p.$1, p.$2);
+
+    test('a long window counts in every period it covers', () {
+      final e = window('08:30', '19:40');
+      expect(touches(e, morning), true);
+      expect(touches(e, afternoon), true);
+      expect(touches(e, evening), true);
+      expect(touches(e, night), false);
+    });
+
+    test('periods are half-open: ending at noon is not afternoon', () {
+      expect(touches(window('11:00', '12:00'), afternoon), false);
+      expect(touches(window('11:30', '12:30'), afternoon), true);
+      expect(touches(window('17:00', '18:00'), afternoon), false);
+    });
+
+    test('Night wraps midnight, from either side', () {
+      expect(touches(window('23:00', '01:00', nextDay: true), night), true);
+      expect(touches(window('03:00', '06:00'), night), true);
+      expect(touches(window('20:00', '21:30'), night), true);
+      expect(touches(window('05:00', '06:00'), night), false);
+      expect(touches(window('23:00', '01:00', nextDay: true), morning), false);
+    });
+
+    test('a past-midnight window reaching dawn touches the morning', () {
+      expect(touches(window('22:00', '06:00', nextDay: true), morning), true);
+    });
+
+    test('an all-day span touches everything', () {
+      final e = window('00:00', '00:00', nextDay: true);
+      for (final p in [morning, afternoon, evening, night]) {
+        expect(touches(e, p), true, reason: '$p');
+      }
+    });
+
+    test('a moment counts where it starts', () {
+      final mass = window('11:59', null);
+      expect(touches(mass, morning), true);
+      expect(touches(mass, afternoon), false);
+      expect(touches(window('02:00', null), night), true);
+      expect(touches(window('21:00', null), night), true);
+      expect(touches(window('21:00', null), evening), false);
+      // Equal endpoints without the flag are an unstated end, not a window.
+      expect(touches(window('16:00', '16:00'), afternoon), true);
+      expect(touches(window('16:00', '16:00'), evening), false);
+    });
+  });
+
   group('anchored_week recurrence', () {
     Map<String, dynamic> anchored(dynamic rule) => {
           'day': 'Thursday',

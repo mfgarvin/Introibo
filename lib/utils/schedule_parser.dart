@@ -387,6 +387,33 @@ class ScheduleEntry {
     return DateTime.tryParse(value);
   }
 
+  /// Does this entry touch the daily period from minute [from] to minute [to]
+  /// (minutes after midnight, half-open)? A period with `to <= from` wraps
+  /// past midnight — "Night", 9 pm to 5 am, is `(1260, 300)`.
+  ///
+  /// A window counts in every period it *overlaps*, not only the one it
+  /// starts in: an 8:30 am–7:40 pm adoration is open all afternoon. An entry
+  /// with no range — a Mass, a confession "after the 8:15" — is a moment, so
+  /// it counts where it starts.
+  bool touchesPeriod(int from, int to) {
+    final start = hour * 60 + minute;
+    // The period as one span, unrolled past midnight if it wraps.
+    final pEnd = to <= from ? to + 1440 : to;
+    if (!hasRange) {
+      // Try the moment on both days the unrolled period can cover.
+      return [start, start + 1440].any((t) => t >= from && t < pEnd);
+    }
+    var end = endHour! * 60 + endMinute!;
+    if (endNextDay) end += 1440;
+    // The window may also reach into the period's tail from the day before
+    // (a 4 am–6 am slot is in a Night that began at 9 pm), so test the period
+    // a day either side as well.
+    for (final shift in const [-1440, 0, 1440]) {
+      if (start < pEnd + shift && end > from + shift) return true;
+    }
+    return false;
+  }
+
   /// End datetime of the occurrence beginning at [start], or null when the
   /// entry has no range. A window whose end is not after its start (e.g.
   /// 22:00–00:30) is treated as running into the next day.
