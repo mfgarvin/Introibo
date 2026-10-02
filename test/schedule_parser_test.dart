@@ -620,6 +620,148 @@ void main() {
     });
   });
 
+  group('anchored_week recurrence', () {
+    Map<String, dynamic> anchored(dynamic rule) => {
+          'day': 'Thursday',
+          'start': '15:00',
+          'end': '15:45',
+          'notes': 'Thursday before First Friday',
+          'anchored_week': rule,
+        };
+    final beforeFirstFriday = ScheduleEntry.fromJson(anchored(
+        {'weekday': 'Friday', 'weeks_of_month': [1], 'offset_days': -1}))!;
+    // 0116: the Thursday before the First Saturday.
+    final beforeFirstSaturday = ScheduleEntry.fromJson(anchored(
+        {'weekday': 'Saturday', 'weeks_of_month': [1], 'offset_days': -2}))!;
+
+    List<DateTime> thursdaysOf(int year, int month) => [
+          for (var d = DateTime(year, month, 1);
+              d.month == month;
+              d = DateTime(d.year, d.month, d.day + 1))
+            if (d.weekday == DateTime.thursday) d,
+        ];
+
+    test('fromJson builds the rule', () {
+      final a = beforeFirstFriday.anchoredWeek!;
+      expect(a.weekday, DateTime.friday);
+      expect(a.weeksOfMonth, [1]);
+      expect(a.offsetDays, -1);
+      expect(beforeFirstFriday.isMonthly, true);
+      expect(beforeFirstFriday.weeksOfMonth, isNull);
+    });
+
+    test('malformed rules fall back to weekly', () {
+      final bad = <dynamic>[
+        null,
+        'Friday',
+        [1],
+        {'weekday': 'Fryday', 'weeks_of_month': [1], 'offset_days': -1},
+        {'weekday': 'Friday', 'weeks_of_month': [1], 'offset_days': 0},
+        {'weekday': 'Friday', 'weeks_of_month': [1], 'offset_days': -7},
+        {'weekday': 'Friday', 'weeks_of_month': [1], 'offset_days': 7},
+        {'weekday': 'Friday', 'weeks_of_month': [1], 'offset_days': '-1'},
+        {'weekday': 'Friday', 'weeks_of_month': [], 'offset_days': -1},
+        {'weekday': 'Friday', 'offset_days': -1},
+        {'weeks_of_month': [1], 'offset_days': -1},
+        {'weekday': 'Friday', 'weeks_of_month': [1]},
+      ];
+      for (final rule in bad) {
+        final e = ScheduleEntry.fromJson(anchored(rule))!;
+        expect(e.anchoredWeek, isNull, reason: '$rule');
+        expect(e.isMonthly, false, reason: '$rule');
+        expect(e.occursOn(DateTime(2026, 9, 10)), true, reason: '$rule');
+      }
+    });
+
+    test('Friday anchor lands on the true date, including across a year', () {
+      final expected = {
+        (2026, 9): DateTime(2026, 9, 3),
+        (2026, 12): DateTime(2026, 12, 3),
+        // January 2027 begins on a Friday: the slot is New Year's Eve.
+        (2027, 1): DateTime(2026, 12, 31),
+        (2027, 5): DateTime(2027, 5, 6),
+      };
+      expected.forEach((ym, date) {
+        expect(beforeFirstFriday.occursOn(date), true, reason: '$ym');
+      });
+      // And no Thursday *in* January 2027 qualifies.
+      for (final d in thursdaysOf(2027, 1)) {
+        expect(beforeFirstFriday.occursOn(d), false, reason: '$d');
+      }
+    });
+
+    test('Saturday anchor breaks where the naive reading would', () {
+      expect(beforeFirstSaturday.occursOn(DateTime(2027, 4, 29)), true);
+      expect(beforeFirstSaturday.occursOn(DateTime(2027, 5, 6)), false);
+    });
+
+    // The work plan asks for "exactly one per calendar month", but that is
+    // false by design: December 2026 has two (the 3rd, and the 31st for
+    // January's First Friday) and January 2027 none. What holds is one per
+    // month of the *anchor* — bucket each occurrence by the date it steps
+    // from, and every month must appear exactly once.
+    test('exactly one occurrence per anchor month, on both anchors', () {
+      for (final e in [beforeFirstFriday, beforeFirstSaturday]) {
+        final offset = e.anchoredWeek!.offsetDays;
+        final counts = <int, int>{};
+        for (var d = DateTime(2026, 8, 1);
+            d.isBefore(DateTime(2032, 2, 1));
+            d = DateTime(d.year, d.month, d.day + 1)) {
+          if (e.occursOn(d)) {
+            final anchor = DateTime(d.year, d.month, d.day - offset);
+            final key = anchor.year * 12 + anchor.month - 1;
+            counts[key] = (counts[key] ?? 0) + 1;
+          }
+        }
+        for (var y = 2026; y <= 2031; y++) {
+          for (var m = (y == 2026 ? 9 : 1); m <= 12; m++) {
+            expect(counts[y * 12 + m - 1], 1,
+                reason: 'anchor ${e.anchoredWeek!.weekday} in $y-$m');
+          }
+        }
+      }
+    });
+
+    test('never on a non-Thursday', () {
+      expect(beforeFirstFriday.occursOn(DateTime(2026, 10, 2)), false); // Fri
+      expect(beforeFirstFriday.occursOn(DateTime(2026, 9, 30)), false); // Wed
+    });
+
+    test('findNextOccurrence from an off week finds the next true date', () {
+      final now = DateTime(2026, 10, 2, 9, 0); // Friday after the slot
+      expect(beforeFirstFriday.nextOccurrence(now),
+          DateTime(2026, 11, 5, 15, 0));
+      expect(ScheduleParser.findNextOccurrence([beforeFirstFriday], now),
+          beforeFirstFriday);
+      // 2027-01: rolls back into December.
+      expect(beforeFirstFriday.nextOccurrence(DateTime(2026, 12, 4)),
+          DateTime(2026, 12, 31, 15, 0));
+    });
+
+    test('recurrenceKey and labels never pass for weekly or 1st Thursday', () {
+      final weekly = ScheduleEntry.fromJson(
+          {'day': 'Thursday', 'start': '15:00', 'end': '15:45'})!;
+      final first = ScheduleEntry.fromJson({
+        'day': 'Thursday',
+        'start': '15:00',
+        'end': '15:45',
+        'weeks_of_month': [1],
+      })!;
+      final keys = {
+        weekly.recurrenceKey,
+        first.recurrenceKey,
+        beforeFirstFriday.recurrenceKey,
+        beforeFirstSaturday.recurrenceKey,
+      };
+      expect(keys.length, 4);
+      expect(beforeFirstFriday.ordinalShortLabel, 'Monthly');
+      expect(beforeFirstFriday.ordinalDescription,
+          'The Thursday before the 1st Friday of the month');
+      expect(beforeFirstSaturday.ordinalDescription,
+          '2 days before the 1st Saturday of the month');
+    });
+  });
+
   group('cancelled', () {
     test('defaults to false when the key is absent (older cached export)', () {
       final e = ScheduleEntry.fromJson(massJson('Sunday', '09:00'))!;

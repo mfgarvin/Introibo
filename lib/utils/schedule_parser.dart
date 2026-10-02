@@ -9,6 +9,33 @@ import 'package:flutter/foundation.dart';
 /// progress" anyway), but the intent is stated rather than assumed.
 const bool kCountMassInProgress = false;
 
+/// The exporter's `anchored_week`: a monthly slot that is *not* an ordinal
+/// weekday of the month, but a fixed number of days from one — "the Thursday
+/// before the First Friday". Read as: the slot falls [offsetDays] from the
+/// [weeksOfMonth] [weekday] of the month.
+///
+/// The offset crosses month (and year) boundaries on purpose: when a month
+/// begins on a Friday, the Thursday before its First Friday is the last day
+/// of the previous month. Resolve the anchor first, then step — never clamp.
+@immutable
+class AnchoredWeek {
+  /// The anchor weekday, ISO 1–7. Never the entry's own day.
+  final int weekday;
+
+  /// Which anchor weekday of the month — same domain as
+  /// [ScheduleEntry.weeksOfMonth]: `1`..`5`, `-1` for last.
+  final List<int> weeksOfMonth;
+
+  /// Days from the anchor to the slot: `-6`..`-1` or `1`..`6`, never `0`.
+  final int offsetDays;
+
+  const AnchoredWeek({
+    required this.weekday,
+    required this.weeksOfMonth,
+    required this.offsetDays,
+  });
+}
+
 /// A single structured schedule entry (one Mass, confession slot, or adoration
 /// period). Built directly from the pre-parsed `schedules` objects in
 /// `export.json` — see EXPORT_SHAPE_CHANGES.md in the scraper repo
@@ -53,6 +80,13 @@ class ScheduleEntry {
   /// Never non-null alongside [weeksOfMonth]; null means never skipped.
   final List<int>? excludedWeeks;
 
+  /// The exporter's `anchored_week`: the entry occurs a fixed number of days
+  /// from an ordinal weekday of the month ("Thursday before First Friday").
+  /// Mutually exclusive with [weeksOfMonth] and [excludedWeeks]; null means
+  /// not anchored. Never approximate it as `weeksOfMonth: [1]` — that names
+  /// the wrong date in every month that begins on the anchor weekday.
+  final AnchoredWeek? anchoredWeek;
+
   /// The exporter's `cancelled`: this standing slot is *not* being celebrated
   /// during the week the bulletin covered ("8:45 am … NO MASS"). It is not a
   /// deletion and not a correction — the Mass is still the parish's normal
@@ -78,6 +112,7 @@ class ScheduleEntry {
     this.note,
     this.weeksOfMonth,
     this.excludedWeeks,
+    this.anchoredWeek,
     this.cancelled = false,
   });
 
@@ -114,7 +149,8 @@ class ScheduleEntry {
   /// True when this entry recurs on an ordinal weekday of the month rather
   /// than every week. Route every recurrence decision through [occursOn]
   /// rather than testing this: it answers all three cases at once.
-  bool get isMonthly => weeksOfMonth != null || excludedWeeks != null;
+  bool get isMonthly =>
+      weeksOfMonth != null || excludedWeeks != null || anchoredWeek != null;
 
   /// Does this entry occur on the calendar day [day]? The single predicate
   /// for dated, weekly and monthly entries alike — anything that answers "is
@@ -129,16 +165,28 @@ class ScheduleEntry {
     if (day.weekday != dayOfWeek) return false;
     if (!isMonthly) return true;
 
-    // Which ordinal weekday-of-month is this date, and is it the last one?
+    final anchor = anchoredWeek;
+    if (anchor != null) {
+      // Step back to the anchor and ask the ordinal question about *it*.
+      // DateTime rolls over month and year ends, which is what puts the
+      // Thursday before a Friday-the-1st in the previous month. Built from
+      // fields rather than subtract(), so a DST change can't shift the day.
+      final target = DateTime(day.year, day.month, day.day - anchor.offsetDays);
+      if (target.weekday != anchor.weekday) return false;
+      return _isOrdinalListed(target, anchor.weeksOfMonth);
+    }
+
+    return weeksOfMonth != null
+        ? _isOrdinalListed(day, weeksOfMonth!)
+        : !_isOrdinalListed(day, excludedWeeks!);
+  }
+
+  /// Is [day] one of the ordinal weekdays-of-month in [weeks] (`-1` = last)?
+  static bool _isOrdinalListed(DateTime day, List<int> weeks) {
     final n = ((day.day - 1) ~/ 7) + 1;
     final daysInMonth = DateTime(day.year, day.month + 1, 0).day;
     final isLast = day.day + 7 > daysInMonth;
-    bool listed(List<int> weeks) =>
-        weeks.contains(n) || (weeks.contains(-1) && isLast);
-
-    return weeksOfMonth != null
-        ? listed(weeksOfMonth!)
-        : !listed(excludedWeeks!);
+    return weeks.contains(n) || (weeks.contains(-1) && isLast);
   }
 
   /// Grouping discriminator for UI that merges entries sharing a time into one
@@ -149,6 +197,10 @@ class ScheduleEntry {
   String get recurrenceKey {
     if (weeksOfMonth != null) return 'w${weeksOfMonth!.join(',')}';
     if (excludedWeeks != null) return 'x${excludedWeeks!.join(',')}';
+    final a = anchoredWeek;
+    if (a != null) {
+      return 'a${a.weekday}:${a.offsetDays}:${a.weeksOfMonth.join(',')}';
+    }
     return '';
   }
 
@@ -169,8 +221,13 @@ class ScheduleEntry {
   /// ("Weekday Mass (except on First Fridays)"), and under a "Fri" chip it
   /// reads as a sentence. It also keeps the excluded case visibly distinct
   /// from a plain "1st" sitting in the same list, which "No 1st" would not.
+  ///
+  /// An anchored entry says just "Monthly": it is not the 1st Thursday (in a
+  /// Friday-start month it isn't even in that month), and "Bef 1st Fri" won't
+  /// fit. The note carries the rule in prose.
   String? get ordinalShortLabel {
     if (!isMonthly) return null;
+    if (anchoredWeek != null) return 'Monthly';
     final weeks = weeksOfMonth ?? excludedWeeks!;
     final names = weeks.map((w) => _ordinalNames[w] ?? '$w').join('·');
     return weeksOfMonth != null ? names : 'Except $names';
@@ -184,6 +241,16 @@ class ScheduleEntry {
   /// an entry ever arrives carrying the rule and no note.
   String? get ordinalDescription {
     if (!isMonthly) return null;
+    final a = anchoredWeek;
+    if (a != null) {
+      final names =
+          a.weeksOfMonth.map((w) => _ordinalNames[w] ?? '$w').join(' & ');
+      final anchorName = _dayNames[a.weekday - 1];
+      final rel = a.offsetDays < 0 ? 'before' : 'after';
+      final lead =
+          a.offsetDays.abs() == 1 ? 'The $dayName' : '${a.offsetDays.abs()} days';
+      return '$lead $rel the $names $anchorName of the month';
+    }
     final weeks = weeksOfMonth ?? excludedWeeks!;
     final names = weeks.map((w) => _ordinalNames[w] ?? '$w').join(' & ');
     return weeksOfMonth != null
@@ -240,6 +307,11 @@ class ScheduleEntry {
           : (json['notes'] as String).trim(),
       weeksOfMonth: weeks,
       excludedWeeks: excluded,
+      // Exclusive with the two keys above by contract; if both ever arrive,
+      // the ordinal keys win.
+      anchoredWeek: weeks == null && excluded == null
+          ? _parseAnchoredWeek(json['anchored_week'])
+          : null,
       // Present on every entry since 2026-09-12; a cached export written
       // before that has no key, and "not cancelled" is what it meant.
       cancelled: json['cancelled'] == true,
@@ -260,6 +332,28 @@ class ScheduleEntry {
         .toList()
       ..sort();
     return out.isEmpty ? null : out;
+  }
+
+  /// Parse an `anchored_week` object. Valid only whole: a missing field, an
+  /// unknown weekday, an empty week list, or an offset of `0` or outside
+  /// `-6..6` discards it, and the entry is weekly — exactly how it read
+  /// before this field existed.
+  static AnchoredWeek? _parseAnchoredWeek(dynamic value) {
+    if (value is! Map) return null;
+    final weekday =
+        _dayMap[value['weekday']?.toString().trim().toLowerCase()];
+    final weeks = _parseWeeks(value['weeks_of_month']);
+    final offset = value['offset_days'];
+    if (weekday == null ||
+        weeks == null ||
+        offset is! int ||
+        offset == 0 ||
+        offset < -6 ||
+        offset > 6) {
+      return null;
+    }
+    return AnchoredWeek(
+        weekday: weekday, weeksOfMonth: weeks, offsetDays: offset);
   }
 
   /// Parse a list of structured schedule objects into entries.
@@ -406,18 +500,17 @@ class ScheduleEntry {
   }
 
   /// Full weekday, e.g. "Sunday".
-  String get dayName {
-    const names = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday'
-    ];
-    return names[dayOfWeek - 1];
-  }
+  String get dayName => _dayNames[dayOfWeek - 1];
+
+  static const List<String> _dayNames = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+  ];
 
   /// Human time, e.g. "10:30 AM", or "3:00 – 3:30 PM" for ranges.
   /// When both endpoints share a meridiem, the first one is dropped.

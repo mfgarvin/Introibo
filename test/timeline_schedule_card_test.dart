@@ -108,9 +108,14 @@ void main() {
 
   testWidgets('the day chip is set to the same size as the Mass card\'s',
       (tester) async {
-    await tester.pumpWidget(_wrap([_entry(6, 15, 0, endHour: 16)]));
-    final day = tester.widget<Text>(find.text('Sat'));
-    expect(day.style!.fontSize, dayChipTextSize('Sat'),
+    // The day after tomorrow, so the row gets a weekday chip rather than a
+    // "Today"/"Tomorrow" bucket — a fixed Saturday failed every Friday.
+    final weekday = (DateTime.now().weekday + 2 - 1) % 7 + 1;
+    const short = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final label = short[weekday - 1];
+    await tester.pumpWidget(_wrap([_entry(weekday, 15, 0, endHour: 16)]));
+    final day = tester.widget<Text>(find.text(label));
+    expect(day.style!.fontSize, dayChipTextSize(label),
         reason: 'Confession and Adoration sit on the same page as Mass '
             'Times; a day set smaller in one card reads as a mistake');
   });
