@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/parish.dart';
 import '../utils/layout_scale.dart';
+import '../utils/map_clustering.dart';
 import '../services/location_service.dart';
 import '../services/parish_service.dart';
 import '../main.dart'
@@ -48,7 +50,11 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
   bool _isLoading = true;
   int _selectedIndex = 0;
   final MapController _mapController = MapController();
-  final PageController _pageController = PageController(viewportFraction: 0.85);
+  PageController _pageController = PageController(viewportFraction: 0.85);
+
+  /// Bumped whenever the carousel is rebuilt around a re-sorted list, as the
+  /// PageView's key — see [_resetCarousel].
+  int _carouselGeneration = 0;
 
   /// True once the map has been built, so [MapController] is safe to drive.
   bool _mapReady = false;
@@ -57,10 +63,29 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
   /// background refresh — we only auto-recenter until they take the wheel.
   bool _userMovedCamera = false;
 
-  /// Where the parish list is sorted from, when that isn't the user. Set by
-  /// "Search this area" so a later background refresh doesn't quietly drag the
-  /// list back to the user's own position. Cleared by recentering.
+  /// Where the parish list is sorted from, when that isn't the user. Set to
+  /// the camera centre each time a pan or zoom settles, so the carousel
+  /// follows the view, and so a later background refresh doesn't quietly drag
+  /// the list back to the user's own position. Non-null also means the list is
+  /// "what's in view" rather than "nearest 40". Cleared by recentering.
   LatLng? _areaOrigin;
+
+  /// Following mode found nothing inside the view, so the carousel is showing
+  /// the nearest few instead — the pill has to say so.
+  bool _noneInView = false;
+
+  /// Restarted by every gesture frame; fires once the map has been still for
+  /// [_followDelay], so the carousel doesn't churn under a moving finger.
+  Timer? _followTimer;
+  static const _followDelay = Duration(milliseconds: 300);
+
+  /// Zoom in half-steps, as last drawn. Clusters only depend on the zoom, so
+  /// the markers rebuild when this changes, not on every frame of a pan.
+  int? _clusterZoomBucket;
+
+  /// Screen distance under which marks merge. The largest mark (the selected
+  /// pin, a full bubble) is 52px across, so at this spacing none can overlap.
+  static const double _clusterRadius = 56;
 
   // Parchment/sepia tone — a soft warm wash that desaturates the map without
   // going full Stamen-Watercolor. Built from a standard sepia matrix scaled
@@ -128,6 +153,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
     WidgetsBinding.instance.removeObserver(this);
     themeNotifier.removeListener(_onThemeChanged);
     locationService.removeListener(_onSharedLocation);
+    _followTimer?.cancel();
     _mapController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -143,34 +169,173 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
     }
   }
 
+  /// Every parish the map can place, in the service's order. The order is
+  /// what keeps clusters stable as the map pans — see
+  /// [clusterByScreenDistance].
+  List<Parish> get _mappable => _parishes
+      .where((p) => p.latitude != null && p.longitude != null)
+      .toList();
+
   void _rebuildNearby() {
     final origin = _areaOrigin ?? userLocation;
     if (origin == null) return;
-    final withCoords = _parishes
-        .where((p) => p.latitude != null && p.longitude != null)
+    if (_areaOrigin != null && _mapReady) {
+      final view = _parishesInView();
+      _nearbyParishes = view.parishes;
+      _noneInView = view.noneInView;
+      return;
+    }
+    _noneInView = false;
+    _nearbyParishes = (_mappable
+          ..sort((a, b) =>
+              _distance(origin, a).compareTo(_distance(origin, b))))
+        .take(40)
         .toList();
-    withCoords.sort((a, b) {
-      final da = _distance(origin, a);
-      final db = _distance(origin, b);
-      return da.compareTo(db);
-    });
-    _nearbyParishes = withCoords.take(40).toList();
   }
 
-  /// Re-sort the list around whatever the map is looking at. Every parish is
-  /// already in memory — the 40 on screen are just the 40 nearest the origin —
-  /// so this is a local re-sort, not a fetch, and needs no spinner.
-  void _searchThisArea() {
-    if (!_mapReady) return;
+  /// Following the view: the carousel is exactly what's on screen — however
+  /// many that is, since the PageView is lazy.
+  ///
+  /// Ordered from [around] when it is in view (the selected parish, so it
+  /// leads and its neighbours sit beside it, and a pan that brings nothing
+  /// new into view changes nothing), otherwise from the camera centre.
+  ({List<Parish> parishes, bool noneInView}) _parishesInView(
+      {Parish? around}) {
+    final camera = _mapController.camera;
+    final bounds = camera.visibleBounds;
+    final inView = _mappable
+        .where((p) => bounds.contains(LatLng(p.latitude!, p.longitude!)))
+        .toList();
+    final from = around != null && inView.contains(around)
+        ? LatLng(around.latitude!, around.longitude!)
+        : camera.center;
+    int byDistance(Parish a, Parish b) =>
+        _distance(from, a).compareTo(_distance(from, b));
+    if (inView.isEmpty) {
+      // Panned out over the lake: an empty carousel is a dead end, so offer
+      // the nearest few and let the pill say they're not in view.
+      return (
+        parishes: (_mappable..sort(byDistance)).take(5).toList(),
+        noneInView: true
+      );
+    }
+    inView.sort(byDistance);
+    // A second worship site at the same address ties at zero; the selected
+    // one still goes first.
+    if (from != camera.center && inView.first != around) {
+      inView
+        ..remove(around)
+        ..insert(0, around!);
+    }
+    return (parishes: inView, noneInView: false);
+  }
+
+  void _onPositionChanged(MapCamera camera, bool hasGesture) {
+    final bucket = (camera.zoom * 2).round();
+    if (hasGesture) {
+      // A hand-driven pan/zoom pins the view; refreshes stop stealing it
+      // until the user asks to recenter.
+      _userMovedCamera = true;
+      _followTimer?.cancel();
+      _followTimer = Timer(_followDelay, _followView);
+    }
+    // One rebuild per half-step of zoom, not one per frame.
+    if (bucket != _clusterZoomBucket) {
+      setState(() => _clusterZoomBucket = bucket);
+    }
+  }
+
+  /// Re-list the carousel around what the map is now showing. Every parish is
+  /// already in memory, so this is a local filter and sort, not a fetch.
+  ///
+  /// The card the user was on stays on if it's still in view, so a small pan
+  /// doesn't throw away their place; [select] puts a specific parish there
+  /// instead (a tapped pin that wasn't in the list).
+  void _followView({Parish? select}) {
+    _followTimer?.cancel();
+    if (!mounted || !_mapReady) return;
+    final keep = select ??
+        (_selectedIndex < _nearbyParishes.length
+            ? _nearbyParishes[_selectedIndex]
+            : null);
+    final wasFollowing = _areaOrigin != null;
+    _areaOrigin = _mapController.camera.center;
+    final view = _parishesInView(around: keep);
+
+    // Nothing entered or left the view: leave the carousel exactly as it is,
+    // on whatever card the user swiped to. Re-sorting here is what made the
+    // neighbouring cards shuffle on every small pan.
+    if (wasFollowing &&
+        select == null &&
+        view.noneInView == _noneInView &&
+        view.parishes.length == _nearbyParishes.length &&
+        view.parishes.toSet().containsAll(_nearbyParishes)) {
+      return;
+    }
+
+    var list = view.parishes;
+    var index = keep == null ? -1 : list.indexOf(keep);
+    if (index < 0 && select != null) {
+      list = [select, ...list];
+      index = 0;
+    }
     setState(() {
-      _areaOrigin = _mapController.camera.center;
-      _userMovedCamera = false;
-      _rebuildNearby();
-      _selectedIndex = 0;
+      _nearbyParishes = list;
+      _noneInView = view.noneInView;
+      _selectedIndex = math.max(index, 0);
+      _resetCarousel(_selectedIndex);
     });
-    // The carousel is showing a card from the old ordering; put it back to the
-    // top without animating across forty pages.
-    if (_pageController.hasClients) _pageController.jumpToPage(0);
+  }
+
+  /// Rebuild the carousel already standing on [index], for a list that has
+  /// just been re-sorted under it.
+  ///
+  /// Not a jumpToPage: that lands a frame late, so for one frame the old page
+  /// number shows whichever parish now sits at it, and the card visibly flips
+  /// to it and back. A fresh controller with [initialPage] and a new key gets
+  /// the very first frame right, and fires no page change — which would
+  /// otherwise fly the camera to the card, away from where the user panned.
+  /// Call inside setState.
+  void _resetCarousel(int index) {
+    final old = _pageController;
+    _pageController =
+        PageController(viewportFraction: 0.85, initialPage: index);
+    _carouselGeneration++;
+    // The old PageView lets go of it during this rebuild.
+    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+  }
+
+  /// A pin was tapped. It may not be in the carousel — the list starts as the
+  /// 40 nearest you, and the map shows every parish — so re-list around the
+  /// view with it in front.
+  void _onPinTapped(Parish parish) {
+    final index = _nearbyParishes.indexOf(parish);
+    if (index >= 0) {
+      _selectParish(index);
+      return;
+    }
+    _userMovedCamera = true;
+    _followView(select: parish);
+  }
+
+  /// Zoom until a bubble's members come apart. Members that share a spot
+  /// (two worship sites at one address) never will, so once zooming stops
+  /// helping, pick the first and let the carousel show it.
+  void _onClusterTapped(MapCluster<Parish> cluster) {
+    final before = _mapController.camera.zoom;
+    final insets = MediaQuery.paddingOf(context);
+    _mapController.fitCamera(CameraFit.coordinates(
+      coordinates: [
+        for (final p in cluster.members) LatLng(p.latitude!, p.longitude!)
+      ],
+      maxZoom: 17,
+      padding: EdgeInsets.fromLTRB(
+          64, insets.top + 120, 64, _carouselTop(context) + 48),
+    ));
+    // fitCamera is not a gesture, so it doesn't schedule the follow itself.
+    _userMovedCamera = true;
+    final stuck = _mapController.camera.zoom - before < 0.25;
+    _followView(select: stuck ? cluster.members.first : null);
   }
 
   double _distance(LatLng from, Parish p) {
@@ -265,6 +430,11 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
       // Asking to be recentred is asking to be the origin again.
       if (recenter) _areaOrigin = null;
       _rebuildNearby();
+      // Back to the nearest-to-you list, from its top.
+      if (recenter) {
+        _selectedIndex = 0;
+        _resetCarousel(0);
+      }
     });
 
     // The camera used to be set once, through MapOptions.initialCenter, so a
@@ -287,14 +457,12 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
 
     // The carousel is a fixed strip over the map, so its cards can't scroll
     // their way out of trouble — at large text sizes a parish name plus its
-    // city and next Mass overflowed the 150px. It grows with the text, but
+    // city and next Mass overflowed a fixed height. It grows with the text, but
     // only up to [_carouselMaxHeight]: the card's text is bounded (a
     // two-line name, one line of city, one of time), so past that the extra
     // height was empty card over a map the user still needs to see.
-    final carouselHeight = context.scaled(150,
-        max: math.min(_carouselMaxHeight,
-            MediaQuery.sizeOf(context).height * 0.32));
-    final carouselTop = 20 + carouselHeight + 16;
+    final carouselHeight = _carouselHeight(context);
+    final carouselTop = _carouselTop(context);
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -363,18 +531,12 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                           cursorKeyboardRotationOptions:
                               CursorKeyboardRotationOptions.disabled(),
                         ),
-                        onMapReady: () => _mapReady = true,
-                        onPositionChanged: (position, hasGesture) {
-                          // A hand-driven pan/zoom pins the view; refreshes
-                          // stop stealing it until the user asks to recenter.
-                          if (hasGesture && !_userMovedCamera) {
-                            // setState, not a bare assignment: the top pill
-                            // reads this to swap to "Search this area". The
-                            // guard keeps it to one rebuild per pan, not one
-                            // per frame.
-                            setState(() => _userMovedCamera = true);
-                          }
-                        },
+                        onMapReady: () => setState(() {
+                          _mapReady = true;
+                          _clusterZoomBucket =
+                              (_mapController.camera.zoom * 2).round();
+                        }),
+                        onPositionChanged: _onPositionChanged,
                       ),
                       children: [
                         ColorFiltered(
@@ -435,72 +597,58 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
     );
   }
 
-  /// The count pill, or — once the view has been panned away — a tappable
-  /// "Search this area". One slot, two states, so nothing new competes for
-  /// space with the carousel and the controls above it.
+  /// The count pill. It describes whatever the carousel holds: the nearest
+  /// parishes to you, or — once the map has been moved — what's in view.
   Widget _buildTopPill() {
-    final searching = _userMovedCamera;
-    final pill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: cardBorderFor(isDark: _isDark),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 14,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            searching ? Icons.search : Icons.location_on,
-            color: _accent,
-            size: 16,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            searching
-                ? 'Search this area'
-                : '${_nearbyParishes.length} parishes nearby',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: _textColor,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (!searching) {
-      return Semantics(
-        label: '${_nearbyParishes.length} parishes nearby',
-        child: pill,
-      );
-    }
-
+    final following = _areaOrigin != null;
+    final n = _nearbyParishes.length;
+    final label = !following
+        ? '$n parishes nearby'
+        : _noneInView
+            ? 'None in view · showing nearest'
+            : n == 1
+                ? '1 parish in view'
+                : '$n parishes in view';
     return Semantics(
-      button: true,
-      label: 'Search this area for parishes',
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
-        child: InkWell(
+      label: label,
+      liveRegion: true,
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: _cardColor,
           borderRadius: BorderRadius.circular(24),
-          onTap: _searchThisArea,
-          child: pill,
+          border: cardBorderFor(isDark: _isDark),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 14,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              following ? Icons.crop_free : Icons.location_on,
+              color: _accent,
+              size: 16,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _textColor,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// Tapping opens OSM's copyright page, which is what the licence points
-  /// readers at. Failing to launch is silent — a dead tap on a credit line is
-  /// better than an error over the map.
   Future<void> _openOsmCopyright() async {
     final url = Uri.parse('https://www.openstreetmap.org/copyright');
     try {
@@ -509,6 +657,15 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
       // Nothing to recover; the credit text itself still discharges the licence.
     }
   }
+
+  double _carouselHeight(BuildContext context) => context.scaled(116,
+      max: math.min(
+          _carouselMaxHeight, MediaQuery.sizeOf(context).height * 0.32));
+
+  /// Distance from the bottom of the screen to the top of the carousel —
+  /// everything above it is map the user can actually see.
+  double _carouselTop(BuildContext context) =>
+      20 + _carouselHeight(context) + 16;
 
   /// Ceiling for the carousel strip. Measured, not guessed: at the largest
   /// system font a card needs ~171px for its two-line name, city and Mass
@@ -701,54 +858,175 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
     );
   }
 
+  /// Every parish on the map, with pins that would overlap merged into
+  /// count bubbles. The selected parish anchors its own group, so the card on
+  /// screen always has its pin, in the right place — whatever else is too
+  /// close to draw is counted on that pin instead of piled beside it.
   List<Marker> _buildParishMarkers() {
-    final markers = <Marker>[];
-    for (int i = 0; i < _nearbyParishes.length; i++) {
-      final parish = _nearbyParishes[i];
-      final isSelected = i == _selectedIndex;
-      markers.add(
-        Marker(
-          point: LatLng(parish.latitude!, parish.longitude!),
-          width: isSelected ? 52.0 : 38.0,
-          height: isSelected ? 52.0 : 38.0,
-          child: GestureDetector(
-            onTap: () => _selectParish(i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                // Deep plum vanishes into a night-washed map, so unselected
-                // pins go bronze in dark mode.
-                color: isSelected
-                    ? _accent
-                    : (_isDark ? kAccentGoldDeep : kSecondaryColor),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: isSelected ? 3 : 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isSelected ? _accent : Colors.black)
-                        .withValues(alpha: isSelected ? 0.4 : 0.25),
-                    blurRadius: isSelected ? 14 : 6,
-                    spreadRadius: isSelected ? 2 : 0,
+    final selected = _selectedIndex < _nearbyParishes.length
+        ? _nearbyParishes[_selectedIndex]
+        : null;
+    final zoom = _mapReady ? _mapController.camera.zoom : 13.0;
+    final clusters = clusterByScreenDistance<Parish>(
+      _mappable,
+      position: (p) => LatLng(p.latitude!, p.longitude!),
+      project: (ll) => const Epsg3857().latLngToPoint(ll, zoom),
+      radius: _clusterRadius,
+      anchor: selected,
+    );
+    final mine = selected == null ? null : clusters.first;
+    return [
+      for (final c in clusters)
+        if (c != mine)
+          c.isSingle ? _parishPin(c.members.single) : _clusterMarker(c),
+      // Last, so it draws over everything else.
+      if (mine != null) _selectedPin(mine),
+    ];
+  }
+
+  /// The selected parish's pin, with a "+N" badge when it is standing in for
+  /// neighbours too close to draw. Tapping it then zooms in like a bubble.
+  Marker _selectedPin(MapCluster<Parish> group) {
+    final parish = group.members.first;
+    final hidden = group.members.length - 1;
+    final pin = _parishPin(parish, isSelected: true,
+        onTap: hidden > 0 ? () => _onClusterTapped(group) : null);
+    if (hidden == 0) return pin;
+    return Marker(
+      point: pin.point,
+      width: pin.width,
+      height: pin.height,
+      child: Semantics(
+        label: '${parish.name}, and $hidden more nearby. Tap to zoom in',
+        excludeSemantics: true,
+        button: true,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(child: pin.child),
+            Positioned(
+              right: -6,
+              top: -6,
+              child: IgnorePointer(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _pinColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white, width: 1.5),
                   ),
-                ],
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.3,
+                    child: Text(
+                      '+$hidden',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              child: Icon(
-                Icons.church,
-                color: isSelected && _isDark ? kBackgroundColorDark : Colors.white,
-                size: isSelected ? 26 : 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Deep plum vanishes into a night-washed map, so unselected pins (and the
+  // bubbles that stand for them) go bronze in dark mode.
+  Color get _pinColor => _isDark ? kAccentGoldDeep : kSecondaryColor;
+
+  Marker _parishPin(Parish parish,
+      {bool isSelected = false, VoidCallback? onTap}) {
+    return Marker(
+      point: LatLng(parish.latitude!, parish.longitude!),
+      width: isSelected ? 52.0 : 38.0,
+      height: isSelected ? 52.0 : 38.0,
+      child: GestureDetector(
+        onTap: onTap ?? () => _onPinTapped(parish),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: isSelected ? _accent : _pinColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: isSelected ? 3 : 2),
+            boxShadow: [
+              BoxShadow(
+                color: (isSelected ? _accent : Colors.black)
+                    .withValues(alpha: isSelected ? 0.4 : 0.25),
+                blurRadius: isSelected ? 14 : 6,
+                spreadRadius: isSelected ? 2 : 0,
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.church,
+            color: isSelected && _isDark ? kBackgroundColorDark : Colors.white,
+            size: isSelected ? 26 : 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A count bubble, in the unselected pins' colour so it reads as "more of
+  /// those". Grows a little with the count — enough to tell Cleveland's
+  /// dozens from a pair, not so much that the whole-diocese view is all disc.
+  Marker _clusterMarker(MapCluster<Parish> cluster) {
+    final n = cluster.members.length;
+    final size = 40.0 + 12.0 * math.min(n, 30) / 30;
+    return Marker(
+      point: cluster.center,
+      width: size,
+      height: size,
+      child: Semantics(
+        button: true,
+        label: '$n parishes here. Tap to zoom in',
+        excludeSemantics: true,
+        child: GestureDetector(
+          onTap: () => _onClusterTapped(cluster),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _pinColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+            // A count on a fixed-size disc, not body text: shrink to fit
+            // rather than spill at a large text scale.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$n',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
         ),
-      );
-    }
-    return markers;
+      ),
+    );
   }
 
   Widget _buildParishCarousel() {
     if (_nearbyParishes.isEmpty) return const SizedBox.shrink();
     return PageView.builder(
+      key: ValueKey(_carouselGeneration),
       controller: _pageController,
       itemCount: _nearbyParishes.length,
       onPageChanged: (i) => _selectParish(i, animatePage: false),
@@ -759,7 +1037,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
           duration: const Duration(milliseconds: 200),
           padding: EdgeInsets.symmetric(
             horizontal: 8,
-            vertical: selected ? 0 : 8,
+            vertical: selected ? 0 : 4,
           ),
           child: _MapParishCard(
             parish: parish,
@@ -810,7 +1088,7 @@ class _MapParishCard extends StatelessWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
               // The glass thumbnail is decoration; the name is the point. At
