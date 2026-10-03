@@ -21,6 +21,7 @@ import 'widgets/liturgical_day_tile.dart';
 import 'widgets/zip_location_dialog.dart';
 import 'theme/app_text.dart';
 import 'utils/schedule_parser.dart';
+import 'widgets/language_badge.dart';
 import 'utils/layout_scale.dart';
 import 'utils/parish_search.dart';
 import 'widgets/remove_home_parish_dialog.dart';
@@ -3439,6 +3440,61 @@ class _AboutPageState extends State<AboutPage> {
                       'good idea to double check with the parish before making '
                       'plans.',
                       style: AppText.body(color: subtextColor).copyWith(height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Language badge guide — the key to the "ES", "PL" pills on Mass
+              // times. Built from the same table that assigns them.
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: cardBorderFor(isDark: isDark),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 15,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Language Badges',
+                      style: AppText.titleLarge(color: textColor),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Masses not in English carry a badge beside the time. '
+                      'Press and hold one to see the language in full.',
+                      style: AppText.body(color: subtextColor)
+                          .copyWith(height: 1.5),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 18,
+                      runSpacing: 10,
+                      children: [
+                        for (final l in ScheduleEntry.languageBadgeGuide)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              LanguageBadge(
+                                label: l.badge,
+                                color: primaryAccentFor(isDark: isDark),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(l.name,
+                                  style: AppText.body(color: textColor)),
+                            ],
+                          ),
+                      ],
                     ),
                   ],
                 ),

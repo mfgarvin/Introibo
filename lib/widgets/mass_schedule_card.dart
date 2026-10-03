@@ -192,6 +192,7 @@ class MassScheduleCard extends StatelessWidget {
           ...rows.map((r) => _row(
               r.daysLabel, r.entry.timeLabel, r.entry.displayNote,
               languageBadge: r.entry.languageBadge,
+              language: r.entry.language,
               ordinalLabel: r.entry.ordinalShortLabel,
               cancelled: r.entry.cancelled)),
         ],
@@ -212,7 +213,9 @@ class MassScheduleCard extends StatelessWidget {
             final d = e.nextOccurrence(now, kCountMassInProgress);
             final dateLabel = '${e.dayLabel} ${d.month}/${d.day}';
             return _row(dateLabel, e.timeLabel, e.displayNote,
-                languageBadge: e.languageBadge, cancelled: e.cancelled);
+                languageBadge: e.languageBadge,
+                language: e.language,
+                cancelled: e.cancelled);
           }),
         ],
       ),
@@ -236,7 +239,10 @@ class MassScheduleCard extends StatelessWidget {
   /// normally does — struck through, with the badge and the reason on the
   /// line beneath it.
   Widget _row(String dayLabel, String timeLabel, String? note,
-      {String? languageBadge, String? ordinalLabel, bool cancelled = false}) {
+      {String? languageBadge,
+      String? language,
+      String? ordinalLabel,
+      bool cancelled = false}) {
     // Prose note: its own full-width line under the row.
     final blockStyle = GoogleFonts.inter(
       fontSize: 13,
@@ -388,7 +394,10 @@ class MassScheduleCard extends StatelessWidget {
                       ),
                       if (languageBadge != null) ...[
                         const SizedBox(width: 6),
-                        LanguageBadge(label: languageBadge, color: color),
+                        LanguageBadge(
+                            label: languageBadge,
+                            color: color,
+                            tooltip: language),
                       ],
                     ],
                   ),

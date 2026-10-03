@@ -582,17 +582,32 @@ class ScheduleEntry {
   /// Keyword → short badge map, checked in order so that compound strings like
   /// "English & Italian" or "Bilingual (English-Polish)" resolve to the
   /// non-English language they mention.
-  static const List<({String keyword, String badge})> _languageBadges = [
-    (keyword: 'spanish', badge: 'ES'),
-    (keyword: 'polish', badge: 'PL'),
-    (keyword: 'croatian', badge: 'HR'),
-    (keyword: 'slovenian', badge: 'SL'),
-    (keyword: 'italian', badge: 'IT'),
-    (keyword: 'german', badge: 'DE'),
-    (keyword: 'korean', badge: 'KO'),
-    (keyword: 'swahili', badge: 'SW'),
-    (keyword: 'latin', badge: 'LA'),
+  ///
+  /// Also the source of the About page's badge guide, so a language added
+  /// here is explained there without a second edit. Every language in the
+  /// data needs a row: the two-letter fallback below turned "English/
+  /// Vietnamese" into "EN", which reads as English.
+  static const List<({String keyword, String badge, String name})>
+      _languageBadges = [
+    (keyword: 'spanish', badge: 'ES', name: 'Spanish'),
+    (keyword: 'polish', badge: 'PL', name: 'Polish'),
+    (keyword: 'croatian', badge: 'HR', name: 'Croatian'),
+    (keyword: 'slovenian', badge: 'SL', name: 'Slovenian'),
+    (keyword: 'italian', badge: 'IT', name: 'Italian'),
+    (keyword: 'german', badge: 'DE', name: 'German'),
+    (keyword: 'korean', badge: 'KO', name: 'Korean'),
+    (keyword: 'vietnamese', badge: 'VI', name: 'Vietnamese'),
+    (keyword: 'swahili', badge: 'SW', name: 'Swahili'),
+    (keyword: 'igbo', badge: 'IG', name: 'Igbo'),
+    (keyword: 'latin', badge: 'LA', name: 'Latin'),
   ];
+
+  /// Every badge a Mass can carry and what it stands for, in display order —
+  /// for the guide on the About page. English Masses carry no badge.
+  static List<({String badge, String name})> get languageBadgeGuide => [
+        for (final l in _languageBadges) (badge: l.badge, name: l.name),
+        (badge: 'BIL', name: 'Bilingual'),
+      ];
 
   /// True when this entry is plain English (or unspecified, which means English).
   bool get isEnglish {

@@ -81,6 +81,10 @@ void main() {
       expect(lang('Spanish').languageBadge, 'ES');
       expect(lang('Polish').languageBadge, 'PL');
       expect(lang('Latin N.O.').languageBadge, 'LA');
+      // No keyword used to mean a two-letter slice, and "English/Vietnamese"
+      // sliced to "EN" — a badge claiming English.
+      expect(lang('English/Vietnamese').languageBadge, 'VI');
+      expect(lang('Igbo').languageBadge, 'IG');
 
       // Compound strings resolve to the non-English language they mention.
       expect(lang('English & Italian').languageBadge, 'IT');
@@ -678,6 +682,24 @@ void main() {
       expect(touches(window('16:00', '16:00'), afternoon), true);
       expect(touches(window('16:00', '16:00'), evening), false);
     });
+  });
+
+  test('the badge guide explains every badge the data produces', () {
+    final guide = {
+      for (final l in ScheduleEntry.languageBadgeGuide) l.badge: l.name
+    };
+    // Every language string in the 2026-09-13 export.
+    for (final language in [
+      'Spanish', 'Croatian', 'Latin (Novus Ordo)', 'English/Vietnamese',
+      'Korean', 'Polish', 'Slovenian', 'Latin', 'German',
+      'Bilingual (English & Spanish)', 'Bilingual (English-Polish)',
+      'Vietnamese', 'Swahili', 'Bilingual', 'Igbo', 'Italian',
+    ]) {
+      final badge = ScheduleEntry.fromJson(
+              {'day': 'Sunday', 'start': '10:00', 'language': language})!
+          .languageBadge;
+      expect(guide, contains(badge), reason: '$language -> $badge');
+    }
   });
 
   group('anchored_week recurrence', () {

@@ -1527,7 +1527,10 @@ class _ParishCard extends StatelessWidget {
                       ],
                       if (badge != null) ...[
                         const SizedBox(width: 6),
-                        LanguageBadge(label: badge, color: accentColor),
+                        LanguageBadge(
+                            label: badge,
+                            color: accentColor,
+                            tooltip: time.language),
                       ],
                     ],
                   ),
