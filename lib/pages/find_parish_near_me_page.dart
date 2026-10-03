@@ -66,8 +66,9 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
   /// Where the parish list is sorted from, when that isn't the user. Set to
   /// the camera centre each time a pan or zoom settles, so the carousel
   /// follows the view, and so a later background refresh doesn't quietly drag
-  /// the list back to the user's own position. Non-null also means the list is
-  /// "what's in view" rather than "nearest 40". Cleared by recentering.
+  /// the list back to the user's own position. Non-null means the list is
+  /// "what's in view" — which it is from the moment the map is ready; only
+  /// before that is it the nearest 40, so the carousel has something to show.
   LatLng? _areaOrigin;
 
   /// Following mode found nothing inside the view, so the carousel is showing
@@ -185,6 +186,8 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
       _noneInView = view.noneInView;
       return;
     }
+    // Before the map is ready there is no view to list; the nearest 40 stand
+    // in for the frame or two until [_followView] takes over.
     _noneInView = false;
     _nearbyParishes = (_mappable
           ..sort((a, b) =>
@@ -251,11 +254,14 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
   /// The card the user was on stays on if it's still in view, so a small pan
   /// doesn't throw away their place; [select] puts a specific parish there
   /// instead (a tapped pin that wasn't in the list).
-  void _followView({Parish? select}) {
+  ///
+  /// [fresh] drops the current card too — for a start or a recentre, where
+  /// the list should begin at whatever is nearest the centre.
+  void _followView({Parish? select, bool fresh = false}) {
     _followTimer?.cancel();
     if (!mounted || !_mapReady) return;
     final keep = select ??
-        (_selectedIndex < _nearbyParishes.length
+        (!fresh && _selectedIndex < _nearbyParishes.length
             ? _nearbyParishes[_selectedIndex]
             : null);
     final wasFollowing = _areaOrigin != null;
@@ -267,6 +273,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
     // neighbouring cards shuffle on every small pan.
     if (wasFollowing &&
         select == null &&
+        !fresh &&
         view.noneInView == _noneInView &&
         view.parishes.length == _nearbyParishes.length &&
         view.parishes.toSet().containsAll(_nearbyParishes)) {
@@ -305,9 +312,8 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
     WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
   }
 
-  /// A pin was tapped. It may not be in the carousel — the list starts as the
-  /// 40 nearest you, and the map shows every parish — so re-list around the
-  /// view with it in front.
+  /// A pin was tapped. It may not be in the carousel — a pin half off the edge
+  /// of the view, say — so re-list around the view with it in front.
   void _onPinTapped(Parish parish) {
     final index = _nearbyParishes.indexOf(parish);
     if (index >= 0) {
@@ -427,14 +433,7 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
       _fix = fix;
       _locationFailure = null;
       _isLoading = false;
-      // Asking to be recentred is asking to be the origin again.
-      if (recenter) _areaOrigin = null;
       _rebuildNearby();
-      // Back to the nearest-to-you list, from its top.
-      if (recenter) {
-        _selectedIndex = 0;
-        _resetCarousel(0);
-      }
     });
 
     // The camera used to be set once, through MapOptions.initialCenter, so a
@@ -442,6 +441,9 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
     if (_mapReady && (recenter || !_userMovedCamera)) {
       _mapController.move(fix.position, _mapController.camera.zoom);
       if (recenter) _userMovedCamera = false;
+      // The view moved without a gesture, so list what it now shows.
+      // Recentring is asking to start over: nearest you first, from the top.
+      _followView(fresh: recenter);
     }
   }
 
@@ -531,11 +533,18 @@ class _FindParishNearMePageState extends State<FindParishNearMePage>
                           cursorKeyboardRotationOptions:
                               CursorKeyboardRotationOptions.disabled(),
                         ),
-                        onMapReady: () => setState(() {
-                          _mapReady = true;
-                          _clusterZoomBucket =
-                              (_mapController.camera.zoom * 2).round();
-                        }),
+                        onMapReady: () {
+                          setState(() {
+                            _mapReady = true;
+                            _clusterZoomBucket =
+                                (_mapController.camera.zoom * 2).round();
+                          });
+                          // Follow the view from the first frame, not only
+                          // after the first pan: the carousel and its count
+                          // are what's on screen, never "the 40 nearest".
+                          WidgetsBinding.instance.addPostFrameCallback(
+                              (_) => _followView(fresh: true));
+                        },
                         onPositionChanged: _onPositionChanged,
                       ),
                       children: [
