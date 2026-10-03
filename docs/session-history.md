@@ -1323,3 +1323,48 @@ Reported bugs plus a versioning pass. All device-unverified at time of writing.
   at fault. Defaults to false when the key is absent, which matters for JSON cached
   before the field existed. Note the local `export.demo.json` predates the field;
   `../bulletin-v2/export.json` is the current shape.
+
+## Session Log: 2026-10-02 (1.1.0: anchored_week, map clustering, planner, filter bar)
+
+Released as **1.1.0** (tag `v1.1.0` on `8359ead`, Play internal testing at
+versionCode 171; iOS not yet built). Desktop-verified throughout, then on device
+via internal testing.
+
+- **`anchored_week`** ("Thursday before the First Friday"): parsed into
+  `AnchoredWeek` and answered by `ScheduleEntry.occursOn`, which steps back to the
+  anchor date and asks the ordinal question of it — so a Friday-the-1st month puts
+  the slot in the *previous* month. Chip label "Monthly". The scraper's work plan
+  asked for "exactly one per calendar month"; that is false (Dec 2026 has two, Jan
+  2027 none) and the test pins one per *anchor* month instead.
+- **Map:** every parish is mapped, with overlapping pins merged into count bubbles
+  (`lib/utils/map_clustering.dart`, hand-rolled; the selected parish anchors its
+  group with a "+N"). The carousel lists what's in view from the first frame,
+  re-listing 300 ms after a gesture settles; "Search this area" is gone. Re-sorting
+  under the PageView used to flash the wrong card for a frame, so a re-sort now
+  rebuilds the PageView already on the right page (fresh controller + key).
+  Carousel cards 150 → 116px.
+- **Time filters fixed:** a window counts in every period it overlaps
+  (`ScheduleEntry.touchesPeriod`), not just the one it starts in (244 adoration
+  misses), and perpetual chapels pass every filter instead of vanishing.
+- **Planner:** "Plan ahead" on the *Looking for* heading opens a sheet with one
+  sentence of tappable words — "Show me Confession on Saturday in the afternoon
+  near Akron" — answered beneath (`plan_query.dart`), "See all" into the list.
+  Places are a city or ZIP resolved from our own parish data
+  (`plan_place.dart`); nothing is geocoded or stored. Days are Today/Tomorrow/
+  weekday names only. Two earlier designs (a chips sheet + place dialog; a card
+  on Home) were built and rejected.
+- **List pages:** the Filter pill sits at the end of the sort tabs' row and opens
+  a slim panel (day, time, near [place]) built from the same words
+  (`plan_words.dart`); it reads Close/Clear once open. While filtering the sort
+  tabs grey out (nearest first) and a tap on them explains why. Removed: the
+  results count, the filter sheet, the language filter, "This week", multi-select
+  weekday chips, and the tab icons.
+- **Language badges:** a guide on the About page from the same table that assigns
+  them; badges carry a tooltip with the bulletin's language. Vietnamese/Igbo had no
+  row, so "English/Vietnamese" had been badged "EN".
+- **Parish page day chips** un-bolded: 15px medium, the times' size.
+- **Font gotcha:** `AppText.x().copyWith(fontWeight: …)` doesn't change the weight —
+  google_fonts chose the font file (e.g. `Inter_700`) when the style was built. Two
+  rounds of "lighter" did nothing until the styles were built fresh.
+- **Test fix:** the timeline day-chip test assumed Saturday gets a day chip, so it
+  failed every Friday.

@@ -35,6 +35,8 @@ main.dart (ParishFinderApp)
             ├── Home tab     → HomePage
             │                    ├── inline search → ParishDetailPage
             │                    ├── "Looking for" quick filters → FilteredParishListPage → ParishDetailPage
+            │                    ├── "Plan ahead" (on the Looking-for heading) → planner sheet
+            │                    │     (PlanVisitCard) → ParishDetailPage, or "See all" → FilteredParishListPage
             │                    ├── nearby / next-mass tiles → ParishDetailPage
             │                    └── liturgical day tile
             ├── Map tab      → FindParishNearMePage (inTab) → ParishDetailPage
@@ -55,14 +57,19 @@ primary entry point — HomePage has inline search.
 | `lib/services/liturgical_service.dart` | Offline Computus baseline + best-effort calapi enrichment |
 | `lib/services/feedback_client.dart` | POSTs feedback to the Cloudflare Worker endpoint |
 | `lib/widgets/` | Stained-glass header, mass/timeline schedule cards, next-mass banner/tile, liturgical day tile, custom icons |
+| `lib/utils/plan_place.dart` | `PlanPlace`: a city or ZIP resolved from our own parish data (no geocoding), with a reach radius |
+| `lib/utils/plan_query.dart` | `planHits`: the planner's answer — one hit per parish on a given day/period/place |
+| `lib/widgets/plan_words.dart` | `MenuWord` / `PlaceWord`: the tappable-word controls shared by the planner sheet and the list filter panel |
+| `lib/widgets/plan_visit_card.dart` | The "Show me … near …" planner sentence and its results (shown in a sheet from Home) |
+| `lib/utils/map_clustering.dart` | `clusterByScreenDistance`: merges map pins closer than a radius into count bubbles |
 
 ### Pages
 
 | Page | Purpose |
 |------|---------|
 | `lib/pages/parish_detail_page.dart` | Full parish detail: header, schedules, contact, bulletin, feedback |
-| `lib/pages/filtered_parish_list_page.dart` | Mass/Confession/Adoration filtered lists with sort + day/time filters |
-| `lib/pages/find_parish_near_me_page.dart` | OSM map (Map tab) with GPS, markers, and a swipeable parish carousel |
+| `lib/pages/filtered_parish_list_page.dart` | Mass/Confession/Adoration lists. Sort tabs + a Filter pill on one row; the pill opens a day / time / near-[place] panel. While a filter is set the tabs grey out and results go nearest first (`_effectiveSort`) |
+| `lib/pages/find_parish_near_me_page.dart` | OSM map (Map tab): every parish, clustered when zoomed out; the carousel lists what's in view and re-lists after each pan/zoom settles |
 | `lib/pages/research_parish_page.dart` | Standalone search UI (debounced; name/city/zip) |
 
 ### Data Flow
@@ -142,6 +149,12 @@ multiple worship sites gets one record each; `parish_id` is the identity, not
   so nothing has to expire it. **Live count is currently zero** — the field
   shipped with a week whose bulletins had none — so the code paths are
   exercised by tests (`test/cancelled_schedule_test.dart`), not yet by data.
+- `anchoredWeek` on `ScheduleEntry` — from `anchored_week` (`{weekday,
+  weeks_of_month, offset_days}`): "the Thursday before the First Friday". Live
+  on 6 confession entries since 2026-09-19. `occursOn` steps back to the anchor
+  date and asks the ordinal question of *it*, so a Friday-the-1st month puts
+  the slot in the previous month — never approximate it as `weeks_of_month:
+  [1]`. Chip label "Monthly". Malformed objects fall back to weekly.
 - `inviteFeedback: bool` — from `invite_feedback`; true (14 parishes as of the 2026-08-04 data) means the schedule was never machine-verified from a bulletin, so `ParishDetailPage` shows an `InviteFeedbackCard` under the next-Mass banner asking the user to confirm or correct the times. Defaults to false if the key is missing (older cached JSON).
 
 JSON comes from the **structured** `export.json` shape:
@@ -187,6 +200,12 @@ Global constants in `main.dart` — **warm parchment + oxblood + gold** (light) 
 Typography: a unified scale in `lib/theme/app_text.dart`. **Inter** for body/UI,
 **Cormorant Garamond** for display (app title, headings, parish names). Prefer the
 `AppText` scale over inline `GoogleFonts.x(fontSize: …)`.
+
+**`AppText.x().copyWith(fontWeight: …)` does not change the weight.**
+google_fonts picks the font *file* (e.g. `Inter_700`) when the style is built,
+so a `copyWith` only relabels it — `bodyLarge` (w700) "copied" to w400 still
+draws bold. For a weight the scale doesn't offer, build a fresh
+`GoogleFonts.inter(fontWeight: …)` (see `wordStyle` in `plan_words.dart`).
 
 Theme choice is tri-state — `ThemeNotifier.choice` is `system` / `light` / `dark`,
 persisted under `theme_choice`, and `system` resolves against the platform
@@ -367,3 +386,4 @@ A few non-obvious facts from that history worth keeping in view here:
 - **Versioning**: semver lives in `pubspec.yaml` and is bumped by **`tool/release.sh`** (`beta` / `release` / `patch` / `minor` / `major` / `show`), which rewrites the version, commits, and tags `vX.Y.Z`. Never hand-edit the version line.
 - **Build number** is git-derived (`git rev-list --count HEAD`) on both platforms: Android via `gitBuildNumber` in `android/app/build.gradle`; iOS via a "Set Build Number From Git" Xcode Run Script phase that rewrites `CFBundleVersion` (in `ios/Runner.xcodeproj/project.pbxproj`, **verified on a Mac 2026-09-13** — it produced build 155 for the App Store submission). The pubspec `+N` is a committed *floor* (kept in step with the commit count by `tool/release.sh`) — builds take `max(commit count, floor)`, so a rewritten history can't lower the number. **Release** builds with no usable git hard-fail rather than fall back; debug builds still fall back to the floor.
 - **iOS cleartext**: the liturgy API's plain-HTTP exception is scoped in `ios/Runner/Info.plist` via `NSAppTransportSecurity → NSExceptionDomains` (`calapi.inadiutorium.cz`), mirroring the Android `network_security_config.xml`. Location usage strings are also present. Bundle id, signing and app icons are all done — 1.0.0 (build 155) went to the App Store from a Mac and is **live since 2026-09-18**, Apple ID `6803622742`.
+- **1.1.0** (tag `v1.1.0` on `8359ead`) is on Play **internal testing** as versionCode 171; the iOS 1.1.0 build has not been made yet. `tool/release.sh` refuses untracked files, and `docs/feature-ideas.md` is deliberately untracked — move it aside for the bump.
