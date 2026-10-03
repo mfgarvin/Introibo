@@ -353,24 +353,16 @@ class MassScheduleCard extends StatelessWidget {
                           child: Text(
                             dayLabel,
                             maxLines: 1,
-                            style: GoogleFonts.inter(
-                              fontSize: dayChipTextSize(dayLabel),
-                              fontWeight: FontWeight.w700,
-                              color: dayInk,
-                              height: 1.1,
-                            ),
+                            style: dayChipTextStyle(dayLabel, dayInk,
+                                height: 1.1),
                           ),
                         )
                       else
                         Text(
                           dayLabel,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            fontSize: dayChipTextSize(dayLabel),
-                            fontWeight: FontWeight.w700,
-                            color: dayInk,
-                            height: 1.1,
-                          ),
+                          style: dayChipTextStyle(dayLabel, dayInk,
+                              height: 1.1),
                         ),
                     ],
                   ),

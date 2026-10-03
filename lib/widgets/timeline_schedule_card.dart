@@ -253,11 +253,7 @@ class TimelineScheduleCard extends StatelessWidget {
                       child: Text(
                         e.dayLabel,
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: dayChipTextSize(e.dayLabel),
-                          fontWeight: FontWeight.w700,
-                          color: dayInk,
-                        ),
+                        style: dayChipTextStyle(e.dayLabel, dayInk),
                       ),
                     ),
                   ),
