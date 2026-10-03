@@ -515,84 +515,71 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   /// sheet: a filter you can't see is one you forget is on. It sits above the
   /// list rather than in it, so it stays put while the list scrolls, and
   /// changing the sort leaves it alone.
-  Widget _buildFilterBar(Color subtextColor) {
+  /// The bar's first line: when — day and part of the day. Short enough to
+  /// share a row with the Filter button on a phone, so that row has one
+  /// height whether the bar is open or not.
+  Widget _whenWords(Color subtextColor) {
     final accent = widget.accentColor;
     final current = (filter: _dayFilter, date: _planDate);
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        MenuWord<({DayFilter filter, DateTime? date})>(
+          label: _dayChoiceLabel(current),
+          values: _dayChoices,
+          itemLabel: _dayChoiceLabel,
+          onSelected: (c) => setState(() {
+            _dayFilter = c.filter;
+            _planDate = c.date;
+            _applySorting();
+          }),
+          accent: accent,
+          compact: true,
+        ),
+        MenuWord<TimeOfDayFilter>(
+          label: _timeLabel(_timeOfDayFilter),
+          values: const [
+            TimeOfDayFilter.any,
+            TimeOfDayFilter.morning,
+            TimeOfDayFilter.afternoon,
+            TimeOfDayFilter.evening,
+          ],
+          itemLabel: _timeLabel,
+          onSelected: (t) => setState(() {
+            _timeOfDayFilter = t;
+            _applySorting();
+          }),
+          accent: accent,
+          compact: true,
+        ),
+      ],
+    );
+  }
+
+  /// The bar's second line: where. "near" and its field always share a line
+  /// — split, the word reads as a stray — and the field takes the width left.
+  Widget _whereWords(Color subtextColor) {
     final prose = AppText.bodyLarge(color: subtextColor)
         .copyWith(fontWeight: FontWeight.w400);
-    Widget sep() => Text('·', style: prose);
-    return Container(
-      width: double.infinity,
-      constraints: BoxConstraints(minHeight: _filterRowHeight(context)),
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 2,
-            children: [
-              MenuWord<({DayFilter filter, DateTime? date})>(
-                label: _dayChoiceLabel(current),
-                values: _dayChoices,
-                itemLabel: _dayChoiceLabel,
-                onSelected: (c) => setState(() {
-                  _dayFilter = c.filter;
-                  _planDate = c.date;
-                  _applySorting();
-                }),
-                accent: accent,
-                compact: true,
-              ),
-              sep(),
-              MenuWord<TimeOfDayFilter>(
-                label: _timeLabel(_timeOfDayFilter),
-                values: const [
-                  TimeOfDayFilter.any,
-                  TimeOfDayFilter.morning,
-                  TimeOfDayFilter.afternoon,
-                  TimeOfDayFilter.evening,
-                ],
-                itemLabel: _timeLabel,
-                onSelected: (t) => setState(() {
-                  _timeOfDayFilter = t;
-                  _applySorting();
-                }),
-                accent: accent,
-                compact: true,
-              ),
-              sep(),
-              Text('near', style: prose),
-              PlaceWord(
-                parishes: _parishes,
-                place: _place,
-                hasLocation: widget.userLocation != null,
-                onChanged: _setPlace,
-                accent: accent,
-                hintColor: subtextColor,
-                compact: true,
-                width: 130,
-              ),
-            ],
+    return Row(
+      children: [
+        Text('near', style: prose),
+        const SizedBox(width: 8),
+        Expanded(
+          child: PlaceWord(
+            parishes: _parishes,
+            place: _place,
+            hasLocation: widget.userLocation != null,
+            onChanged: _setPlace,
+            accent: widget.accentColor,
+            hintColor: subtextColor,
+            compact: true,
+            width: double.infinity,
           ),
-          if (_planBeyondBulletin)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                'From the regular schedule. Bulletins can change it '
-                'closer to the date.',
-                style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
-              ),
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -665,18 +652,53 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         ),
       ),
     );
+    // One box, tinted only when open. Its padding is the same either way, so
+    // the button sits at the same spot open or closed; opening adds the
+    // "near" line beneath and nothing else moves.
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: _filtersOpen
-                ? _buildFilterBar(subtextColor)
-                : const SizedBox.shrink(),
-          ),
-          const SizedBox(width: 8),
-          button,
-        ],
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _filtersOpen
+              ? accent.withValues(alpha: 0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ConstrainedBox(
+              constraints:
+                  BoxConstraints(minHeight: _filterRowHeight(context)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _filtersOpen
+                        ? _whenWords(subtextColor)
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(width: 8),
+                  button,
+                ],
+              ),
+            ),
+            if (_filtersOpen) ...[
+              const SizedBox(height: 8),
+              _whereWords(subtextColor),
+              if (_planBeyondBulletin)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'From the regular schedule. Bulletins can change it '
+                    'closer to the date.',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: subtextColor),
+                  ),
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }

@@ -134,31 +134,59 @@ void main() {
     expect(find.text('Filter'), findsOneWidget);
   });
 
-  testWidgets('opening the bar moves nothing: same height, same centre',
+  testWidgets('opening the bar leaves the button where it was',
       (tester) async {
     await _pumpWithFilters(tester, []);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
 
-    Rect pill(String label) => tester.getRect(find
-        .ancestor(of: find.text(label), matching: find.byType(Container))
-        .first);
-    final closed = pill('Filter');
-    final tabsClosed = tester.getTopLeft(find.text('A–Z')).dy;
-
+    final closed = tester.getCenter(find.text('Filter'));
     await tester.tap(find.text('Filter'));
     await tester.pumpAndSettle();
-    final open = pill('Close');
-    final bar = tester.getRect(find
-        .ancestor(of: find.text('Any day'), matching: find.byType(Container))
-        .last);
+    final open = tester.getCenter(find.text('Close'));
+    expect(open.dy, closeTo(closed.dy, 0.5));
+    expect(open.dx, closeTo(closed.dx, 6)); // "Close" vs "Filter" width
+  });
 
-    expect(open.height, closed.height);
-    expect(open.center.dy, closeTo(closed.center.dy, 0.5));
-    expect(bar.center.dy, closeTo(open.center.dy, 0.5));
-    expect(bar.height, closeTo(open.height, 0.5));
-    // And the tabs below stay where they were.
-    expect(tester.getTopLeft(find.text('A–Z')).dy, closeTo(tabsClosed, 0.5));
+  testWidgets('on a phone: when on one line with the button, where below',
+      (tester) async {
+    await _pumpWithFilters(tester, []);
+    // A Pixel 9 Pro is 412 logical pixels wide.
+    tester.view.physicalSize = const Size(412, 915);
+    await tester.pumpAndSettle();
+
+    final day = tester.getCenter(find.text('Any day'));
+    final time = tester.getCenter(find.text('Any time'));
+    final button = tester.getCenter(find.text('Close'));
+    expect(time.dy, closeTo(day.dy, 0.5), reason: 'day and time share a line');
+    expect(button.dy, closeTo(day.dy, 2), reason: 'and the button with them');
+
+    final near = tester.getCenter(find.text('near'));
+    final field = tester.getCenter(find.byType(TextField));
+    expect(field.dy, closeTo(near.dy, 2), reason: '"near" stays with its field');
+    expect(near.dy, greaterThan(day.dy));
+
+    // Thumb-sized bubbles.
+    final bubble = tester.getSize(find
+        .ancestor(of: find.text('Any day'), matching: find.byType(Container))
+        .first);
+    expect(bubble.height, greaterThanOrEqualTo(34));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tapping away closes the place suggestions', (tester) async {
+    await _pumpWithFilters(tester, []);
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'Lake');
+    await tester.pumpAndSettle();
+    expect(find.text('Lakewood'), findsWidgets);
+
+    // The page title: outside the field, and not something that navigates.
+    await tester.tapAt(tester.getCenter(find.text('Adoration').first));
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsNothing);
+    // And the field shows the place in force again, not the half-typed text.
+    expect(find.widgetWithText(TextField, 'me'), findsOneWidget);
   });
 
   testWidgets('filtering greys the sort tabs; Clear brings them back',

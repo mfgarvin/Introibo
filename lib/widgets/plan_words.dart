@@ -100,7 +100,8 @@ class MenuWord<T> extends StatelessWidget {
       ],
       child: compact
           ? Container(
-              padding: const EdgeInsets.fromLTRB(10, 3, 4, 3),
+              // A comfortable thumb target: ~36px tall at 1x.
+              padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
               decoration: BoxDecoration(
                 color: wordBubbleColor(accent),
                 borderRadius: _bubbleRadius,
@@ -245,10 +246,17 @@ class _PlaceWordState extends State<PlaceWord> {
   Iterable<_WhereOption> _options(TextEditingValue value) {
     final q = value.text.trim();
     final typing = q.isNotEmpty && q != _meLabel && q != widget.place?.label;
+    // Not typing: offer "Near me" only as a way back from somewhere else.
+    // Already near me, the lone suggestion just echoed the field.
+    if (!typing) {
+      return [
+        if (widget.hasLocation && widget.place != null)
+          const _WhereOption('Near me', null),
+      ];
+    }
     final out = <_WhereOption>[
       if (widget.hasLocation) const _WhereOption('Near me', null),
     ];
-    if (!typing) return out;
 
     // A ZIP resolves as soon as it's whole.
     if (RegExp(r'^\d{5}').hasMatch(q)) {
@@ -291,11 +299,14 @@ class _PlaceWordState extends State<PlaceWord> {
           textCapitalization: TextCapitalization.words,
           textInputAction: TextInputAction.done,
           onSubmitted: _submit,
+          // A text field keeps focus when you tap elsewhere, which left the
+          // suggestions open over the list with no way to dismiss them.
+          onTapOutside: (_) => _focus.unfocus(),
           style: base,
           decoration: InputDecoration(
             isDense: true,
             contentPadding: widget.compact
-                ? const EdgeInsets.fromLTRB(10, 5, 0, 5)
+                ? const EdgeInsets.fromLTRB(12, 9, 0, 9)
                 : const EdgeInsets.symmetric(vertical: 4),
             hintText: 'city or ZIP',
             hintStyle: base.copyWith(color: widget.hintColor),
