@@ -1368,3 +1368,38 @@ via internal testing.
   rounds of "lighter" did nothing until the styles were built fresh.
 - **Test fix:** the timeline day-chip test assumed Saturday gets a day chip, so it
   failed every Friday.
+
+## Session Log: 2026-10-02 (iOS 1.1.0 build, simulator run, App Store update)
+
+A Mac session: build, verify, ship. No Dart changed.
+
+- **Built 1.1.0 (build 171)** with `tool/ios_build.sh` from `8359ead`, which is
+  exactly where `v1.1.0` points — no drift between the tag and the binary.
+  Verified from *inside* the IPA rather than from the build log:
+  `CFBundleShortVersionString` 1.1.0, `CFBundleVersion` 171,
+  `CFBundleIdentifier` app.parishfinder, `MinimumOSVersion` 15.0, and no
+  `kernel_blob.bin` — so genuinely AOT, not a debug build carrying the Lakewood
+  location mock. Signing resolved automatically to team YYF433Z327.
+- **The build script reported exit 1 on a successful build.** The cause was
+  outside the script: the invoking command piped it through `tee` to a log in a
+  directory that did not exist, so `tee` failed and took the pipeline's status
+  with it. The script itself ran to its final line. Worth knowing before anyone
+  goes hunting in `ios_build.sh` for a bug that isn't there.
+- **Ran it on the Simulator** (iPhone 17 Pro, iOS 26.5). Home renders correctly
+  against live data. Xcode 27 has removed `Simulator.app` entirely — see
+  [`ios-testflight.md`](ios-testflight.md), whose Simulator section was rewritten
+  here; the old Features → Location instructions no longer describe anything
+  that exists.
+- **Found a RenderFlex overflow, deferred it.** `next_mass_tile.dart:151`
+  overflows by 62px at `accessibility-extra-extra-extra-large`: the countdown
+  chip is an uncapped trailing widget in a `Row`, starving the `Expanded` beside
+  it, and `_buildCompact` never consults `context.prefersStackedLayout` so it
+  never stacks. Does not reproduce at or below 2×, which is why
+  `test/page_scaling_smoke_test.dart` misses it — the smoke test's ceiling is 2×
+  and iOS goes well past that. Shipped as-is by decision; a fix wants both the
+  cap and a test case above 2×.
+- **Submitted and published 1.1.0** — published 2026-10-03, Apple ID
+  `6803622742`. The update path (shorter than a first submission: the app
+  record, privacy answers, age rating and pricing all persist) is now written
+  down in [`ios-testflight.md`](ios-testflight.md) under "Shipping an update",
+  which previously stopped at the 1.0.0 case.

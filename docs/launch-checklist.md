@@ -274,7 +274,8 @@ survives untouched.
 The rest of the recipe, in order:
 
 ```bash
-xcrun simctl boot <udid>; open -a Simulator
+xcrun simctl boot <udid>
+open -a "/Applications/Xcode.app/Contents/Applications/DeviceHub.app"  # Xcode 27: no Simulator.app
 xcrun simctl location <udid> set 41.4993,-81.6944       # Public Square
 flutter run -d <udid> --dart-define=REAL_GPS=1
 xcrun simctl privacy <udid> grant location app.parishfinder

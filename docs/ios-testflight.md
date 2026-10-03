@@ -149,8 +149,33 @@ instead:
 flutter run --dart-define=REAL_GPS=1
 ```
 
-Then Features → Location → Custom Location. `41.4489, -82.7079` is Sandusky and
-must raise the out-of-diocese notice; `41.1595, -81.4404` is Stow and must not.
+`41.4489, -82.7079` is Sandusky and must raise the out-of-diocese notice;
+`41.1595, -81.4404` is Stow and must not.
+
+**Under Xcode 27 there is no `Simulator.app`** (verified 2026-10-02). It is
+absent from both `Contents/Developer/Applications/` — that directory no longer
+exists at all — and `Contents/Applications/`, so `open -a Simulator` fails with
+"Unable to find application named 'Simulator'". The old Features → Location
+menu went with it. What works now:
+
+```sh
+xcrun simctl boot <udid>                  # boots headless; flutter run -d <udid> is happy
+open -a "/Applications/Xcode.app/Contents/Applications/DeviceHub.app"   # the GUI
+xcrun simctl io <udid> screenshot out.png
+xcrun simctl ui <udid> appearance dark|light
+xcrun simctl ui <udid> content_size accessibility-extra-extra-extra-large
+```
+
+The GUI is only needed to touch the screen — `flutter run` targets a headless
+booted device fine. Note that **no tap automation is installed** (neither `idb`
+nor `idb_companion`, and `simctl` has no tap verb), so driving the UI means
+DeviceHub and a human finger. Allow a few seconds after a `simctl ui` change
+before screenshotting: an immediate capture catches a half-relaid-out frame
+with two layouts superimposed, which looks like a layout bug and is not one.
+
+Flipping the Simulator to dark does **not** darken the app. The theme default
+is `light` and `system` is opt-in from Settings — that is correct behaviour,
+not a setting that failed to apply.
 
 ## Making it a beta app with Apple
 
@@ -231,3 +256,58 @@ Two settings worth choosing deliberately:
 Submitted **2026-09-13** with build 155. Review takes days rather than the
 minutes a TestFlight processing pass takes; the external beta group keeps
 running on its own build throughout, and still needs a fresh one every 90 days.
+
+---
+
+## Shipping an update
+
+Added 2026-10-03, after 1.1.0. Everything above describes the **first**
+submission. An update is materially shorter, because the app record, the App
+Privacy answers, the age rating and the pricing all persist — the only
+genuinely new work is a build and a changelog.
+
+1. **Build on the Mac.** `git pull --rebase`, then `tool/ios_build.sh`. Same
+   script, same guarantees: numeric marketing version, git-derived build
+   number, and a refusal to bless a debug IPA.
+2. **Upload** `build/ios/ipa/*.ipa` with Transporter.app. No export-compliance
+   prompt — `ITSAppUsesNonExemptEncryption` in `Info.plist` answers it
+   permanently. Processing is 5–30 minutes.
+3. **Create the version record.** App Store Connect → the app → **+** beside
+   "iOS App" in the sidebar → the new marketing version. This step has no
+   TestFlight equivalent; without it there is nothing to attach the build to.
+4. **Fill only what an update needs.**
+   - **"What's New in This Version"** — required on every update and the one
+     field that cannot be inherited from the previous version.
+   - **Build** — select the one that just finished processing.
+   - **Screenshots** — only if the UI moved enough that the existing set
+     misrepresents the app.
+   - Privacy, age rating, pricing, keywords, subtitle — leave them; they carry
+     over.
+5. **Carry the reviewer notes forward.** Guideline 5.2 does not stop applying
+   on updates, and the reviewer may not be the one who saw the last version.
+   The wording is in [`launch-checklist.md`](launch-checklist.md) Step 4:
+   a personal project listing publicly available Mass times compiled from
+   parish bulletins, not official to the diocese or any parish.
+6. **Choose the release option deliberately.** "Manually release this version"
+   parks an approved build until you press Release, instead of going live at
+   whatever hour review finishes.
+
+The live version stays up and untouched throughout review.
+
+### Versions shipped
+
+| version | build | from | notes |
+|---|---|---|---|
+| 1.0.0 | 155 | 2026-09-13 | first submission; live 2026-09-18 |
+| 1.1.0 | 171 | 2026-10-02 | visit planner, list filter bar, parish-page day chips; published 2026-10-03 |
+
+**Known issue shipped in 1.1.0, deliberately deferred:** a `RenderFlex`
+overflow of 62px at `lib/widgets/next_mass_tile.dart:151`. The countdown chip
+is a trailing widget in a `Row` with no width cap, so at very large system text
+sizes it takes its natural width and starves the `Expanded` beside it — the
+failure mode CLAUDE.md's text-scaling section warns about ("cap them, or the
+content starves"). `_buildCompact` never consults
+`context.prefersStackedLayout`, so the chip never stacks. It does not reproduce
+at or below 2×, which is why `test/page_scaling_smoke_test.dart` does not catch
+it; it was found by setting the Simulator to
+`accessibility-extra-extra-extra-large`.
