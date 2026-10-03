@@ -171,12 +171,15 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
-        // Filter sheet, including the "Clear" button that only appears once a
-        // filter is active.
+        // Filter bar, beside its button: its words wrap at large text rather
+        // than overflow, including once a filter is set and the button
+        // becomes Clear.
         await tester.tap(find.text('Filter'));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        await tester.tap(find.text('Today'));
+        await tester.tap(find.text('Any day'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Today').last);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.text('Clear'), findsOneWidget);

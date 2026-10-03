@@ -5,7 +5,9 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/parish.dart';
 import '../services/parish_service.dart';
+import '../theme/app_text.dart';
 import '../utils/layout_scale.dart';
+import '../utils/plan_place.dart';
 import '../utils/schedule_parser.dart';
 import '../main.dart'
     show
@@ -16,11 +18,11 @@ import '../main.dart'
         kCardColorDark,
         cardBorderFor,
         errorAccentFor,
-        onAccentFor,
         themeNotifier;
 import 'parish_detail_page.dart';
 import '../widgets/stained_glass_header.dart';
 import '../widgets/language_badge.dart';
+import '../widgets/plan_words.dart';
 
 enum ParishFilter {
   massTimes,
@@ -39,7 +41,6 @@ enum DayFilter {
   any,
   today,
   tomorrow,
-  thisWeek,
 }
 
 enum TimeOfDayFilter {
@@ -63,17 +64,18 @@ extension TimeOfDayFilterMinutes on TimeOfDayFilter {
       };
 }
 
-enum LanguageFilter {
-  any,
-  spanish,
-  other, // any non-English Mass that isn't Spanish
-}
-
 class FilteredParishListPage extends StatefulWidget {
   final ParishFilter filter;
   final String title;
   final Color accentColor;
   final LatLng? userLocation;
+
+  /// Planning entry ("Plan ahead" on Home): open already answering a question
+  /// about a specific day, part of the day, or place. Any of them starts the
+  /// list sorted by distance, since "Soonest" answers "now", not "Saturday".
+  final DateTime? initialDate;
+  final TimeOfDayFilter initialTimeOfDay;
+  final PlanPlace? initialPlace;
 
   const FilteredParishListPage({
     super.key,
@@ -81,6 +83,9 @@ class FilteredParishListPage extends StatefulWidget {
     required this.title,
     required this.accentColor,
     this.userLocation,
+    this.initialDate,
+    this.initialTimeOfDay = TimeOfDayFilter.any,
+    this.initialPlace,
   });
 
   @override
@@ -100,13 +105,35 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   bool _showAllParishes = false;
   DayFilter _dayFilter = DayFilter.any;
   TimeOfDayFilter _timeOfDayFilter = TimeOfDayFilter.any;
-  LanguageFilter _languageFilter = LanguageFilter.any;
-  Set<int> _selectedWeekdays = {}; // 1=Monday, 7=Sunday
 
-  /// Language filtering only applies to Mass schedules (which carry a language).
-  bool get _languageFilterApplies =>
-      widget.filter == ParishFilter.massTimes ||
-      widget.filter == ParishFilter.all;
+  /// Whether the filter bar is showing. It opens itself when the page is
+  /// opened already filtering (from the planner), and only the Close button
+  /// shuts it — which it offers only once every filter is back at default,
+  /// so a filter can never be on with nothing on screen saying so.
+  bool _filtersOpen = false;
+
+  /// A specific calendar day to plan for. Mutually exclusive with
+  /// [_dayFilter] — choosing one clears the other.
+  DateTime? _planDate;
+
+  /// Somewhere other than the user to measure from ("in Akron"). When set,
+  /// distances, sorting and the radius cut all work from it.
+  PlanPlace? _place;
+
+  /// Where distances are measured from: the planned place, else the user.
+  LatLng? get _origin => _place?.center ?? widget.userLocation;
+
+  DateTime get _today {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  /// `cancelled` is re-derived from the *current* bulletin, so it describes
+  /// this week only. Planning further out than that, a cancellation would
+  /// hide a Mass that is almost certainly back by then — so beyond the week
+  /// the standing schedule is used, and the list says so.
+  bool get _planBeyondBulletin =>
+      _planDate != null && _planDate!.difference(_today).inDays >= 7;
 
   /// 2 days in minutes
   static const int _twoDaysInMinutes = 2880;
@@ -115,6 +142,20 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   void initState() {
     super.initState();
     themeNotifier.addListener(_onThemeChanged);
+    _timeOfDayFilter = widget.initialTimeOfDay;
+    _place = widget.initialPlace;
+    final date = widget.initialDate;
+    if (date != null) {
+      final day = DateTime(date.year, date.month, date.day);
+      // Today is better answered by the Today filter: it already knows which
+      // of today's times have passed.
+      if (day == _today) {
+        _dayFilter = DayFilter.today;
+      } else {
+        _planDate = day;
+      }
+    }
+    _filtersOpen = _isFiltering;
     _loadParishData();
   }
 
@@ -148,13 +189,15 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   }
 
   void _calculateDistances() {
-    if (widget.userLocation == null) return;
+    _distances.clear();
+    final origin = _origin;
+    if (origin == null) return;
 
     for (final parish in _parishes) {
       if (parish.latitude != null && parish.longitude != null) {
         _distances[FavoritesManager.keyFor(parish)] = _calculateDistance(
-          widget.userLocation!.latitude,
-          widget.userLocation!.longitude,
+          origin.latitude,
+          origin.longitude,
           parish.latitude!,
           parish.longitude!,
         );
@@ -256,14 +299,14 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   }
 
   void _applySorting() {
-    if (_sortOrder == SortOrder.distance && widget.userLocation != null) {
+    if (_effectiveSort == SortOrder.distance && _origin != null) {
       _filteredParishes.sort((a, b) {
         final distA = _distances[FavoritesManager.keyFor(a)] ?? double.infinity;
         final distB = _distances[FavoritesManager.keyFor(b)] ?? double.infinity;
         return distA.compareTo(distB);
       });
-    } else if (_sortOrder == SortOrder.nearestAndSoonest &&
-        widget.userLocation != null) {
+    } else if (_effectiveSort == SortOrder.nearestAndSoonest &&
+        _origin != null) {
       // Composite score: combine distance and time
       _filteredParishes.sort((a, b) {
         final scoreA = _calculateCompositeScore(a);
@@ -312,47 +355,46 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   }
 
   bool _hasActiveFilters() {
-    return _dayFilter != DayFilter.any ||
-        _timeOfDayFilter != TimeOfDayFilter.any ||
-        _selectedWeekdays.isNotEmpty ||
-        (_languageFilterApplies && _languageFilter != LanguageFilter.any);
+    return _planDate != null ||
+        _dayFilter != DayFilter.any ||
+        _timeOfDayFilter != TimeOfDayFilter.any;
   }
+
+  /// Any part of the filter bar away from its default, place included.
+  bool get _isFiltering => _hasActiveFilters() || _place != null;
+
+  /// The order actually used. A filter and a sort answer different questions
+  /// ("Saturday afternoon near Akron" vs "what's soonest"), and both at once
+  /// produced lists nobody could predict — so while filtering, the sort tabs
+  /// stand aside and the answers line up nearest first, the way the planner's
+  /// "See all" opens. Clearing the filter brings back the sort chosen before.
+  SortOrder get _effectiveSort =>
+      _isFiltering ? SortOrder.distance : _sortOrder;
 
   /// The schedule entries the time filters scan, based on filter type.
   /// Cancelled slots are out: "Confessions today" is a question about where a
   /// churchgoer can actually go today, so a suspended slot must not put a
   /// parish in the results or supply the times its card then samples.
+  ///
+  /// Except when planning past this week: see [_planBeyondBulletin].
   List<ScheduleEntry> _filterableEntries(Parish parish) {
-    switch (widget.filter) {
-      case ParishFilter.massTimes:
-        return ScheduleParser.active(parish.massTimes);
-      case ParishFilter.confession:
-        return ScheduleParser.active(parish.confTimes);
-      case ParishFilter.adoration:
-        return ScheduleParser.active(parish.adoration);
-      case ParishFilter.all:
-        return ScheduleParser.active(
-            [...parish.massTimes, ...parish.confTimes]);
-    }
+    final entries = switch (widget.filter) {
+      ParishFilter.massTimes => parish.massTimes,
+      ParishFilter.confession => parish.confTimes,
+      ParishFilter.adoration => parish.adoration,
+      ParishFilter.all => [...parish.massTimes, ...parish.confTimes],
+    };
+    return _planBeyondBulletin ? entries : ScheduleParser.active(entries);
   }
 
   /// Whether a single entry satisfies every active filter.
   bool _entryMatchesFilters(
       Parish parish, ScheduleEntry entry, DateTime now, DateTime today) {
-    // Check language filter (Mass-only; confession/adoration carry no language
-    // so they never satisfy a Spanish/Other request).
-    if (_languageFilterApplies && _languageFilter != LanguageFilter.any) {
-      final matchesLanguage = _languageFilter == LanguageFilter.spanish
-          ? entry.isSpanish
-          : entry.isOtherLanguage;
-      if (!matchesLanguage) return false;
-    }
+    // A planned date asks the one question that is right for every kind of
+    // entry — dated, weekly, First Friday, anchored — rather than comparing
+    // weekdays, which would put a First Friday Mass on every Friday.
+    if (_planDate != null && !entry.occursOn(_planDate!)) return false;
 
-    // Check weekday filter
-    if (_selectedWeekdays.isNotEmpty &&
-        !_selectedWeekdays.contains(entry.dayOfWeek)) {
-      return false;
-    }
 
     // Check time of day filter. A window counts in every period it overlaps
     // — an all-day chapel is open in the afternoon, not only in the morning
@@ -377,9 +419,6 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           break;
         case DayFilter.tomorrow:
           matchesDay = daysUntil == 1;
-          break;
-        case DayFilter.thisWeek:
-          matchesDay = daysUntil <= 7;
           break;
         case DayFilter.any:
           matchesDay = true;
@@ -424,307 +463,220 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           .compareTo(b.nextOccurrence(now, countInProgress)));
   }
 
-  void _showFilterSheet() {
-    final isDark = themeNotifier.isDarkMode;
-    final cardColor = isDark ? kCardColorDark : kCardColor;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subtextColor = isDark ? Colors.white70 : Colors.black54;
+  /// Measure from [place] instead of the user (null: back to the user).
+  void _setPlace(PlanPlace? place) {
+    setState(() {
+      _place = place;
+      _calculateDistances();
+      _applySorting();
+    });
+  }
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: cardColor,
-      // The chip sections can outgrow the default half-screen sheet (small
-      // phones, large text scale) and the sheet does not scroll on its own —
-      // without this the lower filters are clipped and unreachable.
-      isScrollControlled: true,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  /// The days the bar offers: the relative ones, then the coming week by
+  /// name. A plan for a date further out (opened that way) is offered too,
+  /// so the bar can always show what it is answering.
+  List<({DayFilter filter, DateTime? date})> get _dayChoices {
+    final today = _today;
+    final week = comingWeek(today).skip(2).toList();
+    return [
+      (filter: DayFilter.any, date: null),
+      (filter: DayFilter.today, date: null),
+      (filter: DayFilter.tomorrow, date: null),
+      for (final d in week) (filter: DayFilter.any, date: d),
+      if (_planDate != null && !week.contains(_planDate))
+        (filter: DayFilter.any, date: _planDate),
+    ];
+  }
+
+  String _dayChoiceLabel(({DayFilter filter, DateTime? date}) c) {
+    final date = c.date;
+    if (date != null) {
+      return date.difference(_today).inDays < 7
+          ? dayChoiceLabel(date, _today)
+          : planDateLabel(date);
+    }
+    return switch (c.filter) {
+      DayFilter.any => 'Any day',
+      DayFilter.today => 'Today',
+      DayFilter.tomorrow => 'Tomorrow',
+    };
+  }
+
+  static String _timeLabel(TimeOfDayFilter t) => switch (t) {
+        TimeOfDayFilter.any => 'Any time',
+        TimeOfDayFilter.morning => 'Morning',
+        TimeOfDayFilter.afternoon => 'Afternoon',
+        TimeOfDayFilter.evening => 'Evening',
+        TimeOfDayFilter.night => 'Night',
+      };
+
+  /// The question this list is answering, at the top, always — and each part
+  /// of it a word to tap and change. Replaces a Filter button that opened a
+  /// sheet: a filter you can't see is one you forget is on. It sits above the
+  /// list rather than in it, so it stays put while the list scrolls, and
+  /// changing the sort leaves it alone.
+  Widget _buildFilterBar(Color subtextColor) {
+    final accent = widget.accentColor;
+    final current = (filter: _dayFilter, date: _planDate);
+    final prose = AppText.bodyLarge(color: subtextColor)
+        .copyWith(fontWeight: FontWeight.w400);
+    Widget sep() => Text('·', style: prose);
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(minHeight: _filterRowHeight(context)),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
       ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 2,
+            children: [
+              MenuWord<({DayFilter filter, DateTime? date})>(
+                label: _dayChoiceLabel(current),
+                values: _dayChoices,
+                itemLabel: _dayChoiceLabel,
+                onSelected: (c) => setState(() {
+                  _dayFilter = c.filter;
+                  _planDate = c.date;
+                  _applySorting();
+                }),
+                accent: accent,
+                compact: true,
+              ),
+              sep(),
+              MenuWord<TimeOfDayFilter>(
+                label: _timeLabel(_timeOfDayFilter),
+                values: const [
+                  TimeOfDayFilter.any,
+                  TimeOfDayFilter.morning,
+                  TimeOfDayFilter.afternoon,
+                  TimeOfDayFilter.evening,
+                ],
+                itemLabel: _timeLabel,
+                onSelected: (t) => setState(() {
+                  _timeOfDayFilter = t;
+                  _applySorting();
+                }),
+                accent: accent,
+                compact: true,
+              ),
+              sep(),
+              Text('near', style: prose),
+              PlaceWord(
+                parishes: _parishes,
+                place: _place,
+                hasLocation: widget.userLocation != null,
+                onChanged: _setPlace,
+                accent: accent,
+                hintColor: subtextColor,
+                compact: true,
+                width: 130,
+              ),
+            ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Icon(Icons.filter_list, color: widget.accentColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Filter by Time',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (_hasActiveFilters())
-                      TextButton(
-                        onPressed: () {
-                          setSheetState(() {
-                            _dayFilter = DayFilter.any;
-                            _timeOfDayFilter = TimeOfDayFilter.any;
-                            _languageFilter = LanguageFilter.any;
-                            _selectedWeekdays = {};
-                          });
-                          setState(() {});
-                        },
-                        child: Text(
-                          'Clear',
-                          style: GoogleFonts.inter(color: widget.accentColor),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Everything between the header and Done scrolls, so no
-                // filter section can be clipped out of reach.
-                Flexible(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Day filter
-                        Text(
-                          'When',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: subtextColor,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildFilterChip(
-                                'Any day', _dayFilter == DayFilter.any, () {
-                              setSheetState(() => _dayFilter = DayFilter.any);
-                              setState(() {});
-                            }, cardColor, textColor, subtextColor),
-                            _buildFilterChip(
-                                'Today', _dayFilter == DayFilter.today, () {
-                              setSheetState(() => _dayFilter = DayFilter.today);
-                              setState(() {});
-                            }, cardColor, textColor, subtextColor),
-                            _buildFilterChip(
-                                'Tomorrow', _dayFilter == DayFilter.tomorrow,
-                                () {
-                              setSheetState(
-                                  () => _dayFilter = DayFilter.tomorrow);
-                              setState(() {});
-                            }, cardColor, textColor, subtextColor),
-                            _buildFilterChip(
-                                'This week', _dayFilter == DayFilter.thisWeek,
-                                () {
-                              setSheetState(
-                                  () => _dayFilter = DayFilter.thisWeek);
-                              setState(() {});
-                            }, cardColor, textColor, subtextColor),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Time of day filter
-                        Text(
-                          'Time of day',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: subtextColor,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildFilterChip('Any time',
-                                _timeOfDayFilter == TimeOfDayFilter.any, () {
-                              setSheetState(
-                                  () => _timeOfDayFilter = TimeOfDayFilter.any);
-                              setState(() {});
-                            }, cardColor, textColor, subtextColor),
-                            _buildFilterChip('Morning',
-                                _timeOfDayFilter == TimeOfDayFilter.morning,
-                                () {
-                              setSheetState(() =>
-                                  _timeOfDayFilter = TimeOfDayFilter.morning);
-                              setState(() {});
-                            }, cardColor, textColor, subtextColor),
-                            _buildFilterChip('Afternoon',
-                                _timeOfDayFilter == TimeOfDayFilter.afternoon,
-                                () {
-                              setSheetState(() =>
-                                  _timeOfDayFilter = TimeOfDayFilter.afternoon);
-                              setState(() {});
-                            }, cardColor, textColor, subtextColor),
-                            _buildFilterChip('Evening',
-                                _timeOfDayFilter == TimeOfDayFilter.evening,
-                                () {
-                              setSheetState(() =>
-                                  _timeOfDayFilter = TimeOfDayFilter.evening);
-                              setState(() {});
-                            }, cardColor, textColor, subtextColor),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Language filter (Mass only)
-                        if (_languageFilterApplies) ...[
-                          Text(
-                            'Language',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: subtextColor,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _buildFilterChip(
-                                  'Any', _languageFilter == LanguageFilter.any,
-                                  () {
-                                setSheetState(
-                                    () => _languageFilter = LanguageFilter.any);
-                                setState(() {});
-                              }, cardColor, textColor, subtextColor),
-                              _buildFilterChip('Spanish',
-                                  _languageFilter == LanguageFilter.spanish,
-                                  () {
-                                setSheetState(() =>
-                                    _languageFilter = LanguageFilter.spanish);
-                                setState(() {});
-                              }, cardColor, textColor, subtextColor),
-                              _buildFilterChip('Other language',
-                                  _languageFilter == LanguageFilter.other, () {
-                                setSheetState(() =>
-                                    _languageFilter = LanguageFilter.other);
-                                setState(() {});
-                              }, cardColor, textColor, subtextColor),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Weekday filter
-                        Text(
-                          'Day of week',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: subtextColor,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final day in [
-                              (7, 'Sun'),
-                              (1, 'Mon'),
-                              (2, 'Tue'),
-                              (3, 'Wed'),
-                              (4, 'Thu'),
-                              (5, 'Fri'),
-                              (6, 'Sat'),
-                            ])
-                              _buildFilterChip(
-                                day.$2,
-                                _selectedWeekdays.contains(day.$1),
-                                () {
-                                  setSheetState(() {
-                                    if (_selectedWeekdays.contains(day.$1)) {
-                                      _selectedWeekdays.remove(day.$1);
-                                    } else {
-                                      _selectedWeekdays.add(day.$1);
-                                    }
-                                  });
-                                  setState(() {});
-                                },
-                                cardColor,
-                                textColor,
-                                subtextColor,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Done button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.accentColor,
-                      foregroundColor: onAccentFor(widget.accentColor),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Done',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
+          if (_planBeyondBulletin)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                'From the regular schedule. Bulletins can change it '
+                'closer to the date.',
+                style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
+              ),
             ),
-          ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildFilterChip(
-    String label,
-    bool selected,
-    VoidCallback onTap,
-    Color cardColor,
-    Color textColor,
-    Color subtextColor,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? widget.accentColor : cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected
-                ? widget.accentColor
-                : subtextColor.withValues(alpha: 0.3),
+  void _clearFilters() {
+    setState(() {
+      _planDate = null;
+      _dayFilter = DayFilter.any;
+      _timeOfDayFilter = TimeOfDayFilter.any;
+      _place = null;
+      _calculateDistances();
+      _applySorting();
+    });
+  }
+
+  /// One height for the bar and its button, so they line up across their
+  /// middles and the row doesn't change height as the bar opens and closes.
+  /// A minimum, grown with the text: at large sizes the bar's words wrap and
+  /// it gets taller, and the button stays centred against it.
+  double _filterRowHeight(BuildContext context) =>
+      context.scaled(40, max: 56);
+
+  /// The filter row: the bar (when open) and, at the right — above the sort
+  /// tabs' A–Z end — the one button that drives it. Filter opens the bar;
+  /// once open it is Clear while anything is set and Close when nothing is.
+  Widget _buildFilterRow(Color subtextColor, bool isDark) {
+    final accent = widget.accentColor;
+    final (label, icon, onTap) = !_filtersOpen
+        ? ('Filter', Icons.filter_list, () => setState(() => _filtersOpen = true))
+        : _isFiltering
+            ? ('Clear', Icons.filter_list_off, _clearFilters)
+            : ('Close', Icons.expand_less,
+                () => setState(() => _filtersOpen = false));
+    final highlighted = _filtersOpen;
+    final button = Semantics(
+      button: true,
+      label: label == 'Filter' ? 'Show filters' : '$label filters',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          constraints: BoxConstraints(minHeight: _filterRowHeight(context)),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: highlighted
+                ? accent.withValues(alpha: 0.1)
+                : (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
+            // The bar's corners, so the two read as a pair.
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: highlighted
+                    ? accent.withValues(alpha: 0.5)
+                    : Colors.transparent),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: highlighted ? accent : subtextColor),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: highlighted ? accent : subtextColor,
+                ),
+              ),
+            ],
           ),
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            color: selected ? onAccentFor(widget.accentColor) : textColor,
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _filtersOpen
+                ? _buildFilterBar(subtextColor)
+                : const SizedBox.shrink(),
           ),
-        ),
+          const SizedBox(width: 8),
+          button,
+        ],
       ),
     );
   }
@@ -790,19 +742,29 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   }
 
   Widget _buildParishList() {
-    final canSortByDistance = widget.userLocation != null;
+    final canSortByDistance = _origin != null;
     final isDark = themeNotifier.isDarkMode;
     final cardColor = isDark ? kCardColorDark : kCardColor;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtextColor = isDark ? Colors.white70 : Colors.black54;
 
-    // Apply time filters first
+    // A planned place keeps to its own reach ("in Akron" is not "anywhere,
+    // Akron first"); near me keeps the whole list, nearest first, as before.
+    final place = _place;
+    final inPlace = place == null
+        ? _filteredParishes
+        : _filteredParishes.where((p) {
+            final d = _distances[FavoritesManager.keyFor(p)];
+            return d != null && d <= place.radiusMiles;
+          }).toList();
+
+    // Then the time filters
     final timeFilteredParishes = _hasActiveFilters()
-        ? _filteredParishes.where((p) => _matchesTimeFilters(p)).toList()
-        : _filteredParishes;
+        ? inPlace.where((p) => _matchesTimeFilters(p)).toList()
+        : inPlace;
 
     // Then filter by 2-day limit when in "Soonest" mode (unless showing all)
-    final displayedParishes = (_sortOrder == SortOrder.nearestAndSoonest &&
+    final displayedParishes = (_effectiveSort == SortOrder.nearestAndSoonest &&
             !_showAllParishes &&
             !_hasActiveFilters())
         ? timeFilteredParishes.where((p) {
@@ -815,80 +777,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
     return Column(
       children: [
-        // Results count and sort toggle
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: widget.accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  displayedParishes.length == 1
-                      ? '1 parish'
-                      : '${displayedParishes.length} parishes',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: widget.accentColor,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              // Filter button. Soonest already answers "what is on next", so
-              // the day/time filter has nothing left to narrow there — and a
-              // filter left over from another sort would silently reshape the
-              // list with no control on screen to say so, which is why
-              // switching to Soonest clears it below.
-              if (_sortOrder != SortOrder.nearestAndSoonest)
-                GestureDetector(
-                  onTap: _showFilterSheet,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _hasActiveFilters()
-                          ? widget.accentColor.withValues(alpha: 0.1)
-                          : (isDark ? Colors.white : Colors.grey)
-                              .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: _hasActiveFilters()
-                          ? Border.all(
-                              color: widget.accentColor.withValues(alpha: 0.5))
-                          : null,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.filter_list,
-                          size: 14,
-                          color: _hasActiveFilters()
-                              ? widget.accentColor
-                              : subtextColor,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Filter',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: _hasActiveFilters()
-                                ? widget.accentColor
-                                : subtextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        _buildFilterRow(subtextColor, isDark),
         // Sort selector — M3 segmented button replaces the older cycling toggle
         if (canSortByDistance)
           Padding(
@@ -921,20 +810,17 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                     icon: Icon(Icons.sort_by_alpha, size: 16),
                   ),
                 ],
-                selected: {_sortOrder},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _sortOrder = selection.first;
-                    _showAllParishes = false;
-                    if (_sortOrder == SortOrder.nearestAndSoonest) {
-                      _dayFilter = DayFilter.any;
-                      _timeOfDayFilter = TimeOfDayFilter.any;
-                      _languageFilter = LanguageFilter.any;
-                      _selectedWeekdays = {};
-                    }
-                    _applySorting();
-                  });
-                },
+                selected: {_effectiveSort},
+                // Greyed while filtering: see [_effectiveSort].
+                onSelectionChanged: _isFiltering
+                    ? null
+                    : (selection) {
+                        setState(() {
+                          _sortOrder = selection.first;
+                          _showAllParishes = false;
+                          _applySorting();
+                        });
+                      },
                 style: SegmentedButton.styleFrom(
                   selectedBackgroundColor:
                       widget.accentColor.withValues(alpha: 0.15),
@@ -947,6 +833,15 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                 ),
                 showSelectedIcon: false,
               ),
+            ),
+          ),
+        // Say why the tabs are grey, rather than leave them looking broken.
+        if (canSortByDistance && _isFiltering)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+            child: Text(
+              'Nearest first while filtering. Clear the filter to sort.',
+              style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
             ),
           ),
         // Parish list
@@ -1020,17 +915,20 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
                   distance: distance,
                   minutesUntilNext: minutesUntil,
                   showDistance:
-                      _sortOrder == SortOrder.distance && distance != null,
+                      _effectiveSort == SortOrder.distance && distance != null,
                   // Perpetual chapels are ranked at zero minutes above, which
                   // _formatTimeUntil renders as "Happening now" — exactly right
                   // for something open around the clock.
-                  showTimeUntil: _sortOrder == SortOrder.nearestAndSoonest &&
+                  showTimeUntil: _effectiveSort == SortOrder.nearestAndSoonest &&
                       minutesUntil != null,
-                  preferUpcoming: _sortOrder == SortOrder.nearestAndSoonest &&
+                  preferUpcoming: _effectiveSort == SortOrder.nearestAndSoonest &&
                       !_hasActiveFilters(),
                   filteredTimes: _hasActiveFilters()
                       ? _entriesMatchingFilters(parish)
                       : null,
+                  filteredLabel: _planDate == null
+                      ? 'Filtered'
+                      : _dayChoiceLabel((filter: DayFilter.any, date: _planDate)),
                   cardColor: cardColor,
                   textColor: textColor,
                   subtextColor: subtextColor,
@@ -1074,6 +972,10 @@ class _ParishCard extends StatelessWidget {
   /// first) — shown instead of the weekly sample so the card reflects what
   /// was asked for. Null when no filters are active.
   final List<ScheduleEntry>? filteredTimes;
+
+  /// What the row of [filteredTimes] is headed with: "Filtered", or the
+  /// planned date when the list is answering one.
+  final String filteredLabel;
   final Color cardColor;
   final Color textColor;
   final Color subtextColor;
@@ -1093,6 +995,7 @@ class _ParishCard extends StatelessWidget {
     this.showTimeUntil = false,
     this.preferUpcoming = false,
     this.filteredTimes,
+    this.filteredLabel = 'Filtered',
   });
 
   /// The trailing pill: distance in Nearest, time-until in Soonest, neither in
@@ -1428,7 +1331,7 @@ class _ParishCard extends StatelessWidget {
     // chips carry their own days).
     String? label;
     if (showingFiltered) {
-      label = 'Filtered';
+      label = filteredLabel;
     } else if (dayLabel != null) {
       // Only Soonest reaches here, and it carries the "Tomorrow morning" badge
       // already, so [showTimeUntil] is the normal path; the [dayLabel] fallback

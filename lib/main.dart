@@ -13,6 +13,8 @@ import 'services/parish_service.dart';
 import 'pages/parish_detail_page.dart';
 import 'pages/find_parish_near_me_page.dart';
 import 'pages/filtered_parish_list_page.dart';
+import 'widgets/plan_visit_card.dart';
+import 'utils/plan_place.dart';
 import 'widgets/custom_icons.dart';
 import 'widgets/today_hero_card.dart';
 import 'widgets/next_mass_tile.dart';
@@ -1385,11 +1387,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 30),
 
-                  // Looking For Section
-                  Text(
-                    'Looking for',
-                    style: AppText.titleLarge(color: _textColor),
-                  ),
+                  // Looking For Section. "Plan ahead" rides on its heading:
+                  // the same question as the three buttons below, for
+                  // another day or place.
+                  _buildLookingForHeading(),
                   const SizedBox(height: 16),
                   _buildQuickAccessButtons(),
                   const SizedBox(height: 30),
@@ -1670,6 +1671,92 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
       ],
     );
+  }
+
+  Widget _buildLookingForHeading() {
+    final heading = Text(
+      'Looking for',
+      style: AppText.titleLarge(color: _textColor),
+    );
+    final accent = primaryAccentFor(isDark: _isDark);
+    final plan = TextButton.icon(
+      onPressed: _showPlanner,
+      icon: Icon(Icons.event_note, size: 18, color: accent),
+      label: Text(
+        'Plan ahead',
+        style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: accent),
+      ),
+    );
+    // At large text the two can't share a row without squeezing the
+    // heading; the button drops beneath it instead.
+    if (context.prefersStackedLayout) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [heading, plan],
+      );
+    }
+    return Row(children: [Expanded(child: heading), plan]);
+  }
+
+  /// The planner sentence in a sheet over Home. Leaving it — to a parish or
+  /// to the full list — closes the sheet first, so Back lands on Home.
+  void _showPlanner() {
+    _searchFocusNode.unfocus();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _isDark ? kCardColorDark : kCardColor,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => Padding(
+        // The place word is a text field: keep it above the keyboard.
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom),
+        child: SingleChildScrollView(
+          child: PlanVisitCard(
+            framed: false,
+            parishes: _parishes,
+            userLocation: _userLocation,
+            onOpenParish: (p) {
+              Navigator.pop(sheetContext);
+              _pushPage(ParishDetailPage(parish: p));
+            },
+            onSeeAll: (filter, date, time, place) {
+              Navigator.pop(sheetContext);
+              _openPlanList(filter, date, time, place);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The planner's "See all": the ordinary filtered list, opened already
+  /// answering the card's question.
+  void _openPlanList(ParishFilter filter, DateTime date, TimeOfDayFilter time,
+      PlanPlace? place) {
+    final (title, accent) = switch (filter) {
+      ParishFilter.confession => (
+          'Confession Times',
+          violetAccentFor(isDark: _isDark)
+        ),
+      ParishFilter.adoration => (
+          'Adoration',
+          goldTextAccentFor(isDark: _isDark)
+        ),
+      _ => ('Mass Times', primaryAccentFor(isDark: _isDark)),
+    };
+    _pushPage(FilteredParishListPage(
+      filter: filter,
+      title: title,
+      accentColor: accent,
+      userLocation: _userLocation,
+      initialDate: date,
+      initialTimeOfDay: time,
+      initialPlace: place,
+    ));
   }
 
   Widget _buildQuickAccessButtons() {

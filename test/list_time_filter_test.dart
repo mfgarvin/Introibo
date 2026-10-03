@@ -65,7 +65,10 @@ const _early = 'Early Parish'; // 6–8 am
 const _perpetual = 'Perpetual Chapel Parish';
 const _all = [_longWindow, _noonStraddle, _lateNight, _early, _perpetual];
 
-Future<void> _pumpWithFilters(WidgetTester tester, List<String> chips) async {
+/// Each pick is (word on the filter bar, item in its menu): tap the word,
+/// then the choice.
+Future<void> _pumpWithFilters(
+    WidgetTester tester, List<(String, String)> picks) async {
   // Tall enough that every card is built — the list is lazy.
   tester.view.physicalSize = const Size(800, 4000);
   tester.view.devicePixelRatio = 1.0;
@@ -81,19 +84,17 @@ Future<void> _pumpWithFilters(WidgetTester tester, List<String> chips) async {
   ));
   await tester.pumpAndSettle();
 
-  // Soonest hides the filter button; A–Z shows every parish to filter.
+  // A–Z lists every parish, so nothing but the filter decides who shows.
   await tester.tap(find.text('A–Z'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Filter'));
   await tester.pumpAndSettle();
-  final sheet = find.byType(BottomSheet);
-  for (final chip in chips) {
-    await tester
-        .tap(find.descendant(of: sheet, matching: find.text(chip)).first);
+  for (final (word, choice) in picks) {
+    await tester.tap(find.text(word));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(choice).last);
     await tester.pumpAndSettle();
   }
-  await tester.tap(find.descendant(of: sheet, matching: find.text('Done')));
-  await tester.pumpAndSettle();
 }
 
 void _expectListed(List<String> shown) {
@@ -121,33 +122,97 @@ void main() {
     });
   });
 
+  testWidgets('the Filter button opens, closes, and clears the bar',
+      (tester) async {
+    await _pumpWithFilters(tester, []);
+    // Open, nothing set: the button offers to close.
+    expect(find.text('Any day'), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Any day'), findsNothing);
+    expect(find.text('Filter'), findsOneWidget);
+  });
+
+  testWidgets('opening the bar moves nothing: same height, same centre',
+      (tester) async {
+    await _pumpWithFilters(tester, []);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    Rect pill(String label) => tester.getRect(find
+        .ancestor(of: find.text(label), matching: find.byType(Container))
+        .first);
+    final closed = pill('Filter');
+    final tabsClosed = tester.getTopLeft(find.text('A–Z')).dy;
+
+    await tester.tap(find.text('Filter'));
+    await tester.pumpAndSettle();
+    final open = pill('Close');
+    final bar = tester.getRect(find
+        .ancestor(of: find.text('Any day'), matching: find.byType(Container))
+        .last);
+
+    expect(open.height, closed.height);
+    expect(open.center.dy, closeTo(closed.center.dy, 0.5));
+    expect(bar.center.dy, closeTo(open.center.dy, 0.5));
+    expect(bar.height, closeTo(open.height, 0.5));
+    // And the tabs below stay where they were.
+    expect(tester.getTopLeft(find.text('A–Z')).dy, closeTo(tabsClosed, 0.5));
+  });
+
+  testWidgets('filtering greys the sort tabs; Clear brings them back',
+      (tester) async {
+    SegmentedButton<SortOrder> tabs(WidgetTester t) =>
+        t.widget(find.byType(SegmentedButton<SortOrder>));
+
+    await _pumpWithFilters(tester, [('Any time', 'Afternoon')]);
+    expect(tabs(tester).onSelectionChanged, isNull);
+    expect(find.textContaining('Nearest first while filtering'),
+        findsOneWidget);
+
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    expect(tabs(tester).onSelectionChanged, isNotNull);
+    // The sort chosen before filtering is back.
+    expect(tabs(tester).selected, {SortOrder.alphabetical});
+    _expectListed(_all);
+  });
+
   testWidgets('Afternoon keeps windows that are open in it, not just started',
       (tester) async {
-    await _pumpWithFilters(tester, ['Afternoon']);
+    await _pumpWithFilters(tester, [('Any time', 'Afternoon')]);
     _expectListed([_longWindow, _noonStraddle, _perpetual]);
   });
 
   testWidgets('Morning keeps a window that runs on past noon', (tester) async {
-    await _pumpWithFilters(tester, ['Morning']);
+    await _pumpWithFilters(tester, [('Any time', 'Morning')]);
     _expectListed([_longWindow, _noonStraddle, _early, _perpetual]);
   });
 
   testWidgets('Evening keeps an all-day window that opened in the morning',
       (tester) async {
-    await _pumpWithFilters(tester, ['Evening']);
+    await _pumpWithFilters(tester, [('Any time', 'Evening')]);
     _expectListed([_longWindow, _perpetual]);
   });
 
   testWidgets('a perpetual chapel survives Today + Afternoon', (tester) async {
     // Only the perpetual chapel is asserted: whether the windowed chapels
     // are still on "today" depends on the hour the suite runs.
-    await _pumpWithFilters(tester, ['Today', 'Afternoon']);
+    await _pumpWithFilters(
+        tester, [('Any day', 'Today'), ('Any time', 'Afternoon')]);
     expect(find.text(_perpetual), findsOneWidget);
     expect(find.text(_early), findsNothing);
   });
 
-  testWidgets('a perpetual chapel survives a weekday filter', (tester) async {
-    await _pumpWithFilters(tester, ['Wed']);
+  testWidgets('a perpetual chapel survives a named day', (tester) async {
+    const names = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+      'Sunday',
+    ];
+    final inThreeDays = DateTime.now().add(const Duration(days: 3));
+    await _pumpWithFilters(
+        tester, [('Any day', names[inThreeDays.weekday - 1])]);
     expect(find.text(_perpetual), findsOneWidget);
   });
 }
