@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/parish.dart';
 import '../theme/app_text.dart';
@@ -42,9 +43,19 @@ String dayChoiceLabel(DateTime day, DateTime today) =>
 /// whole surface, so it is bold and underlined to stand out from the prose
 /// around it. In the [compact] bar over a list, every word is a control and
 /// the caret already says so: bold *and* underlined on every one was a hard
-/// line to read, so it is a size larger, semi-bold, and plain.
+/// line to read, so it is a size larger, regular weight, and plain — the
+/// bubble does the setting-apart.
+///
+/// Built fresh rather than as `AppText.bodyLarge(...).copyWith(fontWeight:)`:
+/// google_fonts picks the font *file* by the weight it was asked for, so a
+/// copyWith only relabels a style still drawn in bold Inter.
 TextStyle wordStyle(Color accent, {required bool compact}) => compact
-    ? AppText.bodyLarge(color: accent).copyWith(fontWeight: FontWeight.w600)
+    ? GoogleFonts.inter(
+        fontSize: 15,
+        fontWeight: FontWeight.w400,
+        height: 1.2,
+        color: accent,
+      )
     : AppText.bodyLarge(color: accent).copyWith(
         fontWeight: FontWeight.w700,
         decoration: TextDecoration.underline,
@@ -53,7 +64,7 @@ TextStyle wordStyle(Color accent, {required bool compact}) => compact
 
 /// The bubble a [compact] word sits in: a shade darker than the bar
 /// behind it, so each control reads as its own thing.
-Color wordBubbleColor(Color accent) => accent.withValues(alpha: 0.14);
+Color wordBubbleColor(Color accent) => accent.withValues(alpha: 0.10);
 
 const _bubbleRadius = BorderRadius.all(Radius.circular(8));
 
@@ -100,8 +111,8 @@ class MenuWord<T> extends StatelessWidget {
       ],
       child: compact
           ? Container(
-              // A comfortable thumb target: ~36px tall at 1x.
-              padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+              // ~32px tall at 1x: slim, still a fair thumb target.
+              padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
               decoration: BoxDecoration(
                 color: wordBubbleColor(accent),
                 borderRadius: _bubbleRadius,
@@ -306,7 +317,7 @@ class _PlaceWordState extends State<PlaceWord> {
           decoration: InputDecoration(
             isDense: true,
             contentPadding: widget.compact
-                ? const EdgeInsets.fromLTRB(12, 9, 0, 9)
+                ? const EdgeInsets.fromLTRB(12, 7, 0, 7)
                 : const EdgeInsets.symmetric(vertical: 4),
             hintText: 'city or ZIP',
             hintStyle: base.copyWith(color: widget.hintColor),

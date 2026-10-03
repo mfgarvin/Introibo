@@ -5,7 +5,6 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/parish.dart';
 import '../services/parish_service.dart';
-import '../theme/app_text.dart';
 import '../utils/layout_scale.dart';
 import '../utils/plan_place.dart';
 import '../utils/schedule_parser.dart';
@@ -515,9 +514,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
   /// sheet: a filter you can't see is one you forget is on. It sits above the
   /// list rather than in it, so it stays put while the list scrolls, and
   /// changing the sort leaves it alone.
-  /// The bar's first line: when — day and part of the day. Short enough to
-  /// share a row with the Filter button on a phone, so that row has one
-  /// height whether the bar is open or not.
+  /// The panel's first line: when — day and part of the day.
   Widget _whenWords(Color subtextColor) {
     final accent = widget.accentColor;
     final current = (filter: _dayFilter, date: _planDate);
@@ -558,31 +555,6 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     );
   }
 
-  /// The bar's second line: where. "near" and its field always share a line
-  /// — split, the word reads as a stray — and the field takes the width left.
-  Widget _whereWords(Color subtextColor) {
-    final prose = AppText.bodyLarge(color: subtextColor)
-        .copyWith(fontWeight: FontWeight.w400);
-    return Row(
-      children: [
-        Text('near', style: prose),
-        const SizedBox(width: 8),
-        Expanded(
-          child: PlaceWord(
-            parishes: _parishes,
-            place: _place,
-            hasLocation: widget.userLocation != null,
-            onChanged: _setPlace,
-            accent: widget.accentColor,
-            hintColor: subtextColor,
-            compact: true,
-            width: double.infinity,
-          ),
-        ),
-      ],
-    );
-  }
-
   void _clearFilters() {
     setState(() {
       _planDate = null;
@@ -594,17 +566,17 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
     });
   }
 
-  /// One height for the bar and its button, so they line up across their
-  /// middles and the row doesn't change height as the bar opens and closes.
-  /// A minimum, grown with the text: at large sizes the bar's words wrap and
-  /// it gets taller, and the button stays centred against it.
+  /// The Filter pill's height: the sort tabs' own. Material draws those 40px
+  /// tall less the theme's density adjustment (compact on desktop), and does
+  /// *not* grow them with the text scale — so neither does this. A minimum
+  /// only: a label that needs more room at large text still gets it.
   double _filterRowHeight(BuildContext context) =>
-      context.scaled(40, max: 56);
+      40 + Theme.of(context).visualDensity.baseSizeAdjustment.dy;
 
-  /// The filter row: the bar (when open) and, at the right — above the sort
-  /// tabs' A–Z end — the one button that drives it. Filter opens the bar;
-  /// once open it is Clear while anything is set and Close when nothing is.
-  Widget _buildFilterRow(Color subtextColor, bool isDark) {
+  /// The Filter button: Filter opens the bar; once open it is Clear while
+  /// anything is set and Close when nothing is. A pill the height of the
+  /// sort tabs beside it, so the two read as one line of controls.
+  Widget _buildFilterButton(Color subtextColor) {
     final accent = widget.accentColor;
     final (label, icon, onTap) = !_filtersOpen
         ? ('Filter', Icons.filter_list, () => setState(() => _filtersOpen = true))
@@ -613,7 +585,7 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
             : ('Close', Icons.expand_less,
                 () => setState(() => _filtersOpen = false));
     final highlighted = _filtersOpen;
-    final button = Semantics(
+    return Semantics(
       button: true,
       label: label == 'Filter' ? 'Show filters' : '$label filters',
       excludeSemantics: true,
@@ -625,25 +597,25 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: highlighted
-                ? accent.withValues(alpha: 0.1)
-                : (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
-            // The bar's corners, so the two read as a pair.
-            borderRadius: BorderRadius.circular(12),
+                ? accent.withValues(alpha: 0.12)
+                : Colors.transparent,
+            // Stadium, with the tabs' own outline, so it reads as their kin.
+            borderRadius: BorderRadius.circular(100),
             border: Border.all(
                 color: highlighted
                     ? accent.withValues(alpha: 0.5)
-                    : Colors.transparent),
+                    : Theme.of(context).colorScheme.outline),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: highlighted ? accent : subtextColor),
+              Icon(icon, size: 16, color: highlighted ? accent : subtextColor),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: highlighted ? accent : subtextColor,
                 ),
               ),
@@ -652,51 +624,142 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
         ),
       ),
     );
-    // One box, tinted only when open. Its padding is the same either way, so
-    // the button sits at the same spot open or closed; opening adds the
-    // "near" line beneath and nothing else moves.
+  }
+
+  Widget _buildSortAndFilterRow(
+      Color subtextColor, bool isDark, bool canSortByDistance) {
+    final button = _buildFilterButton(subtextColor);
+    if (!canSortByDistance) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+        child: Align(alignment: Alignment.centerRight, child: button),
+      );
+    }
+    // No icons on the segments: beside the Filter pill there is room for the
+    // words or the pictures, and with both "Soonest" broke across two lines.
+    final tabs = SegmentedButton<SortOrder>(
+          // Three segments across a phone give each about a third of the
+          // width, which at large text sizes is narrower than the word
+          // inside it — "Soonest" wrapped to "Soone / st". Stacked, each
+          // segment gets the full width instead.
+          direction: context.prefersStackedLayout
+              ? Axis.vertical
+              : Axis.horizontal,
+          segments: const [
+            ButtonSegment(
+              value: SortOrder.nearestAndSoonest,
+              label: Text('Soonest'),
+            ),
+            ButtonSegment(
+              value: SortOrder.distance,
+              label: Text('Nearest'),
+            ),
+            ButtonSegment(
+              value: SortOrder.alphabetical,
+              label: Text('A–Z'),
+            ),
+          ],
+          selected: {_effectiveSort},
+          // Greyed while filtering: see [_effectiveSort].
+          onSelectionChanged: _isFiltering
+              ? null
+              : (selection) {
+                  setState(() {
+                    _sortOrder = selection.first;
+                    _showAllParishes = false;
+                    _applySorting();
+                  });
+                },
+          style: SegmentedButton.styleFrom(
+            selectedBackgroundColor:
+                widget.accentColor.withValues(alpha: 0.15),
+            selectedForegroundColor: widget.accentColor,
+            foregroundColor: subtextColor,
+            textStyle: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          showSelectedIcon: false,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: Row(
+        // Level with the tabs; when large text stacks them, at their top.
+        crossAxisAlignment: context.prefersStackedLayout
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            // Greyed while filtering (see [_effectiveSort]). A tap on them
+            // then says why, rather than a standing line of small print.
+            child: _isFiltering
+                ? GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(const SnackBar(
+                        content: Text(
+                            'Sorted nearest first while filtering. '
+                            'Clear the filter to change the sort.'),
+                        duration: Duration(seconds: 3),
+                      )),
+                    child: tabs,
+                  )
+                : tabs,
+          ),
+          const SizedBox(width: 8),
+          button,
+        ],
+      ),
+    );
+  }
+
+  /// The filter itself, beneath the row that opened it: when on one line,
+  /// where on the next, "near" never split from its field.
+  Widget _buildFilterPanel(Color subtextColor) {
+    // Fresh, not AppText.bodyLarge().copyWith: see [wordStyle].
+    final prose = GoogleFonts.inter(
+        fontSize: 15, fontWeight: FontWeight.w400, color: subtextColor);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: _filtersOpen
-              ? accent.withValues(alpha: 0.08)
-              : Colors.transparent,
+          color: widget.accentColor.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ConstrainedBox(
-              constraints:
-                  BoxConstraints(minHeight: _filterRowHeight(context)),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _filtersOpen
-                        ? _whenWords(subtextColor)
-                        : const SizedBox.shrink(),
-                  ),
-                  const SizedBox(width: 8),
-                  button,
-                ],
-              ),
-            ),
-            if (_filtersOpen) ...[
-              const SizedBox(height: 8),
-              _whereWords(subtextColor),
-              if (_planBeyondBulletin)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    'From the regular schedule. Bulletins can change it '
-                    'closer to the date.',
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: subtextColor),
-                  ),
+            _whenWords(subtextColor),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text('near', style: prose),
+                const SizedBox(width: 8),
+                PlaceWord(
+                  parishes: _parishes,
+                  place: _place,
+                  hasLocation: widget.userLocation != null,
+                  onChanged: _setPlace,
+                  accent: widget.accentColor,
+                  hintColor: subtextColor,
+                  compact: true,
+                  width: 180,
                 ),
-            ],
+              ],
+            ),
+            if (_planBeyondBulletin)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'From the regular schedule. Bulletins can change it '
+                  'closer to the date.',
+                  style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
+                ),
+              ),
           ],
         ),
       ),
@@ -799,73 +862,11 @@ class _FilteredParishListPageState extends State<FilteredParishListPage> {
 
     return Column(
       children: [
-        _buildFilterRow(subtextColor, isDark),
-        // Sort selector — M3 segmented button replaces the older cycling toggle
-        if (canSortByDistance)
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20).copyWith(bottom: 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<SortOrder>(
-                // Three segments across a phone give each about a third of the
-                // width, which at large text sizes is narrower than the word
-                // inside it — "Soonest" wrapped to "Soone / st". Stacked, each
-                // segment gets the full width instead.
-                direction: context.prefersStackedLayout
-                    ? Axis.vertical
-                    : Axis.horizontal,
-                segments: const [
-                  ButtonSegment(
-                    value: SortOrder.nearestAndSoonest,
-                    label: Text('Soonest'),
-                    icon: Icon(Icons.schedule, size: 16),
-                  ),
-                  ButtonSegment(
-                    value: SortOrder.distance,
-                    label: Text('Nearest'),
-                    icon: Icon(Icons.near_me, size: 16),
-                  ),
-                  ButtonSegment(
-                    value: SortOrder.alphabetical,
-                    label: Text('A–Z'),
-                    icon: Icon(Icons.sort_by_alpha, size: 16),
-                  ),
-                ],
-                selected: {_effectiveSort},
-                // Greyed while filtering: see [_effectiveSort].
-                onSelectionChanged: _isFiltering
-                    ? null
-                    : (selection) {
-                        setState(() {
-                          _sortOrder = selection.first;
-                          _showAllParishes = false;
-                          _applySorting();
-                        });
-                      },
-                style: SegmentedButton.styleFrom(
-                  selectedBackgroundColor:
-                      widget.accentColor.withValues(alpha: 0.15),
-                  selectedForegroundColor: widget.accentColor,
-                  foregroundColor: subtextColor,
-                  textStyle: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                showSelectedIcon: false,
-              ),
-            ),
-          ),
-        // Say why the tabs are grey, rather than leave them looking broken.
-        if (canSortByDistance && _isFiltering)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-            child: Text(
-              'Nearest first while filtering. Clear the filter to sort.',
-              style: GoogleFonts.inter(fontSize: 12, color: subtextColor),
-            ),
-          ),
+        // Sort tabs and the Filter button share one line: a closed filter
+        // costs no height at all, and the button never moves as the bar
+        // opens beneath it.
+        _buildSortAndFilterRow(subtextColor, isDark, canSortByDistance),
+        if (_filtersOpen) _buildFilterPanel(subtextColor),
         // Parish list
         Expanded(
           child: ListView.builder(

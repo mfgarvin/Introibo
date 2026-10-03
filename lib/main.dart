@@ -1681,6 +1681,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final accent = primaryAccentFor(isDark: _isDark);
     final plan = TextButton.icon(
       onPressed: _showPlanner,
+      // Sized to its text, not to Material's 48px minimum: that minimum made
+      // the heading row ~19px taller than the heading, and the difference
+      // showed up as white space above the Looking-for buttons.
+      style: TextButton.styleFrom(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+      ),
       icon: Icon(Icons.event_note, size: 18, color: accent),
       label: Text(
         'Plan ahead',

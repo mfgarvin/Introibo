@@ -249,16 +249,24 @@ class _PlanVisitCardState extends State<PlanVisitCard> {
               width: 112,
               child: Text(
                 when,
-                style: AppText.body(color: _accent)
-                    .copyWith(fontWeight: FontWeight.w700),
+                style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                    color: _accent),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 hit.parish.name,
-                style: AppText.body(color: textColor)
-                    .copyWith(fontWeight: FontWeight.w600),
+                // Fresh, so the weight picks the semibold file (see
+                // wordStyle in plan_words.dart).
+                style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                    color: textColor),
               ),
             ),
             if (hit.miles != null) ...[

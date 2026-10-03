@@ -148,30 +148,44 @@ void main() {
     expect(open.dx, closeTo(closed.dx, 6)); // "Close" vs "Filter" width
   });
 
-  testWidgets('on a phone: when on one line with the button, where below',
+  testWidgets('on a phone: Filter shares the sort line; when, then where',
       (tester) async {
     await _pumpWithFilters(tester, []);
     // A Pixel 9 Pro is 412 logical pixels wide.
     tester.view.physicalSize = const Size(412, 915);
     await tester.pumpAndSettle();
 
+    final button = tester.getCenter(find.text('Close'));
+    final az = tester.getCenter(find.text('A–Z'));
+    expect(button.dy, closeTo(az.dy, 2), reason: 'button beside the tabs');
+
     final day = tester.getCenter(find.text('Any day'));
     final time = tester.getCenter(find.text('Any time'));
-    final button = tester.getCenter(find.text('Close'));
     expect(time.dy, closeTo(day.dy, 0.5), reason: 'day and time share a line');
-    expect(button.dy, closeTo(day.dy, 2), reason: 'and the button with them');
+    expect(day.dy, greaterThan(az.dy), reason: 'the panel opens beneath');
 
     final near = tester.getCenter(find.text('near'));
     final field = tester.getCenter(find.byType(TextField));
     expect(field.dy, closeTo(near.dy, 2), reason: '"near" stays with its field');
     expect(near.dy, greaterThan(day.dy));
 
-    // Thumb-sized bubbles.
     final bubble = tester.getSize(find
         .ancestor(of: find.text('Any day'), matching: find.byType(Container))
         .first);
-    expect(bubble.height, greaterThanOrEqualTo(34));
+    expect(bubble.height, greaterThanOrEqualTo(30));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('closed, the filter costs no height of its own', (tester) async {
+    await _pumpWithFilters(tester, []);
+    final tabsOpen = tester.getCenter(find.text('A–Z')).dy;
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Any day'), findsNothing);
+    // The tabs don't move when the panel goes; the list moves up instead.
+    expect(tester.getCenter(find.text('A–Z')).dy, closeTo(tabsOpen, 0.5));
+    expect(tester.getCenter(find.text('Filter')).dy,
+        closeTo(tester.getCenter(find.text('A–Z')).dy, 2));
   });
 
   testWidgets('tapping away closes the place suggestions', (tester) async {
@@ -196,8 +210,12 @@ void main() {
 
     await _pumpWithFilters(tester, [('Any time', 'Afternoon')]);
     expect(tabs(tester).onSelectionChanged, isNull);
-    expect(find.textContaining('Nearest first while filtering'),
+    // Tapping a greyed tab says why, instead of doing nothing.
+    await tester.tap(find.text('Soonest'));
+    await tester.pump();
+    expect(find.textContaining('Clear the filter to change the sort'),
         findsOneWidget);
+    await tester.pumpAndSettle(const Duration(seconds: 4));
 
     await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
